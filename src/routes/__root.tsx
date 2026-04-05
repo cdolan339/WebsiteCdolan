@@ -338,7 +338,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
   }, [location.pathname, mounted])
 
   if (!mounted) {
-    return <>{children}</>
+    // Show public pages immediately, hide protected pages until auth is confirmed
+    if (hideNav) return <>{children}</>
+    return <div style={{ background: '#0f0c29', minHeight: '100vh' }} />
   }
 
   if (!hideNav && !isAuthenticated()) {

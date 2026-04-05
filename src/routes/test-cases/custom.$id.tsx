@@ -285,9 +285,9 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
       `}</style>
       <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 py-12 relative z-10">
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
             <ArrowLeft size={16} /> Back to Test Cases
           </Link>
@@ -412,9 +412,9 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
     <div className="min-h-screen text-white overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
       <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 py-12 relative z-10">
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
             <ArrowLeft size={16} /> Back to Test Cases
           </Link>
