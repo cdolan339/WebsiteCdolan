@@ -122,7 +122,7 @@ function ProjectSelector({
           style={{
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             background: 'rgba(15,12,41,0.97)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            border: '1px solid rgba(0,210,255,0.25)',
             backdropFilter: 'blur(16px)',
           }}
         >
@@ -131,14 +131,14 @@ function ProjectSelector({
             onMouseDown={() => { onSelect(null); setOpen(false) }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
             style={{
-              background: activeProjectId === null ? 'rgba(106,17,203,0.2)' : 'transparent',
-              color: activeProjectId === null ? '#fff' : 'rgba(255,255,255,0.7)',
+              background: activeProjectId === null ? 'rgba(0,210,255,0.15)' : 'transparent',
+              color: activeProjectId === null ? '#00d2ff' : 'rgba(255,255,255,0.7)',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
             }}
-            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
             onMouseLeave={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'transparent' }}
           >
-            <FolderOpen size={15} className="opacity-50" />
+            <FolderOpen size={15} style={{ color: '#00d2ff', opacity: 0.7 }} />
             All Projects
           </button>
 
@@ -150,12 +150,12 @@ function ProjectSelector({
                 onMouseDown={() => { onSelect(project.id); setOpen(false) }}
                 className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
                 style={{
-                  background: activeProjectId === project.id ? 'rgba(106,17,203,0.2)' : 'transparent',
-                  color: activeProjectId === project.id ? '#fff' : 'rgba(255,255,255,0.7)',
+                  background: activeProjectId === project.id ? 'rgba(0,210,255,0.15)' : 'transparent',
+                  color: activeProjectId === project.id ? '#00d2ff' : 'rgba(255,255,255,0.7)',
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}
-                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'rgba(106,17,203,0.2)' : 'transparent' }}
+                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
+                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'rgba(0,210,255,0.15)' : 'transparent' }}
               >
                 <span className="truncate">{project.name}</span>
               </button>
