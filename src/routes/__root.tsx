@@ -10,7 +10,7 @@ import '../styles.css'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
-    const publicPaths = ['/login', '/403', '/404']
+    const publicPaths = ['/', '/login', '/403', '/404']
     if (publicPaths.includes(location.pathname)) return
     if (typeof window !== 'undefined' && !isAuthenticated()) {
       throw redirect({ to: '/403' })
