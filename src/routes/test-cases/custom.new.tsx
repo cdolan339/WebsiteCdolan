@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, X, Plus } from 'lucide-react'
-import { useState, useRef } from 'react'
+import { ArrowLeft, X, Plus, FolderOpen, ChevronDown } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 import { createCustomTestCase, createCustomTC, addCustomTestCase, type CustomTestCase, type CustomTC } from '@/lib/customTestCases'
+import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 
 export const Route = createFileRoute('/test-cases/custom/new')({
   component: NewTestCase,
@@ -139,10 +140,94 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
   )
 }
 
+// ── Project picker ───────────────────────────────────────────────────────────
+
+function ProjectPicker({ projectId, onChange, projects }: { projectId: number | null; onChange: (id: number | null) => void; projects: Project[] }) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const selected = projects.find((p) => p.id === projectId)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: selected ? '#fff' : 'rgba(255,255,255,0.5)',
+        }}
+      >
+        <FolderOpen size={14} className="opacity-60" />
+        <span className="truncate max-w-[200px]">{selected?.name ?? 'No Project'}</span>
+        <ChevronDown size={13} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl overflow-hidden"
+          style={{
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            background: 'rgba(15,12,41,0.97)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <button
+            onMouseDown={() => { onChange(null); setOpen(false) }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+            style={{
+              background: projectId === null ? 'rgba(106,17,203,0.2)' : 'transparent',
+              color: projectId === null ? '#fff' : 'rgba(255,255,255,0.7)',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+            }}
+            onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+            onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
+          >
+            <FolderOpen size={14} className="opacity-50" />
+            No Project
+          </button>
+          <div className="max-h-48 overflow-y-auto">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                onMouseDown={() => { onChange(p.id); setOpen(false) }}
+                className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
+                style={{
+                  background: projectId === p.id ? 'rgba(106,17,203,0.2)' : 'transparent',
+                  color: projectId === p.id ? '#fff' : 'rgba(255,255,255,0.7)',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+                onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'rgba(106,17,203,0.2)' : 'transparent' }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 function NewTestCase() {
   const navigate = useNavigate()
+  const { projects } = useProjects()
+  const [activeProjectId] = useActiveProjectId()
 
   const [draft, setDraft] = useState<Omit<CustomTestCase, 'id' | 'createdAt' | 'updatedAt'>>({
     title: '',
@@ -152,8 +237,16 @@ function NewTestCase() {
     preconditions: [],
     priority: 'medium',
     testCases: [],
+    projectId: null,
   })
   const [titleError, setTitleError] = useState<string | null>(null)
+
+  // Default to whatever project is currently active on the homepage
+  useEffect(() => {
+    if (activeProjectId !== null && draft.projectId === null) {
+      setDraft((prev) => ({ ...prev, projectId: activeProjectId }))
+    }
+  }, [activeProjectId])
 
   const patch = (fields: Partial<typeof draft>) => {
     setDraft((prev) => ({ ...prev, ...fields }))
@@ -164,7 +257,7 @@ function NewTestCase() {
     const error = validateTitle(draft.title)
     if (error) { setTitleError(error); return }
 
-    const tc = { ...createCustomTestCase(), ...draft, title: draft.title.trim() }
+    const tc = { ...createCustomTestCase(), ...draft, title: draft.title.trim(), projectId: draft.projectId }
     addCustomTestCase(tc)
     navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })
   }
@@ -234,6 +327,16 @@ function NewTestCase() {
               {opt.label}
             </button>
           ))}
+        </div>
+
+        {/* Project */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <span className="text-sm text-muted-foreground">Project:</span>
+          <ProjectPicker
+            projectId={draft.projectId ?? null}
+            onChange={(id) => patch({ projectId: id })}
+            projects={projects}
+          />
         </div>
 
         {/* Tags */}

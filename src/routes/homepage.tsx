@@ -101,16 +101,19 @@ function ProjectSelector({
     <div ref={wrapperRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+        className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
         style={{
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          color: activeProject ? '#fff' : 'rgba(255,255,255,0.5)',
+          background: activeProject
+            ? 'linear-gradient(45deg, rgba(106,17,203,0.5), rgba(0,210,255,0.5))'
+            : 'linear-gradient(45deg, rgba(106,17,203,0.3), rgba(0,210,255,0.3))',
+          border: '1px solid rgba(106,17,203,0.4)',
+          color: '#fff',
+          boxShadow: '0 2px 12px rgba(106,17,203,0.2)',
         }}
       >
-        <FolderOpen size={15} className="opacity-60" />
+        <FolderOpen size={15} style={{ color: '#00d2ff' }} />
         <span className="truncate max-w-[200px]">{activeProject?.name ?? 'All Projects'}</span>
-        <ChevronDown size={14} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

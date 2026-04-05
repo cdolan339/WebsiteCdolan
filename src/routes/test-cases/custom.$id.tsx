@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -15,6 +15,7 @@ import {
   loadExpectedMap,
   type TestStatus,
 } from '@/lib/useTestStatus'
+import { useProjects, type Project } from '@/lib/projects'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -55,15 +56,6 @@ function save(tc: CustomTestCase, patch: Partial<CustomTestCase>) {
 
 // ── Shared small components ───────────────────────────────────────────────────
 
-function PriorityBadge({ priority }: { priority: string }) {
-  const opt = PRIORITY_OPTIONS.find((o) => o.value === priority) ?? PRIORITY_OPTIONS[1]
-  return (
-    <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={opt.style}>
-      {opt.label}
-    </span>
-  )
-}
-
 // Dropdown used for status and priority in view mode
 type DropdownProps = {
   label: string
@@ -102,6 +94,91 @@ function Dropdown({ label, options, current, badgeClass, badgeStyle, onSelect }:
                 {opt.label}
               </button>
             ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Project picker ───────────────────────────────────────────────────────────
+
+function ProjectPicker({ projectId, onChange, projects }: { projectId: number | null; onChange: (id: number | null) => void; projects: Project[] }) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const selected = projects.find((p) => p.id === projectId)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={wrapperRef} className="relative" style={{ display: 'inline-block' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none"
+        style={{
+          background: 'rgba(106,17,203,0.15)',
+          border: '1px solid rgba(106,17,203,0.3)',
+          color: selected ? '#c084fc' : 'rgba(255,255,255,0.5)',
+        }}
+      >
+        <FolderOpen size={13} className="opacity-60" />
+        <span className="truncate max-w-[180px]">{selected?.name ?? 'No Project'}</span>
+        <ChevronDown size={12} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
+          <div
+            className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl overflow-hidden"
+            style={{
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              background: 'rgba(15,12,41,0.97)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <button
+              onClick={() => { onChange(null); setOpen(false) }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{
+                background: projectId === null ? 'rgba(106,17,203,0.2)' : 'transparent',
+                color: projectId === null ? '#fff' : 'rgba(255,255,255,0.7)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+              onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+              onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
+            >
+              <FolderOpen size={14} className="opacity-50" />
+              No Project
+            </button>
+            <div className="max-h-48 overflow-y-auto">
+              {projects.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => { onChange(p.id); setOpen(false) }}
+                  className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
+                  style={{
+                    background: projectId === p.id ? 'rgba(106,17,203,0.2)' : 'transparent',
+                    color: projectId === p.id ? '#fff' : 'rgba(255,255,255,0.7)',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                  onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                  onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'rgba(106,17,203,0.2)' : 'transparent' }}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       )}
@@ -266,6 +343,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
   const slug = `custom:${tc.id}`
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
+  const { projects } = useProjects()
 
   useEffect(() => {
     const stored = loadExpectedMap()
@@ -325,6 +403,12 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
                 <Check size={13} /> {passedCount} passed
               </span>
             )}
+            {/* Project assignment */}
+            <ProjectPicker
+              projectId={tc.projectId ?? null}
+              onChange={(id) => updateCustomTestCase({ ...tc, projectId: id, updatedAt: new Date().toISOString() })}
+              projects={projects}
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
@@ -369,9 +453,20 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
             <div key={sub.id}>
               {i > 0 && <hr className="border-border my-6" />}
               <h2>{sub.name || `TC-0${i + 1}`}</h2>
-              <p className="flex items-center gap-2 mb-3">
-                <strong>Priority:</strong> <PriorityBadge priority={sub.priority} />
-              </p>
+              <div className="flex items-center gap-2 mb-3">
+                <strong>Priority:</strong>
+                <Dropdown
+                  label={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
+                  options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
+                  current={sub.priority}
+                  badgeClass="rounded-full font-medium capitalize text-xs px-2 py-0.5"
+                  badgeStyle={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.style}
+                  onSelect={(v) => {
+                    const updatedSubs = tc.testCases.map((s) => s.id === sub.id ? { ...s, priority: v as CustomTC['priority'] } : s)
+                    updateCustomTestCase({ ...tc, testCases: updatedSubs, updatedAt: new Date().toISOString() })
+                  }}
+                />
+              </div>
               {sub.steps.filter(Boolean).length > 0 && (
                 <>
                   <p><strong>Steps:</strong></p>
@@ -398,6 +493,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
 // ── Edit mode ─────────────────────────────────────────────────────────────────
 
 function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
+  const { projects } = useProjects()
   const patch = (fields: Partial<CustomTestCase>) => save(tc, fields)
 
   const addPrecondition = () => patch({ preconditions: [...tc.preconditions, ''] })
@@ -463,6 +559,16 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
               {opt.label}
             </button>
           ))}
+        </div>
+
+        {/* Project */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <span className="text-sm text-muted-foreground">Project:</span>
+          <ProjectPicker
+            projectId={tc.projectId ?? null}
+            onChange={(id) => patch({ projectId: id })}
+            projects={projects}
+          />
         </div>
 
         {/* Tags */}
