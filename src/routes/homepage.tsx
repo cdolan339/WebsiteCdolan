@@ -5,6 +5,7 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/h
 import { Calendar, CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase } from '@/lib/customTestCases'
+import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { useState, useCallback } from 'react'
 import {
   DndContext,
@@ -359,11 +360,7 @@ function TestCaseIndex() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0c29' }}>
-        <div className="text-white/60 text-sm font-medium" style={{ fontFamily: "'Poppins', sans-serif" }}>Loading test cases…</div>
-      </div>
-    )
+    return <LoadingCurtain visible={true} message="Loading Test Cases" />
   }
 
   return (

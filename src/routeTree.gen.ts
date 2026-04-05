@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomepageRouteImport } from './routes/homepage'
@@ -19,6 +20,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TestCasesCustomNewRouteImport } from './routes/test-cases/custom.new'
 import { Route as TestCasesCustomIdRouteImport } from './routes/test-cases/custom.$id'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
+  '/settings': typeof SettingsRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
+  '/settings': typeof SettingsRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
+  '/settings': typeof SettingsRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/projects'
+    | '/settings'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/projects'
+    | '/settings'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/projects'
+    | '/settings'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   fileRoutesById: FileRoutesById
@@ -143,12 +155,20 @@ export interface RootRouteChildren {
   HomepageRoute: typeof HomepageRoute
   LoginRoute: typeof LoginRoute
   ProjectsRoute: typeof ProjectsRoute
+  SettingsRoute: typeof SettingsRoute
   TestCasesCustomIdRoute: typeof TestCasesCustomIdRoute
   TestCasesCustomNewRoute: typeof TestCasesCustomNewRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects': {
       id: '/projects'
       path: '/projects'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomepageRoute: HomepageRoute,
   LoginRoute: LoginRoute,
   ProjectsRoute: ProjectsRoute,
+  SettingsRoute: SettingsRoute,
   TestCasesCustomIdRoute: TestCasesCustomIdRoute,
   TestCasesCustomNewRoute: TestCasesCustomNewRoute,
 }

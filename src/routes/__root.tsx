@@ -6,6 +6,7 @@ import { clearCustomCache } from '@/lib/customTestCases'
 import { clearCaches } from '@/lib/useTestStatus'
 import { api } from '@/lib/api'
 import { Search, Settings, LogOut, Clock, CheckCheck } from 'lucide-react'
+import { LoadingCurtain } from '@/components/LoadingCurtain'
 import '../styles.css'
 
 export const Route = createRootRoute({
@@ -168,15 +169,22 @@ function ProfileButton() {
     setOpen((o) => !o)
   }
 
+  const [loggingOut, setLoggingOut] = useState(false)
+
   const handleLogout = () => {
     setOpen(false)
-    logout()
-    clearCustomCache()
-    clearCaches()
-    navigate({ to: '/login' })
+    setLoggingOut(true)
+    setTimeout(() => {
+      logout()
+      clearCustomCache()
+      clearCaches()
+      navigate({ to: '/login' })
+    }, 600)
   }
 
   return (
+    <>
+    <LoadingCurtain visible={loggingOut} message="Signing Out" />
     <div className="relative">
       <button
         ref={buttonRef}
@@ -214,7 +222,7 @@ function ProfileButton() {
 
           <div className="py-1">
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => { setOpen(false); navigate({ to: '/settings' }) }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white transition-colors"
               style={{ background: 'transparent' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
@@ -240,6 +248,7 @@ function ProfileButton() {
         </div>
       , document.body)}
     </div>
+    </>
   )
 }
 
@@ -255,10 +264,9 @@ function NavBar() {
 
   return (
     <nav className="w-full py-3" style={{ background: 'rgba(106,17,203,0.25)', borderBottom: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
-      <div className="max-w-4xl mx-auto px-4 flex items-center justify-center relative">
-
-        {/* Centered links */}
-        <ul className="hidden md:flex items-center gap-6">
+      {/* ── Desktop ────────────────────────────────── */}
+      <div className="max-w-4xl mx-auto px-4 hidden md:flex items-center justify-center relative">
+        <ul className="flex items-center gap-6">
           {links.map((link) => (
             <li key={link.to}>
               <Link
@@ -271,20 +279,19 @@ function NavBar() {
             </li>
           ))}
         </ul>
-
-        {/* Profile — pinned to the left */}
-        <div className="hidden md:block absolute left-0">
+        <div className="absolute left-0">
           <ProfileButton />
         </div>
-
-        {/* Search — pinned to the right */}
-        <div className="hidden md:block absolute right-0">
+        <div className="absolute right-0">
           <SearchBar />
         </div>
+      </div>
 
-        {/* Mobile hamburger */}
+      {/* ── Mobile ─────────────────────────────────── */}
+      <div className="md:hidden px-4 flex items-center justify-between">
+        <ProfileButton />
         <button
-          className="md:hidden flex flex-col gap-1.5 p-2"
+          className="flex flex-col gap-1.5 p-2"
           onClick={() => setMenuOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -295,23 +302,26 @@ function NavBar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden border-t border-border pt-3 pb-4">
-          <ul className="flex flex-col gap-2 px-6 mb-3">
+        <div className="md:hidden pt-3 pb-4" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <ul className="flex flex-col gap-1 px-4 mb-4">
             {links.map((link) => (
               <li key={link.to}>
                 <Link
                   to={link.to}
-                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-                  activeProps={{ className: 'block text-sm font-semibold text-foreground py-1' }}
+                  className="block text-sm text-muted-foreground hover:text-white transition-colors px-3 py-2.5 rounded-lg"
+                  activeProps={{ className: 'block text-sm font-semibold text-white px-3 py-2.5 rounded-lg' }}
+                  activeOptions={{ exact: true }}
                   onClick={() => setMenuOpen(false)}
+                  style={{ background: 'transparent' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   {link.label}
                 </Link>
               </li>
             ))}
           </ul>
-          <div className="px-6 flex items-center justify-between">
-            <ProfileButton />
+          <div className="px-4">
             <SearchBar />
           </div>
         </div>

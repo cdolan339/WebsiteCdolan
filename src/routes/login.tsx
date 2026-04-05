@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { isAuthenticated, login } from '@/lib/auth'
+import { LoadingCurtain } from '@/components/LoadingCurtain'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {
@@ -422,6 +423,7 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [transitioning, setTransitioning] = useState(false)
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault()
@@ -430,7 +432,8 @@ function LoginPage() {
     try {
       const success = await login(username, password)
       if (success) {
-        navigate({ to: '/homepage' })
+        setTransitioning(true)
+        setTimeout(() => navigate({ to: '/homepage' }), 600)
       } else {
         setError('Invalid credentials.')
       }
@@ -444,6 +447,7 @@ function LoginPage() {
   return (
     <>
       <style>{css}</style>
+      <LoadingCurtain visible={transitioning} message="Initializing Session" />
       <div className="login-wrapper">
         {/* Animated background blobs */}
         <div className="bg-animate">
