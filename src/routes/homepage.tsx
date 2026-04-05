@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTestOrder } from '@/lib/useTestOrder'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { Calendar, CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, reloadForProject } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
@@ -177,6 +177,7 @@ type DisplayTC = {
   priority: string
   tags: string[]
   createdAt: string
+  updatedAt: string
   isCustom: boolean
   customId?: string
   completed?: boolean
@@ -285,6 +286,7 @@ function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (
             border: '1px solid rgba(168,85,247,0.25)',
           }}
         >
+          <Clock size={13} />
           Reactivate
         </button>
       ) : (
@@ -340,8 +342,8 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
     zIndex: isDragging ? 10 : undefined,
   }
 
-  const titleLinkClass = "font-medium text-foreground hover:underline py-3 block"
-  const titleLink = <Link to="/test-cases/custom/$id" params={{ id: tc.customId! }} className={titleLinkClass} onClick={(e) => e.stopPropagation()}>{tc.title || "Untitled Test Case"}</Link>
+  const titleLinkClass = "font-medium text-foreground hover:underline py-3 block truncate max-w-[260px]"
+  const titleLink = <Link to="/test-cases/custom/$id" params={{ id: tc.customId! }} className={titleLinkClass} onClick={(e) => e.stopPropagation()} title={tc.title || "Untitled Test Case"}>{tc.title || "Untitled Test Case"}</Link>
 
   return (
     <li ref={setNodeRef} style={style}>
@@ -360,7 +362,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
             {tc.projectName && (
               <span
                 className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: 'rgba(106,17,203,0.15)', color: '#c084fc', border: '1px solid rgba(106,17,203,0.3)' }}
+                style={{ background: 'rgba(0,210,255,0.12)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)' }}
               >
                 <FolderOpen size={10} />
                 {tc.projectName}
@@ -395,17 +397,19 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
             )}
           </div>
         </div>
-        <div className="hidden sm:flex flex-col items-end gap-2 flex-shrink-0">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Calendar size={12} />
-            {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </div>
+        <div className="hidden sm:flex flex-col items-end gap-1.5 flex-shrink-0">
+          <span className="text-xs text-muted-foreground">
+            Created: {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
           {tab === 'active' && (
             <CompleteButton tc={tc} onComplete={onComplete} />
           )}
           {tab === 'completed' && (
             <ReactivateButton tc={tc} onReactivate={onReactivate} />
           )}
+          <span className="text-xs text-muted-foreground">
+            Updated: {new Date(tc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
         </div>
       </div>
     </li>
@@ -446,7 +450,7 @@ function TestCaseIndex() {
   const tcMap = new Map<string, DisplayTC>(
     visibleCases.map((tc): [string, DisplayTC] => [
       `custom:${tc.id}`,
-      { slug: `custom:${tc.id}`, title: tc.title, summary: tc.summary, priority: tc.priority, tags: tc.tags, createdAt: tc.createdAt, isCustom: true, customId: tc.id, completed: tc.completed, completedAt: tc.completedAt, projectName: tc.projectId ? projectLookup.get(tc.projectId) ?? null : null },
+      { slug: `custom:${tc.id}`, title: tc.title, summary: tc.summary, priority: tc.priority, tags: tc.tags, createdAt: tc.createdAt, updatedAt: tc.updatedAt, isCustom: true, customId: tc.id, completed: tc.completed, completedAt: tc.completedAt, projectName: tc.projectId ? projectLookup.get(tc.projectId) ?? null : null },
     ])
   )
 
@@ -583,7 +587,10 @@ function TestCaseIndex() {
         <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}>
           <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(106,17,203,0.25)', backdropFilter: 'blur(12px)' }}>
             <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-              {tab === 'active' ? 'Test Cases' : 'Completed Test Cases'} ({sorted.length})
+              {tab === 'active'
+                ? `${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : 'All '}Test Cases`
+                : `Completed ${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : ''}Test Cases`
+              } ({sorted.length})
             </h2>
           </div>
 

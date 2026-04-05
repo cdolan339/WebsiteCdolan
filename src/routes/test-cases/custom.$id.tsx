@@ -125,9 +125,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none"
         style={{
-          background: 'rgba(106,17,203,0.15)',
-          border: '1px solid rgba(106,17,203,0.3)',
-          color: selected ? '#c084fc' : 'rgba(255,255,255,0.5)',
+          background: 'rgba(0,210,255,0.12)',
+          border: '1px solid rgba(0,210,255,0.3)',
+          color: selected ? '#00d2ff' : 'rgba(255,255,255,0.5)',
         }}
       >
         <FolderOpen size={13} className="opacity-60" />
@@ -143,7 +143,7 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
             style={{
               boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               background: 'rgba(15,12,41,0.97)',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: '1px solid rgba(0,210,255,0.25)',
               backdropFilter: 'blur(16px)',
             }}
           >
@@ -151,14 +151,14 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
               onClick={() => { onChange(null); setOpen(false) }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
               style={{
-                background: projectId === null ? 'rgba(106,17,203,0.2)' : 'transparent',
-                color: projectId === null ? '#fff' : 'rgba(255,255,255,0.7)',
+                background: projectId === null ? 'rgba(0,210,255,0.15)' : 'transparent',
+                color: projectId === null ? '#00d2ff' : 'rgba(255,255,255,0.7)',
                 borderBottom: '1px solid rgba(255,255,255,0.08)',
               }}
-              onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+              onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
               onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
             >
-              <FolderOpen size={14} className="opacity-50" />
+              <FolderOpen size={14} style={{ color: '#00d2ff', opacity: 0.7 }} />
               No Project
             </button>
             <div className="max-h-48 overflow-y-auto">
@@ -168,12 +168,12 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
                   onClick={() => { onChange(p.id); setOpen(false) }}
                   className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
                   style={{
-                    background: projectId === p.id ? 'rgba(106,17,203,0.2)' : 'transparent',
-                    color: projectId === p.id ? '#fff' : 'rgba(255,255,255,0.7)',
+                    background: projectId === p.id ? 'rgba(0,210,255,0.15)' : 'transparent',
+                    color: projectId === p.id ? '#00d2ff' : 'rgba(255,255,255,0.7)',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                   }}
-                  onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                  onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'rgba(106,17,203,0.2)' : 'transparent' }}
+                  onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
+                  onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'rgba(0,210,255,0.15)' : 'transparent' }}
                 >
                   {p.name}
                 </button>

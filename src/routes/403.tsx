@@ -31,7 +31,7 @@ function ForbiddenPage() {
         <p style={{ fontSize: '5rem', fontWeight: 700, color: '#ffffff' }}>403</p>
         <h1 style={{ fontSize: '1.8rem', fontWeight: 700 }}>Access Denied</h1>
         <p style={{ fontSize: '0.85rem', color: '#ccc', maxWidth: 280, margin: '0 auto' }}>
-          Your session has expired or you are not authorised to view this page.
+          Your session has expired or you are not authorized to view this page.
         </p>
       </div>
 

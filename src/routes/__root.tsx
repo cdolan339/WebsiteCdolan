@@ -7,7 +7,7 @@ import { clearCaches } from '@/lib/useTestStatus'
 import { clearProjectCache } from '@/lib/projects'
 import { clearPermissionCache } from '@/lib/permissions'
 import { api } from '@/lib/api'
-import { Search, Settings, LogOut, Clock, CheckCheck } from 'lucide-react'
+import { Search, Settings, LogOut } from 'lucide-react'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import '../styles.css'
 
@@ -34,7 +34,7 @@ export const Route = createRootRoute({
 
 // ── Search bar ────────────────────────────────────────────────────────────────
 
-type SearchResult = { id: string; title: string; tags: string[]; completed?: boolean }
+type SearchResult = { id: string; title: string; tags: string[]; completed?: boolean; projectName?: string | null }
 
 function SearchBar() {
   const [query, setQuery] = useState('')
@@ -76,7 +76,7 @@ function SearchBar() {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-background text-sm focus-within:ring-1 focus-within:ring-ring transition-colors w-52">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-background text-sm focus-within:ring-1 focus-within:ring-ring transition-colors w-64">
         <Search size={13} className="text-muted-foreground flex-shrink-0" />
         <input
           ref={inputRef}
@@ -101,7 +101,7 @@ function SearchBar() {
             top: dropdownPos.top,
             right: dropdownPos.right,
             zIndex: 9999,
-            width: '288px',
+            width: '340px',
             borderRadius: '12px',
             overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
@@ -119,12 +119,11 @@ function SearchBar() {
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <div className="flex items-center gap-2">
-                {result.completed
-                  ? <CheckCheck size={13} style={{ color: '#4ade80', flexShrink: 0 }} />
-                  : <Clock size={13} style={{ color: '#00d2ff', flexShrink: 0 }} />
-                }
-                <p className="text-sm font-medium truncate">{result.title || 'Untitled Test Case'}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium truncate flex-1 min-w-0">{result.title || 'Untitled Test Case'}</p>
+                {result.projectName && (
+                  <span className="text-xs text-white/35 flex-shrink-0 truncate max-w-[100px]">{result.projectName}</span>
+                )}
               </div>
               {result.tags.length > 0 && (
                 <p className="text-xs text-white/40 mt-0.5 truncate">
@@ -337,7 +336,7 @@ function NavBar() {
 function AppShell({ children }: { children: React.ReactNode }) {
   const { location } = useRouterState()
   const navigate = useNavigate()
-  const hideNav = ['/login', '/403', '/404'].includes(location.pathname)
+  const hideNav = ['/', '/login', '/403', '/404'].includes(location.pathname)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
