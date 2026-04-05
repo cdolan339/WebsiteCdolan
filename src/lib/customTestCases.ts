@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "./api";
+import { getActiveProjectId } from "./projects";
 
 export type CustomTC = {
   id: string;
@@ -30,12 +31,14 @@ export type CustomTestCase = {
   testCases: CustomTC[];
   completed?: boolean;
   completedAt?: string | null;
+  projectId?: number | null;
 };
 
 // ── In-memory cache ───────────────────────────────────────────────
 
 let caseCache: CustomTestCase[] | null = null;
 let loadPromise: Promise<void> | null = null;
+let cachedProjectId: number | null | undefined = undefined; // tracks which project was loaded
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -46,13 +49,33 @@ function notify() {
 export function clearCustomCache() {
   caseCache = null;
   loadPromise = null;
+  cachedProjectId = undefined;
+}
+
+// Force reload when switching projects
+export function reloadForProject(projectId: number | null) {
+  if (cachedProjectId === projectId && caseCache !== null) return;
+  caseCache = null;
+  loadPromise = null;
+  cachedProjectId = projectId;
+  notify();
 }
 
 async function ensureLoaded(): Promise<CustomTestCase[]> {
+  const activeProject = getActiveProjectId();
+
+  // If project changed since last load, invalidate
+  if (cachedProjectId !== activeProject) {
+    caseCache = null;
+    loadPromise = null;
+    cachedProjectId = activeProject;
+  }
+
   if (caseCache !== null) return caseCache;
 
   if (!loadPromise) {
-    loadPromise = api<CustomTestCase[]>("/custom-test-cases")
+    const qs = activeProject ? `?projectId=${activeProject}` : "";
+    loadPromise = api<CustomTestCase[]>(`/custom-test-cases${qs}`)
       .then((data) => {
         caseCache = data;
       })
@@ -96,16 +119,20 @@ export function createCustomTestCase(): CustomTestCase {
 // ── CRUD operations ───────────────────────────────────────────────
 
 export async function addCustomTestCase(tc: CustomTestCase): Promise<void> {
+  // Attach current project
+  const projectId = getActiveProjectId();
+  const payload = { ...tc, projectId };
+
   // Optimistic update
   await ensureLoaded();
-  caseCache = [...(caseCache ?? []), tc];
+  caseCache = [...(caseCache ?? []), { ...tc, projectId }];
   notify();
 
   // Persist to API
   try {
     await api("/custom-test-cases", {
       method: "POST",
-      body: JSON.stringify(tc),
+      body: JSON.stringify(payload),
     });
   } catch (err) {
     console.error("Failed to save test case:", err);
@@ -167,12 +194,19 @@ export function useCustomTestCases(): { cases: CustomTestCase[]; loading: boolea
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     ensureLoaded().then((data) => {
       setCases([...data]);
       setLoading(false);
     });
 
-    const sync = () => setCases([...(caseCache ?? [])]);
+    const sync = () => {
+      // When notify fires (e.g. project switch), re-fetch
+      ensureLoaded().then((data) => {
+        setCases([...data]);
+        setLoading(false);
+      });
+    };
     listeners.add(sync);
     return () => {
       listeners.delete(sync);

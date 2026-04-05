@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 import { isAuthenticated, logout, getCurrentUser } from '@/lib/auth'
 import { clearCustomCache } from '@/lib/customTestCases'
 import { clearCaches } from '@/lib/useTestStatus'
+import { clearProjectCache } from '@/lib/projects'
+import { clearPermissionCache } from '@/lib/permissions'
 import { api } from '@/lib/api'
 import { Search, Settings, LogOut, Clock, CheckCheck } from 'lucide-react'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
@@ -178,6 +180,8 @@ function ProfileButton() {
       logout()
       clearCustomCache()
       clearCaches()
+      clearProjectCache()
+      clearPermissionCache()
       navigate({ to: '/login' })
     }, 600)
   }

@@ -10,24 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomepageRouteImport } from './routes/homepage'
 import { Route as R404RouteImport } from './routes/404'
 import { Route as R403RouteImport } from './routes/403'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
+import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 import { Route as TestCasesCustomNewRouteImport } from './routes/test-cases/custom.new'
 import { Route as TestCasesCustomIdRouteImport } from './routes/test-cases/custom.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsRoute = ProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -60,6 +56,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TestCasesCustomNewRoute = TestCasesCustomNewRouteImport.update({
   id: '/test-cases/custom/new',
   path: '/test-cases/custom/new',
@@ -78,8 +84,9 @@ export interface FileRoutesByFullPath {
   '/404': typeof R404Route
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
-  '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -90,8 +97,9 @@ export interface FileRoutesByTo {
   '/404': typeof R404Route
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
-  '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/projects': typeof ProjectsIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -103,8 +111,9 @@ export interface FileRoutesById {
   '/404': typeof R404Route
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
-  '/projects': typeof ProjectsRoute
   '/settings': typeof SettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -117,8 +126,9 @@ export interface FileRouteTypes {
     | '/404'
     | '/homepage'
     | '/login'
-    | '/projects'
     | '/settings'
+    | '/projects/$id'
+    | '/projects/'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   fileRoutesByTo: FileRoutesByTo
@@ -129,8 +139,9 @@ export interface FileRouteTypes {
     | '/404'
     | '/homepage'
     | '/login'
-    | '/projects'
     | '/settings'
+    | '/projects/$id'
+    | '/projects'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   id:
@@ -141,8 +152,9 @@ export interface FileRouteTypes {
     | '/404'
     | '/homepage'
     | '/login'
-    | '/projects'
     | '/settings'
+    | '/projects/$id'
+    | '/projects/'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   fileRoutesById: FileRoutesById
@@ -154,8 +166,9 @@ export interface RootRouteChildren {
   R404Route: typeof R404Route
   HomepageRoute: typeof HomepageRoute
   LoginRoute: typeof LoginRoute
-  ProjectsRoute: typeof ProjectsRoute
   SettingsRoute: typeof SettingsRoute
+  ProjectsIdRoute: typeof ProjectsIdRoute
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
   TestCasesCustomIdRoute: typeof TestCasesCustomIdRoute
   TestCasesCustomNewRoute: typeof TestCasesCustomNewRoute
 }
@@ -167,13 +180,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projects': {
-      id: '/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -218,6 +224,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/test-cases/custom/new': {
       id: '/test-cases/custom/new'
       path: '/test-cases/custom/new'
@@ -242,8 +262,9 @@ const rootRouteChildren: RootRouteChildren = {
   R404Route: R404Route,
   HomepageRoute: HomepageRoute,
   LoginRoute: LoginRoute,
-  ProjectsRoute: ProjectsRoute,
   SettingsRoute: SettingsRoute,
+  ProjectsIdRoute: ProjectsIdRoute,
+  ProjectsIndexRoute: ProjectsIndexRoute,
   TestCasesCustomIdRoute: TestCasesCustomIdRoute,
   TestCasesCustomNewRoute: TestCasesCustomNewRoute,
 }

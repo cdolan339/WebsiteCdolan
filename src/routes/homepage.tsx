@@ -2,11 +2,12 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTestOrder } from '@/lib/useTestOrder'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { Calendar, CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck } from 'lucide-react'
+import { Calendar, CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
-import { useCustomTestCases, completeTestCase } from '@/lib/customTestCases'
+import { useCustomTestCases, completeTestCase, reloadForProject } from '@/lib/customTestCases'
+import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -67,6 +68,100 @@ const PRIORITY_BADGE: { [key: string]: React.CSSProperties } = {
   medium:   { background: 'rgba(0,210,255,0.15)',   color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)'   },
   high:     { background: 'rgba(168,85,247,0.15)',  color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)'  },
   critical: { background: 'rgba(244,63,142,0.15)',  color: '#f43f8e', border: '1px solid rgba(244,63,142,0.3)'  },
+}
+
+// ── Project selector dropdown (switch only — create/edit on /projects page) ──
+
+function ProjectSelector({
+  projects,
+  activeProjectId,
+  onSelect,
+}: {
+  projects: Project[]
+  activeProjectId: number | null
+  onSelect: (id: number | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const activeProject = projects.find((p) => p.id === activeProjectId)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: activeProject ? '#fff' : 'rgba(255,255,255,0.5)',
+        }}
+      >
+        <FolderOpen size={15} className="opacity-60" />
+        <span className="truncate max-w-[200px]">{activeProject?.name ?? 'All Projects'}</span>
+        <ChevronDown size={14} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl overflow-hidden"
+          style={{
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            background: 'rgba(15,12,41,0.97)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          {/* All Projects option */}
+          <button
+            onMouseDown={() => { onSelect(null); setOpen(false) }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
+            style={{
+              background: activeProjectId === null ? 'rgba(106,17,203,0.2)' : 'transparent',
+              color: activeProjectId === null ? '#fff' : 'rgba(255,255,255,0.7)',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+            }}
+            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+            onMouseLeave={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'transparent' }}
+          >
+            <FolderOpen size={15} className="opacity-50" />
+            All Projects
+          </button>
+
+          {/* Project list */}
+          <div className="max-h-60 overflow-y-auto">
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                onMouseDown={() => { onSelect(project.id); setOpen(false) }}
+                className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
+                style={{
+                  background: activeProjectId === project.id ? 'rgba(106,17,203,0.2)' : 'transparent',
+                  color: activeProjectId === project.id ? '#fff' : 'rgba(255,255,255,0.7)',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'rgba(106,17,203,0.2)' : 'transparent' }}
+              >
+                <span className="truncate">{project.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 type Tab = 'active' | 'completed'
@@ -310,7 +405,14 @@ function TestCaseIndex() {
   const priorities = useAllTestPriorities()
   const expectedCounts = useAllExpectedCounts()
   const { cases: customCases, loading } = useCustomTestCases()
+  const { projects } = useProjects()
+  const [activeProjectId, setActiveProjectId] = useActiveProjectId()
   const [tab, setTab] = useState<Tab>('active')
+
+  const handleProjectSwitch = useCallback((id: number | null) => {
+    setActiveProjectId(id)
+    reloadForProject(id)
+  }, [setActiveProjectId])
 
   // Split cases into active vs completed
   const activeCases = customCases.filter((tc) => !tc.completed)
@@ -399,6 +501,15 @@ function TestCaseIndex() {
             <Plus size={16} />
             New Test Case
           </button>
+        </div>
+
+        {/* ── Project selector ────────────────────────────────── */}
+        <div className="mb-6">
+          <ProjectSelector
+            projects={projects}
+            activeProjectId={activeProjectId}
+            onSelect={handleProjectSwitch}
+          />
         </div>
 
         {/* ── Tabs ─────────────────────────────────────────────── */}
