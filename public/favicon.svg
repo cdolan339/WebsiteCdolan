@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6a11cb"/>
+      <stop offset="100%" style="stop-color:#00d2ff"/>
+    </linearGradient>
+    <linearGradient id="check" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#e0f7ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- Circuit dot top-left -->
+  <circle cx="6" cy="6" r="1.5" fill="rgba(255,255,255,0.4)"/>
+  <line x1="6" y1="7.5" x2="6" y2="11" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+  <line x1="7.5" y1="6" x2="11" y2="6" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+
+  <!-- Circuit dot top-right -->
+  <circle cx="26" cy="6" r="1.5" fill="rgba(255,255,255,0.4)"/>
+  <line x1="26" y1="7.5" x2="26" y2="11" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+  <line x1="24.5" y1="6" x2="21" y2="6" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+
+  <!-- Circuit dot bottom-left -->
+  <circle cx="6" cy="26" r="1.5" fill="rgba(255,255,255,0.4)"/>
+  <line x1="6" y1="24.5" x2="6" y2="21" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+  <line x1="7.5" y1="26" x2="11" y2="26" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+
+  <!-- Circuit dot bottom-right -->
+  <circle cx="26" cy="26" r="1.5" fill="rgba(255,255,255,0.4)"/>
+  <line x1="26" y1="24.5" x2="26" y2="21" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+  <line x1="24.5" y1="26" x2="21" y2="26" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+
+  <!-- Bold checkmark -->
+  <polyline
+    points="8,17 13,22 24,10"
+    fill="none"
+    stroke="url(#check)"
+    stroke-width="3.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
