@@ -162,11 +162,15 @@ export async function completeTestCase(
 
 // ── Hooks (same signatures) ───────────────────────────────────────
 
-export function useCustomTestCases(): CustomTestCase[] {
+export function useCustomTestCases(): { cases: CustomTestCase[]; loading: boolean } {
   const [cases, setCases] = useState<CustomTestCase[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    ensureLoaded().then((data) => setCases([...data]));
+    ensureLoaded().then((data) => {
+      setCases([...data]);
+      setLoading(false);
+    });
 
     const sync = () => setCases([...(caseCache ?? [])]);
     listeners.add(sync);
@@ -175,7 +179,7 @@ export function useCustomTestCases(): CustomTestCase[] {
     };
   }, []);
 
-  return cases;
+  return { cases, loading };
 }
 
 export function useCustomTestCase(

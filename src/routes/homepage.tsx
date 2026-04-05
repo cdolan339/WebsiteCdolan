@@ -308,7 +308,7 @@ function TestCaseIndex() {
   const statuses = useAllTestStatuses()
   const priorities = useAllTestPriorities()
   const expectedCounts = useAllExpectedCounts()
-  const customCases = useCustomTestCases()
+  const { cases: customCases, loading } = useCustomTestCases()
   const [tab, setTab] = useState<Tab>('active')
 
   // Split cases into active vs completed
@@ -357,6 +357,14 @@ function TestCaseIndex() {
   const handleReactivate = useCallback((id: string) => {
     completeTestCase(id, false)
   }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0c29' }}>
+        <div className="text-white/60 text-sm font-medium" style={{ fontFamily: "'Poppins', sans-serif" }}>Loading test cases…</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
