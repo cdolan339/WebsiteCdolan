@@ -181,6 +181,7 @@ type DisplayTC = {
   customId?: string
   completed?: boolean
   completedAt?: string | null
+  projectName?: string | null
 }
 
 type StatusSummaryProps = {
@@ -356,6 +357,15 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
             <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
               {resolvedPriority}
             </span>
+            {tc.projectName && (
+              <span
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(106,17,203,0.15)', color: '#c084fc', border: '1px solid rgba(106,17,203,0.3)' }}
+              >
+                <FolderOpen size={10} />
+                {tc.projectName}
+              </span>
+            )}
             {passedCount > 0 && (
               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.2)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)' }}>
                 ✓ {passedCount} passed
@@ -432,10 +442,11 @@ function TestCaseIndex() {
   const { order, setOrder } = useTestOrder(getDefaultSlugs())
 
   // Build a lookup map from visible cases
+  const projectLookup = new Map(projects.map((p) => [p.id, p.name]))
   const tcMap = new Map<string, DisplayTC>(
     visibleCases.map((tc): [string, DisplayTC] => [
       `custom:${tc.id}`,
-      { slug: `custom:${tc.id}`, title: tc.title, summary: tc.summary, priority: tc.priority, tags: tc.tags, createdAt: tc.createdAt, isCustom: true, customId: tc.id, completed: tc.completed, completedAt: tc.completedAt },
+      { slug: `custom:${tc.id}`, title: tc.title, summary: tc.summary, priority: tc.priority, tags: tc.tags, createdAt: tc.createdAt, isCustom: true, customId: tc.id, completed: tc.completed, completedAt: tc.completedAt, projectName: tc.projectId ? projectLookup.get(tc.projectId) ?? null : null },
     ])
   )
 
