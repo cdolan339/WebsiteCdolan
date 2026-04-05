@@ -324,15 +324,24 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const { location } = useRouterState()
   const navigate = useNavigate()
   const hideNav = ['/login', '/403', '/404'].includes(location.pathname)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (hideNav) return
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted || hideNav) return
     if (!isAuthenticated()) {
       navigate({ to: '/403', replace: true })
     }
-  }, [location.pathname])
+  }, [location.pathname, mounted])
 
-  if (!hideNav && typeof window !== 'undefined' && !isAuthenticated()) {
+  if (!mounted) {
+    return <>{children}</>
+  }
+
+  if (!hideNav && !isAuthenticated()) {
     return null
   }
 
