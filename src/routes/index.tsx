@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { isAuthenticated } from '@/lib/auth'
 import { useEffect } from 'react'
+import { LoadingCurtain } from '@/components/LoadingCurtain'
 
 export const Route = createFileRoute('/')({
   component: IndexRedirect,
@@ -17,5 +18,5 @@ function IndexRedirect() {
     }
   }, [navigate])
 
-  return <div style={{ background: '#0f0c29', minHeight: '100vh' }} />
+  return <LoadingCurtain visible={true} message="Loading" />
 }
