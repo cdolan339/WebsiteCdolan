@@ -241,14 +241,14 @@ function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: st
           }}
         >
           <CheckCheck size={13} />
-          Complete
+          Complete?
         </button>
       ) : (
         <div
           className="flex items-center gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-xs text-white/60">Complete this?</span>
+          <span className="text-xs text-white/60">Complete?</span>
           <button
             onClick={() => { onComplete(tc.customId!); setConfirming(false) }}
             className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
@@ -287,7 +287,7 @@ function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (
           }}
         >
           <Clock size={13} />
-          Reactivate
+          Reactivate?
         </button>
       ) : (
         <div
