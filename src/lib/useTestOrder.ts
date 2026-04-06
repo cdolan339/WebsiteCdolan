@@ -14,57 +14,66 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api";
 
-export function useTestOrder(defaultSlugs: string[]) {
-  const [order, setOrderState] = useState<string[]>(defaultSlugs);
-  const loaded = useRef(false);
+// Module-level cache so the saved order survives tab switches / re-renders
+let savedOrderCache: string[] | null = null;
 
-  // Fetch saved order from API on mount
+export function useTestOrder(defaultSlugs: string[]) {
+  const [order, setOrderState] = useState<string[]>(() =>
+    mergeOrder(savedOrderCache, defaultSlugs)
+  );
+  const loaded = useRef(savedOrderCache !== null);
+
+  // Fetch saved order from API once (globally)
   useEffect(() => {
+    if (loaded.current) return;
     api<string[]>("/data/order")
       .then((saved) => {
         if (saved && saved.length > 0) {
-          // Merge: keep saved order for known slugs, append new ones
-          const known = new Set(saved);
-          const merged = [
-            ...saved.filter((s) => defaultSlugs.includes(s)),
-            ...defaultSlugs.filter((s) => !known.has(s)),
-          ];
-          setOrderState(merged);
-        } else {
-          setOrderState(defaultSlugs);
+          savedOrderCache = saved;
         }
+        setOrderState(mergeOrder(savedOrderCache, defaultSlugs));
         loaded.current = true;
       })
       .catch(() => {
-        setOrderState(defaultSlugs);
         loaded.current = true;
       });
-  }, []); // only on mount
+  }, []);
 
-  // Append newly-created slugs (e.g. new custom test cases)
+  // Re-merge whenever defaultSlugs changes (tab switch, new TC created, etc.)
   useEffect(() => {
     if (!loaded.current) return;
-    setOrderState((prev) => {
-      const newSlugs = defaultSlugs.filter((s) => !prev.includes(s));
-      if (newSlugs.length === 0) return prev;
-      const next = [...prev, ...newSlugs];
-      // Save in background
-      api("/data/order", {
-        method: "PUT",
-        body: JSON.stringify({ slugs: next }),
-      }).catch(console.error);
-      return next;
-    });
+    setOrderState(mergeOrder(savedOrderCache, defaultSlugs));
   }, [defaultSlugs]);
 
   const setOrder = useCallback((next: string[]) => {
     setOrderState(next);
-    // Persist to API in background
+    // Update cache and persist
+    savedOrderCache = updateCache(savedOrderCache, next);
     api("/data/order", {
       method: "PUT",
-      body: JSON.stringify({ slugs: next }),
+      body: JSON.stringify({ slugs: savedOrderCache }),
     }).catch(console.error);
   }, []);
 
   return { order, setOrder };
+}
+
+/** Keep saved ordering for slugs in the current view, append any new ones */
+function mergeOrder(saved: string[] | null, current: string[]): string[] {
+  if (!saved || saved.length === 0) return current;
+  const currentSet = new Set(current);
+  const savedSet = new Set(saved);
+  return [
+    ...saved.filter((s) => currentSet.has(s)),
+    ...current.filter((s) => !savedSet.has(s)),
+  ];
+}
+
+/** Splice reordered slugs back into the full saved cache */
+function updateCache(cache: string[] | null, reordered: string[]): string[] {
+  if (!cache) return reordered;
+  const reorderedSet = new Set(reordered);
+  // Remove old positions of the reordered slugs, then append them
+  const rest = cache.filter((s) => !reorderedSet.has(s));
+  return [...reordered, ...rest];
 }

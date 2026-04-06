@@ -22,7 +22,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1' },
       { title: 'QA & BA Assistant' },
     ],
     links: [
@@ -268,31 +268,28 @@ function NavBar() {
   return (
     <nav className="w-full py-3" style={{ background: 'rgba(106,17,203,0.25)', borderBottom: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
       {/* ── Desktop ────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-4 hidden md:flex items-center justify-center relative">
-        <ul className="flex items-center gap-6">
-          {links.map((link) => (
-            <li key={link.to}>
-              <Link
-                to={link.to}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                activeProps={{ className: 'text-sm font-semibold text-foreground' }}
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-        <div className="absolute left-0">
+      <div className="max-w-4xl mx-auto px-4 hidden md:flex items-center justify-between">
+        <div className="flex items-center gap-6">
           <ProfileButton />
+          <ul className="flex items-center gap-5">
+            {links.map((link) => (
+              <li key={link.to}>
+                <Link
+                  to={link.to}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  activeProps={{ className: 'text-sm font-semibold text-foreground' }}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
-        <div className="absolute right-0">
-          <SearchBar />
-        </div>
+        <SearchBar />
       </div>
 
       {/* ── Mobile ─────────────────────────────────── */}
       <div className="md:hidden px-4 flex items-center justify-between">
-        <ProfileButton />
         <button
           className="flex flex-col gap-1.5 p-2"
           onClick={() => setMenuOpen((o) => !o)}
@@ -302,6 +299,7 @@ function NavBar() {
           <span className="block w-5 h-0.5 bg-foreground" />
           <span className="block w-5 h-0.5 bg-foreground" />
         </button>
+        <ProfileButton />
       </div>
 
       {menuOpen && (
@@ -374,7 +372,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body style={{ background: '#0f0c29', margin: 0 }}>
         <AppShell>{children}</AppShell>
         <Scripts />
       </body>

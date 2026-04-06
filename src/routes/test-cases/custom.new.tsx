@@ -9,10 +9,10 @@ export const Route = createFileRoute('/test-cases/custom/new')({
 })
 
 const PRIORITY_OPTIONS = [
-  { value: 'low'      as const, label: 'Low',      style: { background: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.3)' } },
-  { value: 'medium'   as const, label: 'Medium',   style: { background: 'rgba(0,210,255,0.15)',   color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)'   } },
-  { value: 'high'     as const, label: 'High',     style: { background: 'rgba(168,85,247,0.15)',  color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)'  } },
-  { value: 'critical' as const, label: 'Critical', style: { background: 'rgba(244,63,142,0.15)',  color: '#f43f8e', border: '1px solid rgba(244,63,142,0.3)'  } },
+  { value: 'low'      as const, label: 'Low',      style: { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  } },
+  { value: 'medium'   as const, label: 'Medium',   style: { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  } },
+  { value: 'high'     as const, label: 'High',     style: { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  } },
+  { value: 'critical' as const, label: 'Critical', style: { background: 'rgba(220,38,38,0.15)',  color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'  } },
 ]
 
 const ALL_EXISTING_TAGS: string[] = []
@@ -102,7 +102,7 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
   const removeStep = (i: number) => patch({ steps: tc.steps.filter((_, idx) => idx !== i) })
 
   return (
-    <div className="rounded-lg p-4 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="rounded-lg border border-border bg-card p-4 mb-4">
       <div className="flex items-start justify-between gap-3 mb-3">
         <input
           type="text"
@@ -345,52 +345,50 @@ function NewTestCase() {
           <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
         </div>
 
-        <hr className="border-border mb-8" />
-
         {/* Objective */}
-        <section className="mb-8">
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
-          <textarea
-            value={draft.objective}
-            onChange={(e) => patch({ objective: e.target.value })}
-            placeholder="Describe the objective of this test case…"
-            rows={4}
-            className="w-full text-sm text-foreground rounded-md px-3 py-2 outline-none resize-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60 transition-colors" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-          />
+          <div className="rounded-lg border border-border bg-card p-4">
+            <textarea
+              value={draft.objective}
+              onChange={(e) => patch({ objective: e.target.value })}
+              placeholder="Describe the objective of this test case…"
+              rows={4}
+              className="w-full text-sm text-foreground bg-transparent outline-none resize-none placeholder:text-muted-foreground/60 transition-colors"
+            />
+          </div>
         </section>
-
-        <hr className="border-border mb-8" />
 
         {/* Preconditions */}
-        <section className="mb-10">
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
-          <ul className="space-y-2 mb-3">
-            {draft.preconditions.map((item, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-muted-foreground select-none">•</span>
-                <input
-                  type="text"
-                  value={item}
-                  onChange={(e) => updatePrecondition(i, e.target.value)}
-                  placeholder="Add a precondition…"
-                  className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-                />
-                <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove precondition">
-                  <X size={14} />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button onClick={addPrecondition} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <Plus size={14} />
-            Add Precondition
-          </button>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <ul className="space-y-2 mb-3">
+              {draft.preconditions.map((item, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="text-muted-foreground select-none">•</span>
+                  <input
+                    type="text"
+                    value={item}
+                    onChange={(e) => updatePrecondition(i, e.target.value)}
+                    placeholder="Add a precondition…"
+                    className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
+                  />
+                  <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove precondition">
+                    <X size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button onClick={addPrecondition} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Plus size={14} />
+              Add Precondition
+            </button>
+          </div>
         </section>
 
-        <hr className="border-border mb-8" />
-
         {/* Test cases */}
-        <section className="mb-10">
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
           {draft.testCases.map((sub, i) => (
             <SubTCEditor
@@ -411,14 +409,19 @@ function NewTestCase() {
         </section>
 
         {/* Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center gap-4 mt-2">
           <button
             onClick={handleSave}
-            className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
           >
             Save Test Case
           </button>
-          <Link to="/homepage" className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            to="/homepage"
+            className="inline-flex items-center px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)' }}
+          >
             Cancel
           </Link>
         </div>

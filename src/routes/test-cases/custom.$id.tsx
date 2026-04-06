@@ -24,10 +24,10 @@ export const Route = createFileRoute('/test-cases/custom/$id')({
 // ── Shared constants ──────────────────────────────────────────────────────────
 
 const PRIORITY_OPTIONS = [
-  { value: 'low'      as const, label: 'Low',      color: '#94a3b8', bg: '', text: '', style: { background: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.3)' } },
-  { value: 'medium'   as const, label: 'Medium',   color: '#00d2ff', bg: '', text: '', style: { background: 'rgba(0,210,255,0.15)',   color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)'   } },
-  { value: 'high'     as const, label: 'High',     color: '#a855f7', bg: '', text: '', style: { background: 'rgba(168,85,247,0.15)',  color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)'  } },
-  { value: 'critical' as const, label: 'Critical', color: '#f43f8e', bg: '', text: '', style: { background: 'rgba(244,63,142,0.15)',  color: '#f43f8e', border: '1px solid rgba(244,63,142,0.3)'  } },
+  { value: 'low'      as const, label: 'Low',      color: '#16a34a', bg: '', text: '', style: { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  } },
+  { value: 'medium'   as const, label: 'Medium',   color: '#ca8a04', bg: '', text: '', style: { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  } },
+  { value: 'high'     as const, label: 'High',     color: '#ea580c', bg: '', text: '', style: { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  } },
+  { value: 'critical' as const, label: 'Critical', color: '#dc2626', bg: '', text: '', style: { background: 'rgba(220,38,38,0.15)',  color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'  } },
 ]
 
 const STATUS_STYLES: { [K in TestStatus]: string } = {
@@ -494,38 +494,50 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
 
 function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
   const { projects } = useProjects()
-  const patch = (fields: Partial<CustomTestCase>) => save(tc, fields)
+  const [draft, setDraft] = useState<CustomTestCase>({ ...tc })
 
-  const addPrecondition = () => patch({ preconditions: [...tc.preconditions, ''] })
-  const updatePrecondition = (i: number, v: string) => { const next = [...tc.preconditions]; next[i] = v; patch({ preconditions: next }) }
-  const removePrecondition = (i: number) => patch({ preconditions: tc.preconditions.filter((_, idx) => idx !== i) })
+  const patch = (fields: Partial<CustomTestCase>) => setDraft((prev) => ({ ...prev, ...fields }))
 
-  const addSubTC = () => patch({ testCases: [...tc.testCases, createCustomTC()] })
-  const updateSubTC = (updated: CustomTC) => patch({ testCases: tc.testCases.map((s) => (s.id === updated.id ? updated : s)) })
-  const removeSubTC = (id: string) => patch({ testCases: tc.testCases.filter((s) => s.id !== id) })
+  const handleDone = () => {
+    save(tc, { ...draft, updatedAt: new Date().toISOString() })
+    onDone()
+  }
+
+  const addPrecondition = () => patch({ preconditions: [...draft.preconditions, ''] })
+  const updatePrecondition = (i: number, v: string) => { const next = [...draft.preconditions]; next[i] = v; patch({ preconditions: next }) }
+  const removePrecondition = (i: number) => patch({ preconditions: draft.preconditions.filter((_, idx) => idx !== i) })
+
+  const addSubTC = () => patch({ testCases: [...draft.testCases, createCustomTC()] })
+  const updateSubTC = (updated: CustomTC) => patch({ testCases: draft.testCases.map((s) => (s.id === updated.id ? updated : s)) })
+  const removeSubTC = (id: string) => patch({ testCases: draft.testCases.filter((s) => s.id !== id) })
+
+  const doneButtonStyle: React.CSSProperties = {
+    background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
+    color: '#fff',
+    boxShadow: '0 2px 12px rgba(106,17,203,0.3)',
+  }
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        @keyframes movecid2 { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
+        .blob-cid2 { position:absolute; border-radius:50%; background:linear-gradient(45deg,#6a11cb,#00d2ff); filter:blur(80px); opacity:0.3; animation:movecid2 20s infinite alternate; pointer-events:none; }
+      `}</style>
       <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
+      <div className="max-w-3xl mx-auto px-4 pt-2 pb-12 relative z-10">
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-4">
           <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
             <ArrowLeft size={16} /> Back to Test Cases
           </Link>
-          <button
-            onClick={onDone}
-            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Check size={14} /> Done
-          </button>
         </div>
 
         {/* Title */}
         <input
           type="text"
-          value={tc.title}
+          value={draft.title}
           onChange={(e) => patch({ title: e.target.value })}
           placeholder="Test case title…"
           className="w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground mb-2 focus:underline decoration-muted-foreground/40"
@@ -533,28 +545,28 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
 
         {/* Summary */}
         <textarea
-          value={tc.summary}
+          value={draft.summary}
           onChange={(e) => patch({ summary: e.target.value })}
           placeholder="Add a description…"
           rows={2}
-          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/50 mb-4 focus:underline decoration-muted-foreground/40"
+          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/50 mb-3 focus:underline decoration-muted-foreground/40"
         />
 
         {/* Meta */}
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
           <span>Created {formatDate(tc.createdAt)}</span>
           <span>·</span>
           <span>Updated {formatDate(tc.updatedAt)}</span>
         </div>
 
         {/* Priority */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className="text-sm text-muted-foreground">Priority:</span>
           {PRIORITY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => patch({ priority: opt.value })}
-              className={`text-xs px-3 py-1 rounded-full font-medium capitalize transition-opacity ${tc.priority === opt.value ? 'opacity-100 ring-2 ring-offset-1 ring-current' : 'opacity-50 hover:opacity-80'}`} style={opt.style}
+              className={`text-xs px-3 py-1 rounded-full font-medium capitalize transition-opacity ${draft.priority === opt.value ? 'opacity-100 ring-2 ring-offset-1 ring-current' : 'opacity-50 hover:opacity-80'}`} style={opt.style}
             >
               {opt.label}
             </button>
@@ -562,66 +574,64 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         </div>
 
         {/* Project */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className="text-sm text-muted-foreground">Project:</span>
           <ProjectPicker
-            projectId={tc.projectId ?? null}
+            projectId={draft.projectId ?? null}
             onChange={(id) => patch({ projectId: id })}
             projects={projects}
           />
         </div>
 
         {/* Tags */}
-        <div className="mb-8">
+        <div className="mb-6">
           <p className="text-sm font-medium text-foreground mb-2">Tags</p>
-          <TagInput tags={tc.tags} onChange={(tags) => patch({ tags })} />
+          <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
         </div>
 
-        <hr className="border-border mb-8" />
-
         {/* Objective */}
-        <section className="mb-8">
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
-          <textarea
-            value={tc.objective}
-            onChange={(e) => patch({ objective: e.target.value })}
-            placeholder="Describe the objective of this test case…"
-            rows={4}
-            className="w-full text-sm text-foreground bg-muted/30 border border-border rounded-md px-3 py-2 outline-none resize-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60 transition-colors"
-          />
+          <div className="rounded-lg border border-border bg-card p-4">
+            <textarea
+              value={draft.objective}
+              onChange={(e) => patch({ objective: e.target.value })}
+              placeholder="Describe the objective of this test case…"
+              rows={4}
+              className="w-full text-sm text-foreground bg-transparent outline-none resize-none placeholder:text-muted-foreground/60 transition-colors"
+            />
+          </div>
         </section>
-
-        <hr className="border-border mb-8" />
 
         {/* Preconditions */}
-        <section className="mb-8">
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
-          <ul className="space-y-2 mb-3">
-            {tc.preconditions.map((item, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-muted-foreground select-none">•</span>
-                <input
-                  type="text"
-                  value={item}
-                  onChange={(e) => updatePrecondition(i, e.target.value)}
-                  placeholder="Add a precondition…"
-                  className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-                />
-                <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"><X size={14} /></button>
-              </li>
-            ))}
-          </ul>
-          <button onClick={addPrecondition} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <Plus size={14} /> Add Precondition
-          </button>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <ul className="space-y-2 mb-3">
+              {draft.preconditions.map((item, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="text-muted-foreground select-none">•</span>
+                  <input
+                    type="text"
+                    value={item}
+                    onChange={(e) => updatePrecondition(i, e.target.value)}
+                    placeholder="Add a precondition…"
+                    className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
+                  />
+                  <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"><X size={14} /></button>
+                </li>
+              ))}
+            </ul>
+            <button onClick={addPrecondition} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Plus size={14} /> Add Precondition
+            </button>
+          </div>
         </section>
 
-        <hr className="border-border mb-8" />
-
         {/* Test cases */}
-        <section>
+        <section className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
-          {tc.testCases.map((sub, i) => (
+          {draft.testCases.map((sub, i) => (
             <SubTCEditor
               key={sub.id}
               tc={sub}
@@ -637,6 +647,17 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
             <Plus size={14} /> Add Test Case
           </button>
         </section>
+
+        {/* Bottom Done button */}
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={handleDone}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
+            style={doneButtonStyle}
+          >
+            <Check size={15} /> Done
+          </button>
+        </div>
 
       </div>
     </div>
