@@ -141,7 +141,7 @@ function SearchBar() {
 
 // ── Profile button ────────────────────────────────────────────────────────────
 
-function ProfileButton() {
+function ProfileButton({ onLogout }: { onLogout: () => void }) {
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
   const username = getCurrentUser() ?? ''
@@ -170,24 +170,12 @@ function ProfileButton() {
     setOpen((o) => !o)
   }
 
-  const [loggingOut, setLoggingOut] = useState(false)
-
   const handleLogout = () => {
     setOpen(false)
-    setLoggingOut(true)
-    setTimeout(() => {
-      logout()
-      clearCustomCache()
-      clearCaches()
-      clearProjectCache()
-      clearPermissionCache()
-      navigate({ to: '/login' })
-    }, 600)
+    onLogout()
   }
 
   return (
-    <>
-    <LoadingCurtain visible={loggingOut} message="Signing Out" />
     <div className="relative">
       <button
         ref={buttonRef}
@@ -251,13 +239,12 @@ function ProfileButton() {
         </div>
       , document.body)}
     </div>
-    </>
   )
 }
 
 // ── Nav bar ───────────────────────────────────────────────────────────────────
 
-function NavBar() {
+function NavBar({ onLogout }: { onLogout: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const links = [
@@ -270,7 +257,7 @@ function NavBar() {
       {/* ── Desktop ────────────────────────────────── */}
       <div className="max-w-4xl mx-auto px-4 hidden md:flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <ProfileButton />
+          <ProfileButton onLogout={onLogout} />
           <ul className="flex items-center gap-5">
             {links.map((link) => (
               <li key={link.to}>
@@ -299,7 +286,7 @@ function NavBar() {
           <span className="block w-5 h-0.5 bg-foreground" />
           <span className="block w-5 h-0.5 bg-foreground" />
         </button>
-        <ProfileButton />
+        <ProfileButton onLogout={onLogout} />
       </div>
 
       {menuOpen && (
@@ -336,6 +323,20 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const hideNav = ['/', '/login', '/403', '/404'].includes(location.pathname)
   const [mounted, setMounted] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  const handleLogout = () => {
+    setLoggingOut(true)
+    setTimeout(() => {
+      logout()
+      clearCustomCache()
+      clearCaches()
+      clearProjectCache()
+      clearPermissionCache()
+      navigate({ to: '/login' })
+      setTimeout(() => setLoggingOut(false), 400)
+    }, 600)
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -354,13 +355,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
     return <div style={{ background: '#0f0c29', minHeight: '100vh' }} />
   }
 
-  if (!hideNav && !isAuthenticated()) {
+  if (!hideNav && !isAuthenticated() && !loggingOut) {
     return null
   }
 
   return (
     <>
-      {!hideNav && <NavBar />}
+      <LoadingCurtain visible={loggingOut} message="Signing Out" />
+      {!hideNav && <NavBar onLogout={handleLogout} />}
       {children}
     </>
   )

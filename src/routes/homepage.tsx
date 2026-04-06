@@ -235,9 +235,9 @@ function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: st
           onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
           style={{
-            background: 'rgba(0,210,255,0.1)',
-            color: '#00d2ff',
-            border: '1px solid rgba(0,210,255,0.25)',
+            background: 'rgba(16,185,129,0.1)',
+            color: '#10b981',
+            border: '1px solid rgba(16,185,129,0.25)',
           }}
         >
           <CheckCheck size={13} />
@@ -281,9 +281,9 @@ function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (
           onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
           style={{
-            background: 'rgba(168,85,247,0.1)',
-            color: '#a855f7',
-            border: '1px solid rgba(168,85,247,0.25)',
+            background: 'rgba(245,158,11,0.1)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.25)',
           }}
         >
           <Clock size={13} />
