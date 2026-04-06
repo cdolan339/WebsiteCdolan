@@ -236,7 +236,7 @@ const css = `
 `
 
 export function LoadingCurtain({ visible, message }: { visible: boolean; message?: string }) {
-  const [show, setShow] = useState(false)
+  const [show, setShow] = useState(visible)
   const [exiting, setExiting] = useState(false)
 
   useEffect(() => {
