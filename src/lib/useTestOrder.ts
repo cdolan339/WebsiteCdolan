@@ -16,6 +16,13 @@ import { api } from "./api";
 
 // Module-level cache so the saved order survives tab switches / re-renders
 let savedOrderCache: string[] | null = null;
+const orderListeners = new Set<() => void>();
+
+/** Called by WebSocket handler to force a re-fetch of the order */
+export function invalidateOrderCache() {
+  savedOrderCache = null;
+  orderListeners.forEach((fn) => fn());
+}
 
 export function useTestOrder(defaultSlugs: string[]) {
   const [order, setOrderState] = useState<string[]>(() =>
@@ -23,20 +30,27 @@ export function useTestOrder(defaultSlugs: string[]) {
   );
   const loaded = useRef(savedOrderCache !== null);
 
-  // Fetch saved order from API once (globally)
+  // Fetch saved order from API once (globally), and re-fetch on WS invalidation
   useEffect(() => {
-    if (loaded.current) return;
-    api<string[]>("/data/order")
-      .then((saved) => {
-        if (saved && saved.length > 0) {
-          savedOrderCache = saved;
-        }
-        setOrderState(mergeOrder(savedOrderCache, defaultSlugs));
-        loaded.current = true;
-      })
-      .catch(() => {
-        loaded.current = true;
-      });
+    const fetchOrder = () => {
+      api<string[]>("/data/order")
+        .then((saved) => {
+          if (saved && saved.length > 0) {
+            savedOrderCache = saved;
+          }
+          setOrderState(mergeOrder(savedOrderCache, defaultSlugs));
+          loaded.current = true;
+        })
+        .catch(() => {
+          loaded.current = true;
+        });
+    };
+
+    if (!loaded.current) fetchOrder();
+
+    // Re-fetch when WebSocket invalidates the cache
+    orderListeners.add(fetchOrder);
+    return () => { orderListeners.delete(fetchOrder); };
   }, []);
 
   // Re-merge whenever defaultSlugs changes (tab switch, new TC created, etc.)

@@ -3,14 +3,11 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
-import contentCollections from '@content-collections/vite'
-
 const config = defineConfig({
   optimizeDeps: {
     include: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', '@dnd-kit/modifiers'],
   },
   plugins: [
-    contentCollections(),
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
@@ -26,6 +23,10 @@ const config = defineConfig({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:3001',
+        ws: true,
       },
     },
   },

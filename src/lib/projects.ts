@@ -48,6 +48,13 @@ export function clearProjectCache() {
   activeProjectId = null;
 }
 
+/** Called by WebSocket handler to force a re-fetch from the API */
+export function invalidateProjectCache() {
+  projectCache = null;
+  loadPromise = null;
+  notify();
+}
+
 async function ensureLoaded(): Promise<Project[]> {
   if (projectCache !== null) return projectCache;
 

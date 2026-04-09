@@ -1,2 +1,27 @@
-# Local Netlify folder
-.netlify
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# TanStack generated files
+.tanstack/
+
+# Content Collections generated files
+.content-collections/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lock files (using pnpm)
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db

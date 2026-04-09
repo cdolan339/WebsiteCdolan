@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WikiRouteImport } from './routes/wiki'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomepageRouteImport } from './routes/homepage'
@@ -21,6 +22,11 @@ import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 import { Route as TestCasesCustomNewRouteImport } from './routes/test-cases/custom.new'
 import { Route as TestCasesCustomIdRouteImport } from './routes/test-cases/custom.$id'
 
+const WikiRoute = WikiRouteImport.update({
+  id: '/wiki',
+  path: '/wiki',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects': typeof ProjectsIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/settings'
+    | '/wiki'
     | '/projects/$id'
     | '/projects/'
     | '/test-cases/custom/$id'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/settings'
+    | '/wiki'
     | '/projects/$id'
     | '/projects'
     | '/test-cases/custom/$id'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/settings'
+    | '/wiki'
     | '/projects/$id'
     | '/projects/'
     | '/test-cases/custom/$id'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   HomepageRoute: typeof HomepageRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
+  WikiRoute: typeof WikiRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   TestCasesCustomIdRoute: typeof TestCasesCustomIdRoute
@@ -175,6 +188,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wiki': {
+      id: '/wiki'
+      path: '/wiki'
+      fullPath: '/wiki'
+      preLoaderRoute: typeof WikiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -263,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomepageRoute: HomepageRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
+  WikiRoute: WikiRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   TestCasesCustomIdRoute: TestCasesCustomIdRoute,

@@ -52,6 +52,14 @@ export function clearCustomCache() {
   cachedProjectId = undefined;
 }
 
+/** Called by WebSocket handler to force a re-fetch from the API */
+export function invalidateCustomCache() {
+  caseCache = null;
+  loadPromise = null;
+  // Keep cachedProjectId so ensureLoaded fetches for the same project
+  notify();
+}
+
 // Force reload when switching projects
 export function reloadForProject(projectId: number | null) {
   if (cachedProjectId === projectId && caseCache !== null) return;

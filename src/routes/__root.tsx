@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { isAuthenticated, logout, getCurrentUser } from '@/lib/auth'
 import { clearCustomCache } from '@/lib/customTestCases'
+import { WebSocketSync } from '@/components/WebSocketSync'
 import { clearCaches } from '@/lib/useTestStatus'
 import { clearProjectCache } from '@/lib/projects'
 import { clearPermissionCache } from '@/lib/permissions'
@@ -250,6 +251,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
   const links = [
     { to: '/homepage', label: 'Home' },
     { to: '/projects', label: 'Projects' },
+    { to: '/wiki', label: 'Wiki' },
   ]
 
   return (
@@ -362,6 +364,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <LoadingCurtain visible={loggingOut} message="Signing Out" />
+      {!hideNav && <WebSocketSync />}
       {!hideNav && <NavBar onLogout={handleLogout} />}
       {children}
     </>
