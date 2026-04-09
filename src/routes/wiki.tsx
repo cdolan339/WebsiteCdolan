@@ -489,6 +489,14 @@ reloadForProject(projectId): void
 clearCustomCache(): void
 invalidateCustomCache(): void   // used by WebSocketSync`} />
       <Divider />
+      {subHeader('Real-time sync note')}
+      {prose('When invalidateCustomCache() is called (e.g. on a remote test-case:updated WebSocket event), caseCache is set to null. The listener registered by useCustomTestCase() calls ensureLoaded() — not the raw cache — so it always triggers a fresh fetch rather than returning undefined from a null cache.')}
+      <CodeBlock code={`// Correct — always goes through ensureLoaded():
+const sync = () => ensureLoaded().then(data => setTc(data.find(c => c.id === id)))
+
+// Wrong (old bug) — reads null cache directly after invalidation:
+// const sync = () => setTc((caseCache ?? []).find(c => c.id === id))`} />
+      <Divider />
       {subHeader('CustomTestCase shape')}
       <CodeBlock code={`{
   id:            string        // "tc-<timestamp>"
@@ -545,6 +553,11 @@ useExpectedChecked(key)      → { checked, setChecked }
 useAllExpectedCounts()       → Record<string, number>  // # checked per slug
 loadExpectedMap()            → Record<string, boolean>
 
+// WebSocket direct-patch — update cache without a round-trip re-fetch
+applyStatusUpdate(slug, status)       // called by WebSocketSync on "status:updated"
+applyPriorityUpdate(slug, priority)   // called by WebSocketSync on "priority:updated"
+applyExpectedUpdate(key, checked)     // called by WebSocketSync on "expected:updated"
+
 // Lifecycle
 clearCaches()                // call on logout`} />
       <Divider />
@@ -592,15 +605,18 @@ expected key format: "<slug>__expected__<index>"`} />
   // closes it when last caller unmounts.`} />
       <Divider />
       {subHeader('WSEvent types')}
-      <CodeBlock code={`{ type: "test-case:created",   id: string  }
-{ type: "test-case:updated",   id: string  }
-{ type: "test-case:completed", id: string  }
-{ type: "test-case:deleted",   id: string  }
-{ type: "project:created",     id: number  }
-{ type: "project:updated",     id: number  }
-{ type: "project:deleted",     id: number  }
-{ type: "order:updated"                    }
-{ type: "ping"                             }`} />
+      <CodeBlock code={`{ type: "test-case:created",   id: string      }
+{ type: "test-case:updated",   id: string      }
+{ type: "test-case:completed", id: string      }
+{ type: "test-case:deleted",   id: string      }
+{ type: "project:created",     id: number      }
+{ type: "project:updated",     id: number      }
+{ type: "project:deleted",     id: number      }
+{ type: "order:updated"                        }
+{ type: "status:updated";   slug: string; status: string   }
+{ type: "priority:updated"; slug: string; priority: string }
+{ type: "expected:updated"; key: string;  checked: boolean }
+{ type: "ping"                                 }`} />
       <Divider />
       {subHeader('URL')}
       <CodeBlock code={`DEV:  ws://<host>/ws?token=<jwt>    (proxied by Vite /ws → ws://localhost:3001)
@@ -615,9 +631,15 @@ PROD: wss://qa-assistant-api.onrender.com/ws?token=<jwt>`} />
       {sectionHeader('WebSocketSync')}
       {prose('An invisible component (returns null) mounted once in the root layout for all authenticated users. Connects the useWebSocket hook to the three cache invalidation functions.')}
       <CodeBlock code={`// Event routing:
-"test-case:*"  →  invalidateCustomCache()   →  re-fetch test cases
-"project:*"    →  invalidateProjectCache()  →  re-fetch projects
-"order:updated"→  invalidateOrderCache()    →  re-fetch sort order`} />
+"test-case:*"     →  invalidateCustomCache()         →  re-fetch test cases
+"project:*"       →  invalidateProjectCache()         →  re-fetch projects
+"order:updated"   →  invalidateOrderCache()           →  re-fetch sort order
+
+// Direct cache patch — no re-fetch, instant local update:
+"status:updated"  →  applyStatusUpdate(slug, status)
+"priority:updated"→  applyPriorityUpdate(slug, priority)
+"expected:updated"→  applyExpectedUpdate(key, checked)`} />
+      {prose('Status, priority, and expected checkbox updates are patched directly into the in-memory cache rather than triggering a full re-fetch. This avoids a network round-trip and keeps updates instant for all listeners.')}
       {prose('By mounting in __root.tsx (inside AppShell, outside the public route guard), it is only active when the user is logged in. The socket is closed cleanly on logout because the component unmounts.')}
     </div>
   )
@@ -723,15 +745,15 @@ ON CONFLICT (user_id, slug) DO UPDATE SET status = $3`} />
       <Divider />
       {subHeader('Priorities')}
       <RouteRow method="GET" path="/api/data/priorities" desc="Returns { [slug]: priority } map." />
-      <RouteRow method="PUT" path="/api/data/priorities" desc="Upsert one priority. Body: { slug, priority }." />
+      <RouteRow method="PUT" path="/api/data/priorities" desc="Upsert one priority. Body: { slug, priority }. Broadcasts priority:updated." />
       <Divider />
       {subHeader('Expected Results (Checkboxes)')}
       <RouteRow method="GET" path="/api/data/expected" desc="Returns { [key]: boolean } map." />
-      <RouteRow method="PUT" path="/api/data/expected" desc="Upsert one checkbox. Body: { key, checked }." />
+      <RouteRow method="PUT" path="/api/data/expected" desc="Upsert one checkbox. Body: { key, checked }. Broadcasts expected:updated." />
       <Divider />
       {subHeader('Sort Order')}
       <RouteRow method="GET" path="/api/data/order" desc="Returns the saved slug array for the current user." />
-      <RouteRow method="PUT" path="/api/data/order" desc="Save new slug order. Body: { slugs: string[] }. Broadcasts WebSocket event." />
+      <RouteRow method="PUT" path="/api/data/order" desc="Save new slug order. Body: { slugs: string[] }. Broadcasts order:updated." />
       <CodeBlock code={`INSERT INTO test_case_order (user_id, slugs)
 VALUES ($1, $2)
 ON CONFLICT (user_id) DO UPDATE SET slugs = $2`} />
@@ -760,14 +782,17 @@ wss://qa-assistant-api.onrender.com/ws?token=<jwt>  // prod`} />
       {subHeader('broadcast(event, excludeUserId)')}
       {prose('Called by route handlers after successful mutations. Sends the event JSON to all connected clients except the user who made the change (they already have the optimistic update).')}
       <CodeBlock code={`// Emitted events:
-{ type: "test-case:created",   id: string }   // after POST /custom-test-cases
-{ type: "test-case:updated",   id: string }   // after PUT /custom-test-cases/:id
-{ type: "test-case:completed", id: string }   // after PATCH .../complete
-{ type: "test-case:deleted",   id: string }   // after DELETE /custom-test-cases/:id
-{ type: "project:created",     id: number }   // after POST /projects
-{ type: "project:updated",     id: number }   // after PUT /projects/:id
-{ type: "project:deleted",     id: number }   // after DELETE /projects/:id
-{ type: "order:updated"        }              // after PUT /data/order`} />
+{ type: "test-case:created",   id: string }        // after POST /custom-test-cases
+{ type: "test-case:updated",   id: string }        // after PUT /custom-test-cases/:id
+{ type: "test-case:completed", id: string }        // after PATCH .../complete
+{ type: "test-case:deleted",   id: string }        // after DELETE /custom-test-cases/:id
+{ type: "project:created",     id: number }        // after POST /projects
+{ type: "project:updated",     id: number }        // after PUT /projects/:id
+{ type: "project:deleted",     id: number }        // after DELETE /projects/:id
+{ type: "order:updated"        }                   // after PUT /data/order
+{ type: "status:updated",   slug, status   }       // after PUT /data/statuses
+{ type: "priority:updated", slug, priority }       // after PUT /data/priorities
+{ type: "expected:updated", key,  checked  }       // after PUT /data/expected`} />
       <Divider />
       {subHeader('Keep-alive')}
       {prose('The server pings all connected clients every 30 seconds. Clients that do not respond with a pong are terminated. The frontend auto-reconnects after 3 seconds if the connection drops.')}
@@ -907,7 +932,7 @@ ON CONFLICT (user_id, slug) DO UPDATE SET status = $3`} />
       {sectionHeader('Real-Time Sync (WebSockets)')}
       {prose('When multiple users are on the same page simultaneously, changes made by one user propagate to all others within ~100ms via WebSocket push — no polling required.')}
       <Divider />
-      {subHeader('Architecture')}
+      {subHeader('Architecture — cache invalidation (test cases, projects, order)')}
       <CodeBlock code={`Browser A                    Server (Express + ws)              Browser B
 ─────────────────────────────────────────────────────────────────────
 1. User drags test case
@@ -922,6 +947,25 @@ ON CONFLICT (user_id, slug) DO UPDATE SET status = $3`} />
                                                                      8. useTestOrder re-fetches
                                                                         /api/data/order
                                                                      9. UI re-renders with new order`} />
+      <Divider />
+      {subHeader('Architecture — direct cache patch (status, priority, expected)')}
+      {prose('Status, priority, and expected checkbox changes use a faster path. Instead of invalidating the cache and re-fetching the full map, the backend broadcasts the exact new value and the frontend patches it directly into the in-memory cache — no extra HTTP request needed.')}
+      <CodeBlock code={`Browser A                    Server (Express + ws)              Browser B
+─────────────────────────────────────────────────────────────────────
+1. User sets status = "pass"
+2. statusCache updated        ← optimistic update (instant)
+3. PUT /api/data/statuses ───►
+                              4. DB upsert
+                              5. broadcast({ type:"status:updated",
+                                             slug, status:"pass" },
+                                           excludeUserId: A.user.id)
+                                           ────────────────────────► 6. WS message received
+                                                                     7. WebSocketSync calls
+                                                                        applyStatusUpdate(slug,"pass")
+                                                                     8. statusCache[slug] = "pass"
+                                                                        notifyStatus()
+                                                                     9. All useTestStatus() hooks
+                                                                        re-render — no fetch needed`} />
       <Divider />
       {subHeader('Why exclude the sender?')}
       {prose('The user who made the change already has an optimistic update applied instantly. If we sent the WebSocket event back to them, their UI would needlessly re-fetch and potentially flicker. So broadcast() skips clients whose ws.user.id matches the requester.')}

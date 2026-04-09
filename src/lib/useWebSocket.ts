@@ -13,6 +13,9 @@ export type WSEvent =
   | { type: "test-case:created" | "test-case:updated" | "test-case:completed" | "test-case:deleted"; id: string }
   | { type: "project:created" | "project:updated" | "project:deleted"; id: number }
   | { type: "order:updated" }
+  | { type: "status:updated"; slug: string; status: string }
+  | { type: "priority:updated"; slug: string; priority: string }
+  | { type: "expected:updated"; key: string; checked: boolean }
   | { type: "ping" };
 
 type EventHandler = (event: WSEvent) => void;

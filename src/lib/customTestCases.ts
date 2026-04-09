@@ -236,7 +236,7 @@ export function useCustomTestCase(
       setReady(true);
     });
 
-    const sync = () => setTc((caseCache ?? []).find((c) => c.id === id));
+    const sync = () => ensureLoaded().then((data) => setTc(data.find((c) => c.id === id)));
     listeners.add(sync);
     return () => {
       listeners.delete(sync);

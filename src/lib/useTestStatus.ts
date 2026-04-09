@@ -29,6 +29,22 @@ let expectedLoaded = false;
 const expectedListeners = new Set<() => void>();
 function notifyExpected() { expectedListeners.forEach((fn) => fn()); }
 
+// Apply a remote WS update directly into the cache without a round-trip
+export function applyStatusUpdate(slug: string, status: TestStatus) {
+  statusCache = { ...statusCache, [slug]: status };
+  notifyStatus();
+}
+
+export function applyPriorityUpdate(slug: string, priority: TestPriority) {
+  priorityCache = { ...priorityCache, [slug]: priority };
+  notifyPriority();
+}
+
+export function applyExpectedUpdate(key: string, checked: boolean) {
+  expectedCache = { ...expectedCache, [key]: checked };
+  notifyExpected();
+}
+
 // Reset caches on logout (call this from your logout handler)
 export function clearCaches() {
   statusCache = {}; statusLoaded = false;
