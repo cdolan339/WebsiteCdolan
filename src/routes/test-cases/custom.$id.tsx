@@ -271,17 +271,28 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 mb-4">
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span style={{
+          fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+          background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          flexShrink: 0,
+        }}>
+          Test Case {String(index + 1).padStart(2, '0')}
+        </span>
+        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="flex items-start gap-3 mb-3">
         <input
           type="text"
           value={tc.name}
           onChange={(e) => patch({ name: e.target.value })}
-          placeholder={`TC-0${index + 1} — Test case name`}
+          placeholder="Test case name…"
           className="flex-1 text-sm font-semibold bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
         />
-        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-0.5" aria-label="Remove test case">
-          <X size={14} />
-        </button>
       </div>
 
       {/* Priority */}
@@ -426,52 +437,66 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
           )}
         </div>
 
-        <hr className="border-border mb-8" />
+        <hr className="border-border mb-6" />
 
-        <article className="[&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:font-semibold">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* Objective */}
           {tc.objective && (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <h2 style={{ margin: 0 }}>Objective</h2>
+            <section style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Objective</h2>
                 <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
-              <p>{tc.objective}</p>
-              <hr className="border-border my-6" />
-            </>
+              <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.7 }}>{tc.objective}</p>
+            </section>
           )}
 
           {/* Preconditions */}
-          {tc.preconditions.length > 0 && (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <h2 style={{ margin: 0 }}>Preconditions</h2>
+          {tc.preconditions.filter(Boolean).length > 0 && (
+            <section style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Preconditions</h2>
                 <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
-              <ul>
-                {tc.preconditions.filter(Boolean).map((item, i) => <li key={i}>{item}</li>)}
+              <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {tc.preconditions.filter(Boolean).map((item, i) => (
+                  <li key={i} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item}</li>
+                ))}
               </ul>
-              {tc.testCases.length > 0 && <hr className="border-border my-6" />}
-            </>
+            </section>
           )}
 
           {/* Sub test cases */}
           {tc.testCases.map((sub, i) => (
-            <div key={sub.id}>
-              {i > 0 && <hr className="border-border my-6" />}
-              <div className="flex items-center justify-between gap-3">
-                <h2 style={{ margin: 0 }}>{sub.name || `TC-0${i + 1}`}</h2>
+            <section key={sub.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+              {/* Identifier row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <span style={{
+                  fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0,
+                }}>
+                  Test Case {String(i + 1).padStart(2, '0')}
+                </span>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
                 <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
-              <div className="flex items-center gap-2 mb-3">
-                <strong>Priority:</strong>
+
+              {/* Name */}
+              {sub.name && (
+                <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: '#fff' }}>{sub.name}</h3>
+              )}
+
+              {/* Priority */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Priority:</span>
                 <Dropdown
                   label={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
                   options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
@@ -484,14 +509,20 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
                   }}
                 />
               </div>
+
+              {/* Steps */}
               {sub.steps.filter(Boolean).length > 0 && (
-                <>
-                  <p><strong>Steps:</strong></p>
-                  <ol>
-                    {sub.steps.filter(Boolean).map((step, si) => <li key={si}>{step}</li>)}
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Steps</p>
+                  <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {sub.steps.filter(Boolean).map((step, si) => (
+                      <li key={si} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.6 }}>{step}</li>
+                    ))}
                   </ol>
-                </>
+                </div>
               )}
+
+              {/* Expected result */}
               {sub.expected && (
                 <ExpectedRow
                   storageKey={`${slug}__expected__${sub.id}`}
@@ -499,9 +530,9 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
                   onToggle={(v) => setPassedCount((c) => (v ? c + 1 : c - 1))}
                 />
               )}
-            </div>
+            </section>
           ))}
-        </article>
+        </div>
       </div>
     </div>
   )

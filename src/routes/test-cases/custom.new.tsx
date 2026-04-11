@@ -104,15 +104,26 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 mb-4">
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span style={{
+          fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+          background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          flexShrink: 0,
+        }}>
+          Test Case {String(index + 1).padStart(2, '0')}
+        </span>
+        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case"><X size={14} /></button>
+      </div>
+      <div className="flex items-start gap-3 mb-3">
         <input
           type="text"
           value={tc.name}
           onChange={(e) => patch({ name: e.target.value })}
-          placeholder={`TC-0${index + 1} — Test case name`}
+          placeholder="Test case name…"
           className="flex-1 text-sm font-semibold bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
         />
-        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-0.5" aria-label="Remove test case"><X size={14} /></button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
         <span className="text-xs text-muted-foreground">Priority:</span>
