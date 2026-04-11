@@ -163,7 +163,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
           }}>
             <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', margin: 0, lineHeight: 1.6 }}>
               <strong style={{ color: 'rgba(0,210,255,0.7)' }}>Note:</strong> AI will fill title, summary, objective,
-              preconditions, and test case steps. Priority, project, and tags are left for you to set manually.
+              preconditions, tags, and test case steps. Notes, attachments, and project are left for you to manage.
             </p>
           </div>
         </div>
