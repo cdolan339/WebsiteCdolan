@@ -54,6 +54,7 @@ const SECTIONS: Section[] = [
     subsections: [
       { id: 'comp-websocket-sync',  label: 'WebSocketSync' },
       { id: 'comp-loading-curtain', label: 'LoadingCurtain' },
+      { id: 'comp-ai-fill-panel',   label: 'AIFillPanel' },
     ],
   },
   {
@@ -66,6 +67,7 @@ const SECTIONS: Section[] = [
       { id: 'api-data',       label: 'Data (Statuses / Priorities / Order)' },
       { id: 'api-perms',      label: 'Permissions' },
       { id: 'api-websocket',  label: 'WebSocket' },
+      { id: 'api-ai',         label: 'AI (Test Case Generator)' },
     ],
   },
   {
@@ -216,6 +218,7 @@ function WikiContent({ active }: { active: string }) {
             { label: 'Database', value: 'PostgreSQL (pg pool)' },
             { label: 'Auth', value: 'JWT (jsonwebtoken + bcrypt)' },
             { label: 'Real-time', value: 'WebSockets (ws package)' },
+            { label: 'AI', value: 'Anthropic Claude (claude-haiku)' },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: 'rgba(106,17,203,0.12)', border: '1px solid rgba(106,17,203,0.25)', borderRadius: '10px', padding: '12px 14px' }}>
               <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
@@ -334,21 +337,25 @@ DeleteConfirmModal  // "are you sure?" modal before deletion`} />
       {sectionHeader('New Test Case — /test-cases/custom/new')}
       {prose('A single-page form for creating a new custom test case. All edits are kept in a local draft state object. Nothing is saved until the user clicks "Save Test Case".')}
       <Divider />
+      {subHeader('AI Fill')}
+      {prose('An "AI Fill" button in the top-right opens the AIFillPanel drawer. The user pastes business requirements and Claude generates the title, summary, objective, preconditions, and all test cases automatically. Priority, project, and tags are left for the user to set. The LoadingCurtain displays while the AI is generating.')}
+      <Divider />
       {subHeader('Draft State Shape')}
       <CodeBlock code={`{
-  title:        string
-  summary:      string
-  tags:         string[]
-  objective:    string
+  title:         string
+  summary:       string
+  tags:          string[]
+  objective:     string
   preconditions: string[]
-  priority:     "low" | "medium" | "high" | "critical"
-  testCases:    CustomTC[]    // array of sub-test-case objects
-  projectId:    number | null
+  priority:      "low" | "medium" | "high" | "critical"
+  testCases:     CustomTC[]    // array of sub-test-case objects
+  projectId:     number | null
 }`} />
       <Divider />
       {subHeader('Sub-components')}
-      <CodeBlock code={`TagInput      // pill-style tag entry with keyboard shortcuts (Enter/comma to add, Backspace to remove)
-SubTCEditor   // inline editor per sub-test-case (name, priority, steps[], expected)
+      <CodeBlock code={`AIFillPanel   // slide-in drawer for AI-powered generation
+TagInput      // pill-style tag entry with keyboard shortcuts (Enter/comma to add, Backspace to remove)
+SubTCEditor   // inline editor per sub-test-case — shows "Test Case 01" gradient identifier label
 ProjectPicker // dropdown to assign to a project`} />
       <Divider />
       {subHeader('Save Flow')}
@@ -359,15 +366,24 @@ ProjectPicker // dropdown to assign to a project`} />
   if (active === 'page-test-case-detail') return (
     <div style={card}>
       {sectionHeader('Test Case Detail — /test-cases/custom/$id')}
-      {prose('The full editing view for a single test case. Supports inline editing of all fields, per-sub-case status tracking with checkboxes, and deletion. This is the most complex page in the app.')}
+      {prose('The full editing view for a single test case. Has two modes: view mode (read-only with interactive dropdowns) and edit mode (full form). This is the most complex page in the app.')}
       <Divider />
-      {subHeader('Key Features')}
+      {subHeader('View Mode')}
       <ul style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
-        <li>Inline editing — title, summary, priority, tags, objective, preconditions, test cases all editable in-place with auto-save on blur / debounced save.</li>
-        <li>Sub-test-case status tracking — each sub-case row has pass/fail/pending/blocked buttons that persist to <code>/api/data/statuses</code>.</li>
-        <li>Expected result checkboxes — each expected result in a sub-case has a checkbox tracked in <code>/api/data/expected</code>.</li>
+        <li>Objective, Preconditions, and each Test Case are rendered in dark frosted cards matching the edit mode style.</li>
+        <li>Each test case card shows a gradient <strong>"Test Case 01"</strong> identifier label with a separator line.</li>
+        <li>Each section card has its own gradient Edit button that opens edit mode.</li>
+        <li>Sub-test-case status tracking — pass/fail/pending/blocked dropdowns that persist to <code>/api/data/statuses</code>.</li>
+        <li>Expected result checkboxes — each expected result has a checkbox tracked in <code>/api/data/expected</code>.</li>
+      </ul>
+      <Divider />
+      {subHeader('Edit Mode')}
+      <ul style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+        <li><strong>AI Fill</strong> — "AI Fill" button in the top-right opens AIFillPanel. LoadingCurtain shows while generating.</li>
+        <li>Each SubTCEditor card shows a gradient "Test Case 01" identifier at the top.</li>
+        <li>Title wraps correctly on long AI-generated titles (<code>wordBreak: break-word</code>).</li>
+        <li>All edits held in local draft state — saved on "Done" button click.</li>
         <li>Delete — confirmation popover, calls <code>DELETE /api/custom-test-cases/:id</code> then navigates back to homepage.</li>
-        <li>Complete / Reactivate — same as the homepage buttons.</li>
       </ul>
     </div>
   )
@@ -647,9 +663,52 @@ PROD: wss://qa-assistant-api.onrender.com/ws?token=<jwt>`} />
   if (active === 'comp-loading-curtain') return (
     <div style={card}>
       {sectionHeader('LoadingCurtain')}
-      {prose('A full-screen overlay that fades in/out with a gradient animation. Used during page transitions (login → homepage, logout), and while data is loading on most pages.')}
+      {prose('A full-screen overlay that fades in/out with a gradient animation. Used during page transitions (login → homepage, logout), while data is loading on most pages, and while the AI generator is running.')}
       <CodeBlock code={`<LoadingCurtain visible={boolean} message="Loading Test Cases" />`} />
       {prose('Uses CSS transitions — when visible=false, opacity fades to 0 and pointer-events are disabled. The component stays mounted so the fade-out animation plays before the element is removed.')}
+    </div>
+  )
+
+  if (active === 'comp-ai-fill-panel') return (
+    <div style={card}>
+      {sectionHeader('AIFillPanel')}
+      {prose('A slide-in drawer panel that lets the user paste business requirements, user stories, or BA notes and have Claude generate a complete test case structure. Mounted on both the New Test Case and Edit Test Case pages.')}
+      <Divider />
+      {subHeader('Props')}
+      <CodeBlock code={`type Props = {
+  onFill: (result: AIFillResult) => void  // merges AI output into draft state
+  onClose: () => void                     // closes the panel
+  onLoading?: (loading: boolean) => void  // fires true/false to show LoadingCurtain
+}`} />
+      <Divider />
+      {subHeader('AIFillResult shape')}
+      <CodeBlock code={`type AIFillResult = {
+  title:         string
+  summary:       string
+  objective:     string
+  preconditions: string[]
+  testCases: {
+    name:     string
+    steps:    string[]
+    expected: string
+  }[]
+}`} />
+      <Divider />
+      {subHeader('Flow')}
+      <CodeBlock code={`1. User clicks "AI Fill" button (top-right of New/Edit page)
+2. AIFillPanel slides in from the right
+3. User pastes business story / BA requirements into the textarea
+4. User clicks "Generate Test Case"
+5. onLoading(true) fires → LoadingCurtain appears over the page
+6. POST /api/ai/fill-test-case is called with { prompt }
+7. Claude (claude-haiku) returns structured JSON
+8. onFill(result) merges title, summary, objective, preconditions,
+   and testCases into the draft state
+9. Panel closes, LoadingCurtain fades out
+10. Priority, project, and tags are left for the user to set manually`} />
+      <Divider />
+      {subHeader('What the AI fills')}
+      {prose('Title, summary, objective, preconditions, and all test case sub-items (name, steps, expected result). Priority, project, and tags are intentionally excluded — the user sets those manually.')}
     </div>
   )
 
@@ -796,6 +855,49 @@ wss://qa-assistant-api.onrender.com/ws?token=<jwt>  // prod`} />
       <Divider />
       {subHeader('Keep-alive')}
       {prose('The server pings all connected clients every 30 seconds. Clients that do not respond with a pong are terminated. The frontend auto-reconnects after 3 seconds if the connection drops.')}
+    </div>
+  )
+
+  if (active === 'api-ai') return (
+    <div style={card}>
+      {sectionHeader('API — AI (Test Case Generator)')}
+      {prose('Single authenticated endpoint that accepts a free-text business requirement and returns a structured test case JSON generated by Claude (claude-haiku). The ANTHROPIC_API_KEY environment variable must be set on the server.')}
+      <Divider />
+      <RouteRow method="POST" path="/api/ai/fill-test-case" desc="Generate a structured test case from a business story. Body: { prompt: string }." />
+      <Divider />
+      {subHeader('Request')}
+      <CodeBlock code={`POST /api/ai/fill-test-case
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{ "prompt": "As a user I want to log in with email and password..." }`} />
+      {subHeader('Response')}
+      <CodeBlock code={`{
+  "title": "User Login Authentication",
+  "summary": "Verify the login flow works correctly...",
+  "objective": "Ensure that users can authenticate...",
+  "preconditions": ["User account exists", "User is on /login"],
+  "testCases": [
+    {
+      "name": "Successful login with valid credentials",
+      "steps": ["Navigate to /login", "Enter valid email", "Click Submit"],
+      "expected": "User is redirected to /homepage"
+    }
+  ]
+}`} />
+      <Divider />
+      {subHeader('System prompt behaviour')}
+      {prose('The AI is instructed to think as a QA Engineer, Business Analyst, and Product Owner combined. It generates: happy path cases first, then negative/error handling cases, then boundary and edge cases. Each test case has at least 3 detailed steps and a specific observable expected result.')}
+      <CodeBlock code={`Model:      claude-haiku-4-5-20251001
+Max tokens: 4096
+Coverage:   3-8 sub test cases per generation
+Priority:   Assigned per sub case (critical/high/medium/low)`} />
+      <Divider />
+      {subHeader('Error responses')}
+      <CodeBlock code={`400  { error: "Prompt is required" }
+500  { error: "AI service not configured — ANTHROPIC_API_KEY missing" }
+502  { error: "AI response was incomplete. Please try again." }
+500  { error: "<anthropic SDK error message>" }`} />
     </div>
   )
 

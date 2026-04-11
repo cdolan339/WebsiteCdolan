@@ -326,7 +326,7 @@ function NewTestCase() {
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
             style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
           >
-            <Sparkles size={14} /> AI Fill
+            <Sparkles size={14} /> AI Test Case Generator
           </button>
         </div>
 
