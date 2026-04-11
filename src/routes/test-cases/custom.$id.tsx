@@ -263,7 +263,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
 
 // ── Sub-test case editor (edit mode) ─────────────────────────────────────────
 
-function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number }) {
+function SubTCEditor({ tc, onChange, onRemove, index, id }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string }) {
   const patch = (fields: Partial<CustomTC>) => onChange({ ...tc, ...fields })
 
   const addStep = () => patch({ steps: [...tc.steps, ''] })
@@ -271,7 +271,7 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
   const removeStep = (i: number) => patch({ steps: tc.steps.filter((_, idx) => idx !== i) })
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 mb-4">
+    <div id={id} className="rounded-lg border border-border bg-card p-4 mb-4">
       <div className="flex items-center gap-2 mb-2">
         <span style={{
           fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
@@ -489,7 +489,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
                   Test Case {String(i + 1).padStart(2, '0')}
                 </span>
                 <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                <button onClick={() => onEdit('edit-testcases')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
@@ -726,6 +726,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           {draft.testCases.map((sub, i) => (
             <SubTCEditor
               key={sub.id}
+              id={`edit-testcase-${i}`}
               tc={sub}
               index={i}
               onChange={updateSubTC}

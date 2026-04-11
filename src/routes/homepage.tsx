@@ -342,39 +342,78 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
     zIndex: isDragging ? 10 : undefined,
   }
 
-  const titleLinkClass = "font-medium text-foreground hover:underline py-3 block truncate max-w-[260px]"
-  const titleLink = <Link to="/test-cases/custom/$id" params={{ id: tc.customId! }} className={titleLinkClass} onClick={(e) => e.stopPropagation()} title={tc.title || "Untitled Test Case"}>{tc.title || "Untitled Test Case"}</Link>
-
   return (
     <li ref={setNodeRef} style={style}>
       <div
         {...attributes}
         {...listeners}
-        className={`flex items-start gap-3 px-4 py-4 transition-colors cursor-grab active:cursor-grabbing ${cfg.rowClass}`}
+        className={`px-5 py-4 transition-colors cursor-grab active:cursor-grabbing ${cfg.rowClass}`}
       >
-        <span className="flex-shrink-0 mt-3.5">{cfg.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            {titleLink}
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
-              {resolvedPriority}
+        {/* ── Meta strip (top) ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {/* Status */}
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            {cfg.icon}
+            {cfg.label}
+          </span>
+
+          <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+
+          {/* Priority */}
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
+            {resolvedPriority}
+          </span>
+
+          {/* Project */}
+          {tc.projectName && (
+            <span
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: 'rgba(0,210,255,0.12)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)' }}
+            >
+              <FolderOpen size={10} />
+              {tc.projectName}
             </span>
-            {tc.projectName && (
-              <span
-                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: 'rgba(0,210,255,0.12)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)' }}
-              >
-                <FolderOpen size={10} />
-                {tc.projectName}
-              </span>
+          )}
+
+          {/* Passed count */}
+          {passedCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.2)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)' }}>
+              ✓ {passedCount} passed
+            </span>
+          )}
+
+          {/* Spacer + dates + action pushed to right */}
+          <div className="hidden sm:flex items-center gap-3 ml-auto flex-shrink-0">
+            <span className="text-xs text-muted-foreground">
+              {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+            {tab === 'active' && (
+              <CompleteButton tc={tc} onComplete={onComplete} />
             )}
-            {passedCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.2)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)' }}>
-                ✓ {passedCount} passed
-              </span>
+            {tab === 'completed' && (
+              <ReactivateButton tc={tc} onReactivate={onReactivate} />
             )}
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{tc.summary}</p>
+        </div>
+
+        {/* ── Title ── */}
+        <Link
+          to="/test-cases/custom/$id"
+          params={{ id: tc.customId! }}
+          className="block text-base font-semibold text-foreground hover:underline mb-1 leading-snug"
+          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {tc.title || 'Untitled Test Case'}
+        </Link>
+
+        {/* ── Summary ── */}
+        {tc.summary && (
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{tc.summary}</p>
+        )}
+
+        {/* ── Tags ── */}
+        {tc.tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             {tc.tags.slice(0, 4).map((tag: string) => (
               <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
@@ -396,21 +435,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
               </HoverCard>
             )}
           </div>
-        </div>
-        <div className="hidden sm:flex flex-col items-end gap-1.5 flex-shrink-0">
-          <span className="text-xs text-muted-foreground">
-            Created: {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-          {tab === 'active' && (
-            <CompleteButton tc={tc} onComplete={onComplete} />
-          )}
-          {tab === 'completed' && (
-            <ReactivateButton tc={tc} onReactivate={onReactivate} />
-          )}
-          <span className="text-xs text-muted-foreground">
-            Updated: {new Date(tc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-        </div>
+        )}
       </div>
     </li>
   )
