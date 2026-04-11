@@ -317,9 +317,12 @@ function NewTestCase() {
 
         {/* Back + AI button */}
         <div className="flex items-center justify-between mb-8">
-          <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={16} />
-            Back to Test Cases
+          <Link
+            to="/homepage"
+            className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(6px)' }}
+          >
+            <ArrowLeft size={14} /> Back to Test Cases
           </Link>
           <button
             onClick={() => setAiOpen(true)}
@@ -460,10 +463,10 @@ function NewTestCase() {
           </button>
           <Link
             to="/homepage"
-            className="inline-flex items-center px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)' }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+            style={{ background: 'rgba(220,38,38,0.12)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)', backdropFilter: 'blur(6px)' }}
           >
-            Cancel
+            <X size={14} /> Cancel
           </Link>
         </div>
 

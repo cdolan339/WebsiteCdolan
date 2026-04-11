@@ -352,7 +352,7 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
 
 // ── View mode ─────────────────────────────────────────────────────────────────
 
-function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
+function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string) => void }) {
   const slug = `custom:${tc.id}`
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
@@ -379,11 +379,15 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
       <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
 
         <div className="flex items-center justify-between mb-6">
-          <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
-            <ArrowLeft size={16} /> Back to Test Cases
+          <Link
+            to="/homepage"
+            className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(6px)' }}
+          >
+            <ArrowLeft size={14} /> Back to Test Cases
           </Link>
           <button
-            onClick={onEdit}
+            onClick={() => onEdit()}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
             style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
           >
@@ -393,7 +397,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
 
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-3" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.title || 'Untitled Test Case'}</h1>
-          {tc.summary && <p className="text-muted-foreground text-lg mb-4">{tc.summary}</p>}
+          {tc.summary && <p className="text-muted-foreground text-lg mb-4" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{tc.summary}</p>}
 
           <div className="flex flex-wrap items-center gap-3 mb-4">
             {/* Status dropdown */}
@@ -447,7 +451,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
             <section style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Objective</h2>
-                <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <button onClick={() => onEdit('edit-objective')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
@@ -460,7 +464,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
             <section style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Preconditions</h2>
-                <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
@@ -485,7 +489,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
                   Test Case {String(i + 1).padStart(2, '0')}
                 </span>
                 <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <button onClick={() => onEdit('edit-testcases')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
@@ -541,11 +545,17 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
 
 // ── Edit mode ─────────────────────────────────────────────────────────────────
 
-function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
+function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: () => void; scrollTarget?: string | null }) {
   const { projects } = useProjects()
   const [draft, setDraft] = useState<CustomTestCase>({ ...tc })
 
   const patch = (fields: Partial<CustomTestCase>) => setDraft((prev) => ({ ...prev, ...fields }))
+
+  useEffect(() => {
+    if (!scrollTarget) return
+    const el = document.getElementById(scrollTarget)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [scrollTarget])
 
   const handleDone = () => {
     save(tc, { ...draft, updatedAt: new Date().toISOString() })
@@ -597,8 +607,12 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
       <div className="max-w-3xl mx-auto px-4 pt-2 pb-12 relative z-10">
 
         <div className="flex items-center justify-between mb-4">
-          <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
-            <ArrowLeft size={16} /> Back to Test Cases
+          <Link
+            to="/homepage"
+            className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(6px)' }}
+          >
+            <ArrowLeft size={14} /> Back to Test Cases
           </Link>
           <button
             onClick={() => setAiOpen(true)}
@@ -622,10 +636,12 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         {/* Summary */}
         <textarea
           value={draft.summary}
-          onChange={(e) => patch({ summary: e.target.value })}
+          onChange={(e) => { patch({ summary: e.target.value }); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+          onInput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }}
           placeholder="Add a description…"
           rows={2}
           className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/50 mb-3 focus:underline decoration-muted-foreground/40"
+          style={{ overflow: 'hidden' }}
         />
 
         {/* Meta */}
@@ -666,7 +682,7 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         </div>
 
         {/* Objective */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section id="edit-objective" className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
           <div className="rounded-lg border border-border bg-card p-4">
             <textarea
@@ -680,7 +696,7 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         </section>
 
         {/* Preconditions */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section id="edit-preconditions" className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
           <div className="rounded-lg border border-border bg-card p-4">
             <ul className="space-y-2 mb-3">
@@ -705,7 +721,7 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         </section>
 
         {/* Test cases */}
-        <section className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section id="edit-testcases" className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
           {draft.testCases.map((sub, i) => (
             <SubTCEditor
@@ -757,6 +773,7 @@ function CustomTestCaseDetail() {
   const navigate = useNavigate()
   const { tc, ready } = useCustomTestCase(id)
   const [editing, setEditing] = useState(false)
+  const [scrollTarget, setScrollTarget] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready && tc === undefined) navigate({ to: '/homepage' })
@@ -764,6 +781,6 @@ function CustomTestCaseDetail() {
 
   if (!ready || !tc) return null
 
-  if (editing) return <EditMode tc={tc} onDone={() => setEditing(false)} />
-  return <ViewMode tc={tc} onEdit={() => setEditing(true)} />
+  if (editing) return <EditMode tc={tc} onDone={() => setEditing(false)} scrollTarget={scrollTarget} />
+  return <ViewMode tc={tc} onEdit={(target?: string) => { setScrollTarget(target ?? null); setEditing(true) }} />
 }
