@@ -44,9 +44,11 @@ export function AIFillPanel({ onFill, onClose }: Props) {
         method: 'POST',
         body: JSON.stringify({ prompt }),
       })
+      console.log('AI result:', result)
       onFill(result)
       onClose()
     } catch (err: unknown) {
+      console.error('AI fill error:', err)
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       setError(msg)
     } finally {
