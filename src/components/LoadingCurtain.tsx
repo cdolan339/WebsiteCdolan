@@ -9,7 +9,7 @@ const css = `
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #0f0c29;
+  background: var(--app-bg);
   font-family: 'Poppins', sans-serif;
   animation: curtainFadeIn 0.2s ease-out;
 }
@@ -222,7 +222,7 @@ const css = `
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(0,210,255,0.6);
+  background: var(--app-text-secondary);
   animation: dotpulse 1.2s ease-in-out infinite;
 }
 
@@ -257,8 +257,8 @@ export function LoadingCurtain({ visible, message }: { visible: boolean; message
       <style>{css}</style>
       <div className={`curtain-overlay${exiting ? ' curtain-exit' : ''}`}>
         {/* Background blobs */}
-        <div style={{ position: 'absolute', width: 300, height: 300, top: -80, left: -80, borderRadius: '50%', background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', filter: 'blur(80px)', opacity: 0.3, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 200, height: 200, bottom: -40, right: -40, borderRadius: '50%', background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', filter: 'blur(80px)', opacity: 0.3, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 300, height: 300, top: -80, left: -80, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 200, height: 200, bottom: -40, right: -40, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
 
         <div className="curtain-ship-wrap">
           <div className="curtain-sun" />
@@ -272,7 +272,7 @@ export function LoadingCurtain({ visible, message }: { visible: boolean; message
           </div>
         </div>
 
-        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.5px' }}>
+        <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.5px' }}>
           {message || 'Loading'}
         </p>
         <div className="curtain-dots">

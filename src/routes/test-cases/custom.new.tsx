@@ -108,13 +108,13 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
       <div className="flex items-center gap-2 mb-2">
         <span style={{
           fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-          background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
+          background: 'var(--app-accent-gradient)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           flexShrink: 0,
         }}>
           Test Case {String(index + 1).padStart(2, '0')}
         </span>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+        <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
         <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case"><X size={14} /></button>
       </div>
       <div className="flex items-start gap-3 mb-3">
@@ -177,12 +177,12 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
         style={{
-          background: 'rgba(0,210,255,0.12)',
-          border: '1px solid rgba(0,210,255,0.3)',
-          color: selected ? '#00d2ff' : 'rgba(255,255,255,0.5)',
+          background: 'var(--app-glass)',
+          border: '1px solid var(--app-glass-border)',
+          color: 'var(--app-text)',
         }}
       >
-        <FolderOpen size={14} style={{ color: '#00d2ff', opacity: 0.7 }} />
+        <FolderOpen size={14} style={{ opacity: 0.7 }} />
         <span className="truncate max-w-[200px]">{selected?.name ?? 'No Project'}</span>
         <ChevronDown size={13} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -191,9 +191,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
         <div
           className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl overflow-hidden"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            background: 'rgba(15,12,41,0.97)',
-            border: '1px solid rgba(0,210,255,0.25)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            background: 'var(--app-overlay)',
+            border: '1px solid var(--app-overlay-border)',
             backdropFilter: 'blur(16px)',
           }}
         >
@@ -201,14 +201,15 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
             onMouseDown={() => { onChange(null); setOpen(false) }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
             style={{
-              background: projectId === null ? 'rgba(0,210,255,0.15)' : 'transparent',
-              color: projectId === null ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              background: projectId === null ? 'var(--app-glass)' : 'transparent',
+              color: 'var(--app-text)',
+              borderBottom: '1px solid var(--app-glass-border)',
+              fontWeight: projectId === null ? 600 : 400,
             }}
-            onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
+            onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
             onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
           >
-            <FolderOpen size={14} style={{ color: '#00d2ff', opacity: 0.7 }} />
+            <FolderOpen size={14} style={{ opacity: 0.7 }} />
             No Project
           </button>
           <div className="max-h-48 overflow-y-auto">
@@ -218,12 +219,13 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
                 onMouseDown={() => { onChange(p.id); setOpen(false) }}
                 className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
                 style={{
-                  background: projectId === p.id ? 'rgba(0,210,255,0.15)' : 'transparent',
-                  color: projectId === p.id ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  background: projectId === p.id ? 'var(--app-glass)' : 'transparent',
+                  color: 'var(--app-text)',
+                  borderBottom: '1px solid var(--app-glass-border)',
+                  fontWeight: projectId === p.id ? 600 : 400,
                 }}
-                onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
-                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'rgba(0,210,255,0.15)' : 'transparent' }}
+                onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
+                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-glass)' : 'transparent' }}
               >
                 {p.name}
               </button>
@@ -307,11 +309,11 @@ function NewTestCase() {
     patch({ preconditions: draft.preconditions.filter((_, idx) => idx !== i) })
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movenew { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-new { position:absolute; border-radius:50%; background:linear-gradient(45deg,#6a11cb,#00d2ff); filter:blur(80px); opacity:0.3; animation:movenew 20s infinite alternate; pointer-events:none; }
+        .blob-new { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movenew 20s infinite alternate; pointer-events:none; }
       `}</style>
       <div className="blob-new" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-new" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
@@ -322,14 +324,14 @@ function NewTestCase() {
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, rgba(106,17,203,0.35), rgba(0,210,255,0.35))', border: '1px solid rgba(0,210,255,0.35)', color: '#fff', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px rgba(106,17,203,0.2)' }}
+            style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px var(--app-btn-outline-shadow)' }}
           >
             <ArrowLeft size={14} /> Back to Test Cases
           </Link>
           <button
             onClick={() => setAiOpen(true)}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
             <Sparkles size={14} /> AI Test Case Generator
           </button>
@@ -392,7 +394,7 @@ function NewTestCase() {
         </div>
 
         {/* Objective */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
           <div className="rounded-lg border border-border bg-card p-4">
             <textarea
@@ -406,7 +408,7 @@ function NewTestCase() {
         </section>
 
         {/* Preconditions */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
           <div className="rounded-lg border border-border bg-card p-4">
             <ul className="space-y-2 mb-3">
@@ -434,7 +436,7 @@ function NewTestCase() {
         </section>
 
         {/* Test cases */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
           {draft.testCases.map((sub, i) => (
             <SubTCEditor
@@ -459,7 +461,7 @@ function NewTestCase() {
           <button
             onClick={handleSave}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
             Save Test Case
           </button>

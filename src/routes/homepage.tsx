@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTestOrder } from '@/lib/useTestOrder'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, reloadForProject } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
@@ -104,14 +104,14 @@ function ProjectSelector({
         className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
         style={{
           background: activeProject
-            ? 'linear-gradient(45deg, rgba(106,17,203,0.5), rgba(0,210,255,0.5))'
-            : 'linear-gradient(45deg, rgba(106,17,203,0.3), rgba(0,210,255,0.3))',
-          border: '1px solid rgba(106,17,203,0.4)',
-          color: '#fff',
-          boxShadow: '0 2px 12px rgba(106,17,203,0.2)',
+            ? 'var(--app-btn-primary)'
+            : 'var(--app-btn-outline-bg)',
+          border: '1px solid var(--app-btn-outline-border)',
+          color: 'var(--app-text)',
+          boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
         }}
       >
-        <FolderOpen size={15} style={{ color: '#00d2ff' }} />
+        <FolderOpen size={15} />
         <span className="truncate max-w-[200px]">{activeProject?.name ?? 'All Projects'}</span>
         <ChevronDown size={14} className={`opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -120,9 +120,9 @@ function ProjectSelector({
         <div
           className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl overflow-hidden"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            background: 'rgba(15,12,41,0.97)',
-            border: '1px solid rgba(0,210,255,0.25)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            background: 'var(--app-overlay)',
+            border: '1px solid var(--app-overlay-border)',
             backdropFilter: 'blur(16px)',
           }}
         >
@@ -131,14 +131,15 @@ function ProjectSelector({
             onMouseDown={() => { onSelect(null); setOpen(false) }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
             style={{
-              background: activeProjectId === null ? 'rgba(0,210,255,0.15)' : 'transparent',
-              color: activeProjectId === null ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              background: activeProjectId === null ? 'var(--app-glass)' : 'transparent',
+              color: 'var(--app-text)',
+              borderBottom: '1px solid var(--app-glass-border)',
+              fontWeight: activeProjectId === null ? 600 : 400,
             }}
-            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
+            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
             onMouseLeave={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'transparent' }}
           >
-            <FolderOpen size={15} style={{ color: '#00d2ff', opacity: 0.7 }} />
+            <FolderOpen size={15} style={{ opacity: 0.7 }} />
             All Projects
           </button>
 
@@ -150,12 +151,13 @@ function ProjectSelector({
                 onMouseDown={() => { onSelect(project.id); setOpen(false) }}
                 className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
                 style={{
-                  background: activeProjectId === project.id ? 'rgba(0,210,255,0.15)' : 'transparent',
-                  color: activeProjectId === project.id ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  background: activeProjectId === project.id ? 'var(--app-glass)' : 'transparent',
+                  color: 'var(--app-text)',
+                  borderBottom: '1px solid var(--app-glass-border)',
+                  fontWeight: activeProjectId === project.id ? 600 : 400,
                 }}
-                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
-                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'rgba(0,210,255,0.15)' : 'transparent' }}
+                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'var(--app-glass)' }}
+                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'var(--app-glass)' : 'transparent' }}
               >
                 <span className="truncate">{project.name}</span>
               </button>
@@ -210,7 +212,7 @@ function StatusSummary({ statuses, total, slugs }: StatusSummaryProps) {
       {(['pass', 'fail', 'pending', 'blocked'] as const).map((status) => {
         const cfg = STATUS_CONFIG[status]
         return (
-          <div key={status} className="flex items-center gap-3 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
+          <div key={status} className="flex items-center gap-3 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
             <span className={`w-3 h-3 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
             <div>
               <p className="text-2xl font-bold">{display[status] ?? 0}</p>
@@ -248,18 +250,18 @@ function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: st
           className="flex items-center gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-xs text-white/60">Complete?</span>
+          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Complete?</span>
           <button
             onClick={() => { onComplete(tc.customId!); setConfirming(false) }}
             className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
           >
             Yes
           </button>
           <button
             onClick={() => setConfirming(false)}
             className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
           >
             No
           </button>
@@ -294,18 +296,18 @@ function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (
           className="flex items-center gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-xs text-white/60">Move to Active?</span>
+          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Move to Active?</span>
           <button
             onClick={() => { onReactivate(tc.customId!); setConfirming(false) }}
             className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
           >
             Yes
           </button>
           <button
             onClick={() => setConfirming(false)}
             className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
           >
             No
           </button>
@@ -352,12 +354,12 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
         {/* ── Meta strip (top) ── */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {/* Status */}
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>
             {cfg.icon}
             {cfg.label}
           </span>
 
-          <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+          <span style={{ width: 1, height: 12, background: 'var(--app-glass-border)', display: 'inline-block', flexShrink: 0 }} />
 
           {/* Priority */}
           <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
@@ -368,7 +370,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
           {tc.projectName && (
             <span
               className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: 'rgba(0,210,255,0.12)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)' }}
+              style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
             >
               <FolderOpen size={10} />
               {tc.projectName}
@@ -384,8 +386,13 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
 
           {/* Spacer + dates + action pushed to right */}
           <div className="hidden sm:flex items-center gap-3 ml-auto flex-shrink-0">
-            <span className="text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Created">
+              <CalendarPlus size={11} />
               {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Updated">
+              <CalendarClock size={11} />
+              {new Date(tc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
             {tab === 'active' && (
               <CompleteButton tc={tc} onComplete={onComplete} />
@@ -409,7 +416,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
 
         {/* ── Summary ── */}
         {tc.summary && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{tc.summary}</p>
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.summary}</p>
         )}
 
         {/* ── Tags ── */}
@@ -509,7 +516,7 @@ function TestCaseIndex() {
   }
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movehp {
@@ -519,9 +526,9 @@ function TestCaseIndex() {
         .blob-hp {
           position: absolute;
           border-radius: 50%;
-          background: linear-gradient(45deg, #6a11cb, #00d2ff);
+          background: var(--app-accent-gradient);
           filter: blur(80px);
-          opacity: 0.3;
+          opacity: 0.18;
           animation: movehp 20s infinite alternate;
           pointer-events: none;
         }
@@ -538,8 +545,8 @@ function TestCaseIndex() {
           </div>
           <button
             onClick={handleCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)' }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
           >
             <Plus size={16} />
             New Test Case
@@ -556,17 +563,17 @@ function TestCaseIndex() {
         </div>
 
         {/* ── Tabs ─────────────────────────────────────────────── */}
-        <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <button
             onClick={() => setTab('active')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
             style={tab === 'active' ? {
-              background: 'linear-gradient(45deg, rgba(106,17,203,0.4), rgba(0,210,255,0.4))',
-              color: '#fff',
-              boxShadow: '0 2px 12px rgba(106,17,203,0.3)',
+              background: 'var(--app-btn-primary)',
+              color: 'var(--app-text)',
+              boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
             } : {
               background: 'transparent',
-              color: 'rgba(255,255,255,0.45)',
+              color: 'var(--app-text-secondary)',
             }}
           >
             <Clock size={15} />
@@ -574,8 +581,8 @@ function TestCaseIndex() {
             <span
               className="text-xs px-2 py-0.5 rounded-full font-bold"
               style={tab === 'active'
-                ? { background: 'rgba(255,255,255,0.15)', color: '#fff' }
-                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }
+                ? { background: 'var(--app-glass)', color: 'var(--app-text)' }
+                : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
               }
             >
               {activeCases.length}
@@ -585,12 +592,12 @@ function TestCaseIndex() {
             onClick={() => setTab('completed')}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
             style={tab === 'completed' ? {
-              background: 'linear-gradient(45deg, rgba(106,17,203,0.4), rgba(0,210,255,0.4))',
-              color: '#fff',
-              boxShadow: '0 2px 12px rgba(106,17,203,0.3)',
+              background: 'var(--app-btn-primary)',
+              color: 'var(--app-text)',
+              boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
             } : {
               background: 'transparent',
-              color: 'rgba(255,255,255,0.45)',
+              color: 'var(--app-text-secondary)',
             }}
           >
             <CheckCheck size={15} />
@@ -598,8 +605,8 @@ function TestCaseIndex() {
             <span
               className="text-xs px-2 py-0.5 rounded-full font-bold"
               style={tab === 'completed'
-                ? { background: 'rgba(255,255,255,0.15)', color: '#fff' }
-                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }
+                ? { background: 'var(--app-glass)', color: 'var(--app-text)' }
+                : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
               }
             >
               {completedCases.length}
@@ -609,8 +616,8 @@ function TestCaseIndex() {
 
         <StatusSummary statuses={statuses} total={visibleCases.length} slugs={visibleSlugs} />
 
-        <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}>
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(106,17,203,0.25)', backdropFilter: 'blur(12px)' }}>
+        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}>
             <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
               {tab === 'active'
                 ? `${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : 'All '}Test Cases`
@@ -630,7 +637,7 @@ function TestCaseIndex() {
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
               <SortableContext items={order} strategy={verticalListSortingStrategy}>
-                <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                <ul className="divide-y" style={{ borderColor: 'var(--app-glass-border)' }}>
                   {sorted.map((tc) => {
                     const resolvedStatus: TestStatus = statuses[tc.slug] ?? 'pending'
                     const resolvedPriority = tc.isCustom

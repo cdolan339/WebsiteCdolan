@@ -76,8 +76,8 @@ function ProjectFormModal({
   }
 
   const inputStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.15)',
+    background: 'var(--app-glass)',
+    border: '1px solid var(--app-glass-border)',
     color: '#fff',
   }
 
@@ -90,8 +90,8 @@ function ProjectFormModal({
       <div
         className="w-full max-w-lg rounded-xl p-6 relative"
         style={{
-          background: 'rgba(15,12,41,0.98)',
-          border: '1px solid rgba(255,255,255,0.15)',
+          background: 'var(--app-overlay)',
+          border: '1px solid var(--app-glass-border)',
           boxShadow: '0 16px 64px rgba(0,0,0,0.5)',
         }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -147,7 +147,7 @@ function ProjectFormModal({
                 <span
                   key={tag}
                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full"
-                  style={{ background: 'rgba(0,210,255,0.15)', color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)' }}
+                  style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
                 >
                   {tag}
                   <button onClick={() => handleRemoveTag(tag)} className="hover:text-white">
@@ -168,7 +168,7 @@ function ProjectFormModal({
               <button
                 onClick={handleAddTag}
                 className="px-3 py-2 rounded-lg text-xs font-medium"
-                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)' }}
+                style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
               >
                 Add
               </button>
@@ -217,7 +217,7 @@ function ProjectFormModal({
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)' }}
+            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
           >
             Cancel
           </button>
@@ -225,7 +225,7 @@ function ProjectFormModal({
             onClick={handleSubmit}
             disabled={saving}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
           >
             {saving ? 'Saving...' : initial ? 'Save Changes' : 'Create Project'}
           </button>
@@ -255,8 +255,8 @@ function DeleteConfirmModal({
       <div
         className="w-full max-w-sm rounded-xl p-6"
         style={{
-          background: 'rgba(15,12,41,0.98)',
-          border: '1px solid rgba(255,255,255,0.15)',
+          background: 'var(--app-overlay)',
+          border: '1px solid var(--app-glass-border)',
           boxShadow: '0 16px 64px rgba(0,0,0,0.5)',
         }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -269,7 +269,7 @@ function DeleteConfirmModal({
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)' }}
+            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
           >
             Cancel
           </button>
@@ -309,8 +309,8 @@ function ProjectTile({
     <div
       className="rounded-xl overflow-hidden transition-all hover:scale-[1.02] cursor-pointer group"
       style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'var(--app-glass)',
+        border: '1px solid var(--app-glass-border)',
         backdropFilter: 'blur(10px)',
       }}
       onClick={() => navigate({ to: '/projects/$id', params: { id: String(project.id) } })}
@@ -319,8 +319,8 @@ function ProjectTile({
       <div
         className="px-5 py-3 flex items-center justify-between"
         style={{
-          background: 'rgba(106,17,203,0.25)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--app-section-header-bg)',
+          borderBottom: '1px solid var(--app-glass-border)',
         }}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -459,7 +459,7 @@ function ProjectsPage() {
   return (
     <div
       className="min-h-screen text-foreground overflow-hidden relative"
-      style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}
+      style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -470,7 +470,7 @@ function ProjectsPage() {
         .blob-pr {
           position: absolute;
           border-radius: 50%;
-          background: linear-gradient(45deg, #6a11cb, #00d2ff);
+          background: var(--app-accent-gradient);
           filter: blur(80px);
           opacity: 0.3;
           animation: movepr 20s infinite alternate;
@@ -492,7 +492,7 @@ function ProjectsPage() {
             <button
               onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
-              style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)' }}
+              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
             >
               <Plus size={16} />
               New Project
@@ -503,7 +503,7 @@ function ProjectsPage() {
         {projects.length === 0 ? (
           <div
             className="rounded-xl px-4 py-16 text-center"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
           >
             <FolderOpen size={40} className="mx-auto mb-3 text-white/20" />
             <p className="text-muted-foreground">No projects yet.</p>

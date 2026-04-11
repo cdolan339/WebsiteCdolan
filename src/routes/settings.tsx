@@ -16,7 +16,7 @@ function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('general')
 
   return (
-    <div className="min-h-screen text-white overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes moveSettings {
@@ -26,9 +26,9 @@ function SettingsPage() {
         .blob-settings {
           position: absolute;
           border-radius: 50%;
-          background: linear-gradient(45deg, #6a11cb, #00d2ff);
+          background: var(--app-accent-gradient);
           filter: blur(80px);
-          opacity: 0.3;
+          opacity: 0.18;
           animation: moveSettings 20s infinite alternate;
           pointer-events: none;
         }
@@ -49,16 +49,16 @@ function SettingsPage() {
                     onClick={() => setTab(t.key)}
                     className="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
                     style={tab === t.key ? {
-                      background: 'rgba(106,17,203,0.3)',
-                      color: '#fff',
-                      border: '1px solid rgba(106,17,203,0.4)',
+                      background: 'var(--app-section-header-bg)',
+                      color: 'var(--app-text)',
+                      border: '1px solid var(--app-glass-border)',
                     } : {
                       background: 'transparent',
-                      color: 'rgba(255,255,255,0.5)',
+                      color: 'var(--app-text-secondary)',
                       border: '1px solid transparent',
                     }}
                     onMouseEnter={(e) => {
-                      if (tab !== t.key) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                      if (tab !== t.key) e.currentTarget.style.background = 'var(--app-glass)'
                     }}
                     onMouseLeave={(e) => {
                       if (tab !== t.key) e.currentTarget.style.background = 'transparent'
@@ -76,13 +76,13 @@ function SettingsPage() {
             <div
               className="rounded-xl p-5 md:p-8"
               style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'var(--app-glass)',
+                border: '1px solid var(--app-glass-border)',
                 backdropFilter: 'blur(10px)',
               }}
             >
               <h2 className="text-xl font-semibold mb-2 capitalize">{tab}</h2>
-              <p className="text-sm text-white/40">
+              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
                 {tab === 'general'
                   ? 'General application settings will appear here.'
                   : 'Account and profile settings will appear here.'

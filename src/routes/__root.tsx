@@ -8,8 +8,9 @@ import { clearCaches } from '@/lib/useTestStatus'
 import { clearProjectCache } from '@/lib/projects'
 import { clearPermissionCache } from '@/lib/permissions'
 import { api } from '@/lib/api'
-import { Search, Settings, LogOut } from 'lucide-react'
+import { Search, Settings, LogOut, Sun, Moon } from 'lucide-react'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
+import { ThemeProvider, useTheme } from '@/lib/theme'
 import '../styles.css'
 
 export const Route = createRootRoute({
@@ -105,9 +106,9 @@ function SearchBar() {
             width: '340px',
             borderRadius: '12px',
             overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            background: 'rgba(15,12,41,0.97)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            background: 'var(--app-overlay)',
+            border: '1px solid var(--app-overlay-border)',
             backdropFilter: 'blur(16px)',
           }}
         >
@@ -115,19 +116,19 @@ function SearchBar() {
             <button
               key={result.id}
               onMouseDown={() => go(result)}
-              className="w-full text-left px-4 py-2.5 transition-colors text-white/80 hover:text-white"
-              style={{ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+              className="w-full text-left px-4 py-2.5 transition-colors"
+              style={{ background: 'transparent', borderBottom: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--app-glass)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium truncate flex-1 min-w-0">{result.title || 'Untitled Test Case'}</p>
                 {result.projectName && (
-                  <span className="text-xs text-white/35 flex-shrink-0 truncate max-w-[100px]">{result.projectName}</span>
+                  <span className="text-xs flex-shrink-0 truncate max-w-[100px]" style={{ color: 'var(--app-text-secondary)' }}>{result.projectName}</span>
                 )}
               </div>
               {result.tags.length > 0 && (
-                <p className="text-xs text-white/40 mt-0.5 truncate">
+                <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--app-text-secondary)' }}>
                   {result.tags.slice(0, 4).join(', ')}
                   {result.tags.length > 4 && ` +${result.tags.length - 4} more`}
                 </p>
@@ -182,13 +183,13 @@ function ProfileButton({ onLogout }: { onLogout: () => void }) {
         ref={buttonRef}
         onClick={handleOpen}
         className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition-colors focus:outline-none"
-        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+        style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
         aria-label="User menu"
       >
-        <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: 'rgba(0,210,255,0.25)', border: '1px solid rgba(0,210,255,0.5)' }}>
+        <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}>
           {initial}
         </span>
-        <span className="text-sm font-medium text-white">{username}</span>
+        <span className="text-sm font-medium" style={{ color: 'var(--app-text)' }}>{username}</span>
       </button>
 
       {open && createPortal(
@@ -202,36 +203,36 @@ function ProfileButton({ onLogout }: { onLogout: () => void }) {
             width: '208px',
             borderRadius: '12px',
             overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            background: 'rgba(15,12,41,0.97)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            background: 'var(--app-overlay)',
+            border: '1px solid var(--app-overlay-border)',
             backdropFilter: 'blur(16px)',
           }}
         >
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <p className="text-sm font-semibold text-white">{username}</p>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}>
+            <p className="text-sm font-semibold">{username}</p>
           </div>
 
           <div className="py-1">
             <button
               onClick={() => { setOpen(false); navigate({ to: '/settings' }) }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white transition-colors"
-              style={{ background: 'transparent' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ background: 'transparent', color: 'var(--app-text-secondary)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-glass)'; e.currentTarget.style.color = 'var(--app-text)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--app-text-secondary)' }}
             >
               <Settings size={15} className="opacity-60" />
               Settings
             </button>
           </div>
 
-          <div className="py-1" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="py-1" style={{ borderTop: '1px solid var(--app-glass-border)' }}>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white transition-colors"
-              style={{ background: 'transparent' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ background: 'transparent', color: 'var(--app-text-secondary)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-glass)'; e.currentTarget.style.color = 'var(--app-text)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--app-text-secondary)' }}
             >
               <LogOut size={15} className="opacity-60" />
               Log out
@@ -245,6 +246,20 @@ function ProfileButton({ onLogout }: { onLogout: () => void }) {
 
 // ── Nav bar ───────────────────────────────────────────────────────────────────
 
+function ThemeToggle() {
+  const { isDark, toggleTheme } = useTheme()
+  return (
+    <button
+      onClick={toggleTheme}
+      className="p-1.5 rounded-lg transition-colors"
+      style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  )
+}
+
 function NavBar({ onLogout }: { onLogout: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -255,7 +270,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
   ]
 
   return (
-    <nav className="w-full py-3" style={{ background: 'rgba(106,17,203,0.25)', borderBottom: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
+    <nav className="w-full py-3" style={{ background: 'var(--app-nav-bg)', borderBottom: '1px solid var(--app-nav-border)', backdropFilter: 'blur(12px)' }}>
       {/* ── Desktop ────────────────────────────────── */}
       <div className="max-w-4xl mx-auto px-4 hidden md:flex items-center justify-between">
         <div className="flex items-center gap-6">
@@ -274,36 +289,42 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
             ))}
           </ul>
         </div>
-        <SearchBar />
+        <div className="flex items-center gap-3">
+          <SearchBar />
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* ── Mobile ─────────────────────────────────── */}
       <div className="md:hidden px-4 flex items-center justify-between">
-        <button
-          className="flex flex-col gap-1.5 p-2"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-label="Toggle menu"
-        >
-          <span className="block w-5 h-0.5 bg-foreground" />
-          <span className="block w-5 h-0.5 bg-foreground" />
-          <span className="block w-5 h-0.5 bg-foreground" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="flex flex-col gap-1.5 p-2"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            <span className="block w-5 h-0.5 bg-foreground" />
+            <span className="block w-5 h-0.5 bg-foreground" />
+            <span className="block w-5 h-0.5 bg-foreground" />
+          </button>
+          <ThemeToggle />
+        </div>
         <ProfileButton onLogout={onLogout} />
       </div>
 
       {menuOpen && (
-        <div className="md:hidden pt-3 pb-4" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <div className="md:hidden pt-3 pb-4" style={{ borderTop: '1px solid var(--app-nav-border)' }}>
           <ul className="flex flex-col gap-1 px-4 mb-4">
             {links.map((link) => (
               <li key={link.to}>
                 <Link
                   to={link.to}
-                  className="block text-sm text-muted-foreground hover:text-white transition-colors px-3 py-2.5 rounded-lg"
-                  activeProps={{ className: 'block text-sm font-semibold text-white px-3 py-2.5 rounded-lg' }}
+                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2.5 rounded-lg"
+                  activeProps={{ className: 'block text-sm font-semibold text-foreground px-3 py-2.5 rounded-lg' }}
                   activeOptions={{ exact: true }}
                   onClick={() => setMenuOpen(false)}
                   style={{ background: 'transparent' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--app-glass)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   {link.label}
@@ -354,7 +375,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (!mounted) {
     // Show public pages immediately, hide protected pages until auth is confirmed
     if (hideNav) return <>{children}</>
-    return <div style={{ background: '#0f0c29', minHeight: '100vh' }} />
+    return <div style={{ background: 'var(--app-bg)', minHeight: '100vh' }} />
   }
 
   if (!hideNav && !isAuthenticated() && !loggingOut) {
@@ -373,12 +394,20 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var t = localStorage.getItem('app-theme') || 'dark';
+            if (t === 'dark') document.documentElement.classList.add('dark');
+          })();
+        `}} />
       </head>
-      <body style={{ background: '#0f0c29', margin: 0 }}>
-        <AppShell>{children}</AppShell>
+      <body style={{ background: 'var(--app-bg)', margin: 0 }}>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

@@ -91,8 +91,8 @@ const SECTIONS: Section[] = [
 // ── Shared style helpers ──────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'var(--app-glass)',
+  border: '1px solid var(--app-glass-border)',
   backdropFilter: 'blur(10px)',
   borderRadius: '12px',
   padding: '24px',
@@ -100,15 +100,15 @@ const card: React.CSSProperties = {
 }
 
 const sectionHeader = (label: string) => (
-  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '16px', color: '#fff' }}>{label}</h2>
+  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '16px', color: 'var(--app-text)' }}>{label}</h2>
 )
 
 const subHeader = (label: string) => (
-  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '10px', color: '#00d2ff' }}>{label}</h3>
+  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '10px', color: 'var(--app-text)' }}>{label}</h3>
 )
 
 const prose = (text: string) => (
-  <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '12px' }}>{text}</p>
+  <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '12px' }}>{text}</p>
 )
 
 const Chip = ({ label, color = '#00d2ff' }: { label: string; color?: string }) => (
@@ -134,7 +134,7 @@ const Method = ({ m }: { m: string }) => {
 const CodeBlock = ({ code }: { code: string }) => (
   <pre style={{
     background: 'rgba(0,0,0,0.4)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: '1px solid var(--app-glass-border)',
     borderRadius: '8px',
     padding: '14px 16px',
     fontSize: '0.8rem',
@@ -148,7 +148,7 @@ const CodeBlock = ({ code }: { code: string }) => (
 )
 
 const Divider = () => (
-  <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '20px 0' }} />
+  <hr style={{ border: 'none', borderTop: '1px solid var(--app-glass-border)', margin: '20px 0' }} />
 )
 
 // ── Route endpoint row ────────────────────────────────────────────────────────
@@ -160,11 +160,11 @@ function RouteRow({ method, path, desc, auth = true }: { method: string; path: s
       alignItems: 'flex-start',
       gap: '12px',
       padding: '10px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      borderBottom: '1px solid var(--app-glass-border)',
     }}>
       <div style={{ flexShrink: 0, width: '60px' }}><Method m={method} /></div>
       <div style={{ flexShrink: 0, minWidth: '280px', fontFamily: 'monospace', fontSize: '0.82rem', color: '#e2e8f0' }}>{path}</div>
-      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', flex: 1 }}>{desc}{!auth && <Chip label="public" color="#fbbf24" />}</div>
+      <div style={{ color: 'var(--app-text-secondary)', fontSize: '0.82rem', flex: 1 }}>{desc}{!auth && <Chip label="public" color="#fbbf24" />}</div>
     </div>
   )
 }
@@ -175,20 +175,20 @@ function DBTable({ name, columns }: { name: string; columns: { col: string; type
   return (
     <div style={{ marginBottom: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <span style={{ fontSize: '0.7rem', color: '#6a11cb', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>TABLE</span>
-        <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: 700, color: '#00d2ff' }}>{name}</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--app-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>TABLE</span>
+        <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: 700, color: 'var(--app-text)' }}>{name}</span>
       </div>
-      <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', padding: '8px 14px', background: 'rgba(106,17,203,0.2)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Column</span>
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Type</span>
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notes</span>
+      <div style={{ background: 'var(--app-glass)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--app-glass-border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', padding: '8px 14px', background: 'var(--app-section-header-bg)', borderBottom: '1px solid var(--app-glass-border)' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--app-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Column</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--app-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Type</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--app-text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notes</span>
         </div>
         {columns.map(({ col, type, note }) => (
-          <div key={col} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', padding: '7px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <div key={col} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', padding: '7px 14px', borderBottom: '1px solid var(--app-glass-border)' }}>
             <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: '#e2e8f0' }}>{col}</span>
             <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#a78bfa' }}>{type}</span>
-            <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>{note ?? ''}</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--app-text-secondary)' }}>{note ?? ''}</span>
           </div>
         ))}
       </div>
@@ -220,9 +220,9 @@ function WikiContent({ active }: { active: string }) {
             { label: 'Real-time', value: 'WebSockets (ws package)' },
             { label: 'AI', value: 'Anthropic Claude (claude-haiku)' },
           ].map(({ label, value }) => (
-            <div key={label} style={{ background: 'rgba(106,17,203,0.12)', border: '1px solid rgba(106,17,203,0.25)', borderRadius: '10px', padding: '12px 14px' }}>
-              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
-              <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 600 }}>{value}</div>
+            <div key={label} style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--app-text)', fontWeight: 600 }}>{value}</div>
             </div>
           ))}
         </div>
@@ -243,9 +243,9 @@ function WikiContent({ active }: { active: string }) {
           { route: '/403', desc: 'Forbidden page (unauthenticated access attempt)' },
           { route: '/404', desc: 'Not-found catch-all' },
         ].map(({ route, desc }) => (
-          <div key={route} style={{ display: 'flex', gap: '16px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: '#00d2ff', minWidth: '260px', flexShrink: 0 }}>{route}</span>
-            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem' }}>{desc}</span>
+          <div key={route} style={{ display: 'flex', gap: '16px', padding: '8px 0', borderBottom: '1px solid var(--app-glass-border)' }}>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--app-text)', minWidth: '260px', flexShrink: 0 }}>{route}</span>
+            <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.82rem' }}>{desc}</span>
           </div>
         ))}
       </div>
@@ -260,7 +260,7 @@ function WikiContent({ active }: { active: string }) {
       {prose('The entry point for all users. Redirects to /homepage immediately if a valid JWT is already stored in localStorage. Otherwise displays a two-column card: an animated ship mascot on the left, and a username/password form on the right.')}
       <Divider />
       {subHeader('Key Behaviours')}
-      <ul style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
         <li><code>beforeLoad</code> guard — redirects to <code>/homepage</code> if already authenticated, preventing double-login.</li>
         <li>On submit, calls <code>login(username, password)</code> from <code>auth.ts</code>, which POSTs to <code>/api/auth/login</code>.</li>
         <li>On success, stores the JWT in localStorage and shows a <code>LoadingCurtain</code> overlay during the navigation transition.</li>
@@ -282,7 +282,7 @@ transitioning: boolean   // triggers the LoadingCurtain overlay`} />
       {prose('The main dashboard. Displays all custom test cases for the authenticated user, split into Active and Completed tabs. Each row is drag-and-droppable via @dnd-kit/sortable to set a custom order that is persisted to the database.')}
       <Divider />
       {subHeader('Key Features')}
-      <ul style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
         <li><b>Project selector</b> — dropdown to filter test cases by project. Switching project reloads the list via <code>reloadForProject()</code>.</li>
         <li><b>Active / Completed tabs</b> — test cases with <code>completed: true</code> are in the Completed tab.</li>
         <li><b>Status summary</b> — shows counts of pass / fail / pending / blocked statuses relevant to the current view.</li>
@@ -369,7 +369,7 @@ ProjectPicker // dropdown to assign to a project`} />
       {prose('The full editing view for a single test case. Has two modes: view mode (read-only with interactive dropdowns) and edit mode (full form). This is the most complex page in the app.')}
       <Divider />
       {subHeader('View Mode')}
-      <ul style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
         <li>Objective, Preconditions, and each Test Case are rendered in dark frosted cards matching the edit mode style.</li>
         <li>Each test case card shows a gradient <strong>"Test Case 01"</strong> identifier label with a separator line.</li>
         <li>Each section card has its own gradient Edit button that opens edit mode.</li>
@@ -378,7 +378,7 @@ ProjectPicker // dropdown to assign to a project`} />
       </ul>
       <Divider />
       {subHeader('Edit Mode')}
-      <ul style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
         <li><strong>AI Fill</strong> — "AI Fill" button in the top-right opens AIFillPanel. LoadingCurtain shows while generating.</li>
         <li>Each SubTCEditor card shows a gradient "Test Case 01" identifier at the top.</li>
         <li>Title wraps correctly on long AI-generated titles (<code>wordBreak: break-word</code>).</li>
@@ -1127,19 +1127,19 @@ function WikiPage() {
   )
 
   return (
-    <div style={{ background: '#0f0c29', minHeight: '100vh', fontFamily: "'Poppins', sans-serif", color: '#fff', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--app-bg)', minHeight: '100vh', fontFamily: "'Poppins', sans-serif", color: 'var(--app-text)', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
         @keyframes movewiki { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-wiki { position:absolute; border-radius:50%; background:linear-gradient(45deg,#6a11cb,#00d2ff); filter:blur(80px); opacity:0.2; animation:movewiki 20s infinite alternate; pointer-events:none; }
-        .wiki-sidebar-item { cursor:pointer; padding:6px 12px; border-radius:8px; font-size:0.83rem; transition:background 0.15s, color 0.15s; border:none; background:transparent; text-align:left; width:100%; }
-        .wiki-sidebar-item:hover { background:rgba(255,255,255,0.06); }
-        .wiki-sidebar-sub { cursor:pointer; padding:5px 12px 5px 22px; border-radius:8px; font-size:0.78rem; transition:background 0.15s, color 0.15s; border:none; background:transparent; text-align:left; width:100%; }
-        .wiki-sidebar-sub:hover { background:rgba(255,255,255,0.06); }
+        .blob-wiki { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.15; animation:movewiki 20s infinite alternate; pointer-events:none; }
+        .wiki-sidebar-item { cursor:pointer; padding:6px 12px; border-radius:8px; font-size:0.83rem; transition:background 0.15s, color 0.15s; border:none; background:transparent; text-align:left; width:100%; color:var(--app-text-secondary); }
+        .wiki-sidebar-item:hover { background:var(--app-glass); }
+        .wiki-sidebar-sub { cursor:pointer; padding:5px 12px 5px 22px; border-radius:8px; font-size:0.78rem; transition:background 0.15s, color 0.15s; border:none; background:transparent; text-align:left; width:100%; color:var(--app-text-secondary); }
+        .wiki-sidebar-sub:hover { background:var(--app-glass); }
         .wiki-scroll::-webkit-scrollbar { width:5px; }
         .wiki-scroll::-webkit-scrollbar-track { background:transparent; }
-        .wiki-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:4px; }
+        .wiki-scroll::-webkit-scrollbar-thumb { background:var(--app-glass-border); border-radius:4px; }
       `}</style>
 
       {/* Background blobs */}
@@ -1152,17 +1152,17 @@ function WikiPage() {
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h1 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: '6px', background: 'linear-gradient(90deg, #6a11cb, #00d2ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              <h1 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: '6px', background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 Application Wiki
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem' }}>
+              <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem' }}>
                 Complete reference for QA &amp; BA Assistant — pages, libraries, API, and database.
               </p>
             </div>
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobileOpen((o) => !o)}
-              style={{ display: 'none', padding: '8px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', fontSize: '0.82rem' }}
+              style={{ display: 'none', padding: '8px 12px', borderRadius: '8px', background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)', cursor: 'pointer', fontSize: '0.82rem' }}
               className="wiki-mobile-btn"
             >
               Menu
@@ -1181,7 +1181,7 @@ function WikiPage() {
             maxHeight: 'calc(100vh - 80px)',
             overflowY: 'auto',
             background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid var(--app-glass-border)',
             borderRadius: '14px',
             padding: '12px 8px',
           }} className="wiki-scroll">
@@ -1224,7 +1224,7 @@ function WikiPage() {
               {currentSection && (
                 <>
                   <span style={{ margin: '0 6px' }}>›</span>
-                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>{currentSection.label}</span>
+                  <span style={{ color: 'var(--app-text-secondary)' }}>{currentSection.label}</span>
                 </>
               )}
               {currentSection && (() => {
@@ -1232,7 +1232,7 @@ function WikiPage() {
                 return sub ? (
                   <>
                     <span style={{ margin: '0 6px' }}>›</span>
-                    <span style={{ color: '#00d2ff' }}>{sub.label}</span>
+                    <span style={{ color: 'var(--app-text)' }}>{sub.label}</span>
                   </>
                 ) : null
               })()}

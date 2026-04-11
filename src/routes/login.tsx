@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { isAuthenticated, login } from '@/lib/auth'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
+import { useTheme } from '@/lib/theme'
+import { Sun, Moon } from 'lucide-react'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {
@@ -15,21 +17,13 @@ export const Route = createFileRoute('/login')({
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-:root {
-  --primary: #00d2ff;
-  --accent: #6a11cb;
-  --bg-dark: #0f0c29;
-  --glass: rgba(255, 255, 255, 0.1);
-  --text: #ffffff;
-}
-
 .login-wrapper {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f0c29;
-  color: var(--text);
+  background: var(--app-bg);
+  color: var(--app-text);
   overflow: hidden;
   position: relative;
   font-family: 'Poppins', sans-serif;
@@ -47,7 +41,7 @@ const css = `
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(45deg, var(--accent), var(--primary));
+  background: var(--app-accent-gradient);
   filter: blur(80px);
   animation: move 20s infinite alternate;
   opacity: 0.3;
@@ -64,19 +58,19 @@ const css = `
   width: 900px;
   max-width: calc(100vw - 40px);
   height: 580px;
-  background: var(--glass);
+  background: var(--app-glass);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--app-glass-border);
   border-radius: 30px;
   display: flex;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   animation: fadeIn 0.8s ease-out;
 }
 
 .mascot-section {
   flex: 1;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -315,13 +309,13 @@ const css = `
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 6px;
-  color: #fff;
+  color: var(--app-text);
   font-family: 'Poppins', sans-serif;
 }
 
 .mascot-subtitle {
   font-size: 0.8rem;
-  color: rgba(255,255,255,0.6);
+  color: var(--app-text-secondary);
   font-family: 'Poppins', sans-serif;
 }
 
@@ -341,7 +335,7 @@ const css = `
 
 .desc {
   font-size: 0.85rem;
-  color: #ccc;
+  color: var(--app-text-secondary);
   margin-bottom: 25px;
   font-family: 'Poppins', sans-serif;
 }
@@ -354,29 +348,29 @@ const css = `
   display: block;
   font-size: 0.75rem;
   margin-bottom: 5px;
-  color: var(--primary);
+  color: var(--app-text-secondary);
   font-family: 'Poppins', sans-serif;
 }
 
 .login-input-group input {
   width: 100%;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--app-glass);
+  border: 1px solid var(--app-glass-border);
   border-radius: 10px;
-  color: white;
+  color: var(--app-text);
   outline: none;
   font-family: 'Poppins', sans-serif;
   font-size: 0.9rem;
 }
 
 .login-input-group input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 10px rgba(0, 210, 255, 0.1);
+  border-color: var(--app-input-focus-border);
+  box-shadow: 0 0 10px var(--app-btn-primary-shadow);
 }
 
 .login-input-group input::placeholder {
-  color: rgba(255,255,255,0.3);
+  color: var(--app-text-secondary);
 }
 
 .btn-submit {
@@ -384,8 +378,8 @@ const css = `
   padding: 14px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(45deg, var(--accent), var(--primary));
-  color: white;
+  background: var(--app-btn-primary);
+  color: var(--app-text);
   font-weight: 600;
   cursor: pointer;
   margin-top: 15px;
@@ -401,7 +395,7 @@ const css = `
 
 .login-error {
   font-size: 0.8rem;
-  color: #ff6b6b;
+  color: #dc2626;
   margin-bottom: 8px;
   font-family: 'Poppins', sans-serif;
 }
@@ -419,6 +413,7 @@ const css = `
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { isDark, toggleTheme } = useTheme()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -480,7 +475,26 @@ function LoginPage() {
 
           {/* Right — login form */}
           <div className="form-section">
-            <h2>Welcome Back</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0 }}>Welcome Back</h2>
+              <button
+                onClick={toggleTheme}
+                style={{
+                  background: 'var(--app-glass)',
+                  border: '1px solid var(--app-glass-border)',
+                  borderRadius: '8px',
+                  padding: '6px',
+                  cursor: 'pointer',
+                  color: 'var(--app-text)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDark ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            </div>
             <form className="auth-form" onSubmit={handleSubmit}>
               <div className="login-input-group">
                 <label>Username</label>

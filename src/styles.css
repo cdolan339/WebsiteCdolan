@@ -52,6 +52,29 @@ code {
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.871 0.006 286.286);
+
+  /* ── App theme colors (light mode) ── */
+  --app-bg: #e8e8e4;
+  --app-text: #2d2d2a;
+  --app-text-secondary: rgba(45, 45, 42, 0.6);
+  --app-glass: rgba(109, 109, 100, 0.08);
+  --app-glass-border: rgba(109, 109, 100, 0.2);
+  --app-overlay: rgba(109, 109, 100, 0.95);
+  --app-overlay-border: rgba(109, 109, 100, 0.3);
+  --app-nav-bg: rgba(109, 109, 100, 0.15);
+  --app-nav-border: rgba(109, 109, 100, 0.2);
+  --app-accent-gradient: linear-gradient(45deg, #5a5a52, #7a7a70);
+  --app-accent-gradient-hover: linear-gradient(45deg, #4a4a42, #6a6a60);
+  --app-btn-primary: linear-gradient(45deg, #6D6D64, #8a8a80);
+  --app-btn-primary-shadow: rgba(109, 109, 100, 0.3);
+  --app-btn-outline-bg: linear-gradient(45deg, rgba(109, 109, 100, 0.15), rgba(130, 130, 120, 0.15));
+  --app-btn-outline-border: rgba(109, 109, 100, 0.35);
+  --app-btn-outline-shadow: rgba(109, 109, 100, 0.15);
+  --app-section-header-bg: rgba(109, 109, 100, 0.12);
+  --app-input-focus-border: rgba(109, 109, 100, 0.5);
+  --app-curtain-bg: #e8e8e4;
+  --app-panel-bg: linear-gradient(160deg, #e0e0dc 0%, #e8e8e4 100%);
+  --app-panel-border: rgba(109, 109, 100, 0.3);
 }
 
 .dark {
@@ -87,6 +110,29 @@ code {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.274 0.006 286.033);
   --sidebar-ring: oklch(0.442 0.017 285.786);
+
+  /* ── App theme colors (dark mode) ── */
+  --app-bg: #0f0c29;
+  --app-text: #ffffff;
+  --app-text-secondary: rgba(255, 255, 255, 0.6);
+  --app-glass: rgba(255, 255, 255, 0.1);
+  --app-glass-border: rgba(255, 255, 255, 0.15);
+  --app-overlay: rgba(15, 12, 41, 0.97);
+  --app-overlay-border: rgba(255, 255, 255, 0.15);
+  --app-nav-bg: rgba(106, 17, 203, 0.25);
+  --app-nav-border: rgba(255, 255, 255, 0.1);
+  --app-accent-gradient: linear-gradient(45deg, #6a11cb, #00d2ff);
+  --app-accent-gradient-hover: linear-gradient(45deg, #5a0eb5, #00b8e0);
+  --app-btn-primary: linear-gradient(45deg, #6a11cb, #00d2ff);
+  --app-btn-primary-shadow: rgba(106, 17, 203, 0.3);
+  --app-btn-outline-bg: linear-gradient(45deg, rgba(106, 17, 203, 0.35), rgba(0, 210, 255, 0.35));
+  --app-btn-outline-border: rgba(0, 210, 255, 0.35);
+  --app-btn-outline-shadow: rgba(106, 17, 203, 0.2);
+  --app-section-header-bg: rgba(106, 17, 203, 0.25);
+  --app-input-focus-border: rgba(106, 17, 203, 0.6);
+  --app-curtain-bg: #0f0c29;
+  --app-panel-bg: linear-gradient(160deg, #130d2e 0%, #0f0c29 100%);
+  --app-panel-border: rgba(106, 17, 203, 0.4);
 }
 
 @theme inline {

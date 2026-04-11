@@ -16,6 +16,7 @@ export type CustomTC = {
   priority: "low" | "medium" | "high" | "critical";
   steps: string[];
   expected: string;
+  notes: string;
 };
 
 export type CustomTestCase = {
@@ -106,6 +107,7 @@ export function createCustomTC(): CustomTC {
     priority: "medium",
     steps: [""],
     expected: "",
+    notes: "",
   };
 }
 

@@ -74,7 +74,7 @@ function StatusSummary({ statuses, total, slugs }: {
       {(['pass', 'fail', 'pending', 'blocked'] as const).map((status) => {
         const cfg = STATUS_CONFIG[status]
         return (
-          <div key={status} className="flex items-center gap-3 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
+          <div key={status} className="flex items-center gap-3 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
             <span className={`w-3 h-3 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
             <div>
               <p className="text-2xl font-bold">{display[status] ?? 0}</p>
@@ -154,7 +154,7 @@ function ProjectHeader({ project }: { project: Project }) {
   return (
     <div
       className="rounded-xl p-5 mb-8"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}
+      style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}
     >
       {project.description && (
         <p className="text-sm text-white/60 mb-3">{project.description}</p>
@@ -231,7 +231,7 @@ function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0c29' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
         <div className="text-center">
           <FolderOpen size={48} className="mx-auto mb-4 text-white/20" />
           <h2 className="text-xl font-bold mb-2">Project Not Found</h2>
@@ -239,7 +239,7 @@ function ProjectDetailPage() {
           <button
             onClick={() => navigate({ to: '/projects' })}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
           >
             <ArrowLeft size={16} />
             Back to Projects
@@ -254,7 +254,7 @@ function ProjectDetailPage() {
   return (
     <div
       className="min-h-screen text-foreground overflow-hidden relative"
-      style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}
+      style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -265,7 +265,7 @@ function ProjectDetailPage() {
         .blob-pd {
           position: absolute;
           border-radius: 50%;
-          background: linear-gradient(45deg, #6a11cb, #00d2ff);
+          background: var(--app-accent-gradient);
           filter: blur(80px);
           opacity: 0.3;
           animation: movepd 20s infinite alternate;
@@ -281,7 +281,7 @@ function ProjectDetailPage() {
           <button
             onClick={() => navigate({ to: '/projects' })}
             className="mt-1 p-2 rounded-lg transition-colors hover:bg-white/10"
-            style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ border: '1px solid var(--app-glass-border)' }}
           >
             <ArrowLeft size={18} className="text-white/60" />
           </button>
@@ -304,11 +304,11 @@ function ProjectDetailPage() {
         {/* Test case list */}
         <div
           className="rounded-lg overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}
+          style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}
         >
           <div
             className="px-4 py-3"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(106,17,203,0.25)', backdropFilter: 'blur(12px)' }}
+            style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}
           >
             <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
               All Test Cases ({testCases.length})
@@ -322,7 +322,7 @@ function ProjectDetailPage() {
               </p>
             </div>
           ) : (
-            <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+            <ul className="divide-y" style={{ borderColor: 'var(--app-glass-border)' }}>
               {testCases.map((tc) => {
                 const slug = `custom:${tc.id}`
                 const resolvedStatus: TestStatus = statuses[slug] ?? 'pending'

@@ -128,9 +128,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none"
         style={{
-          background: 'rgba(0,210,255,0.12)',
-          border: '1px solid rgba(0,210,255,0.3)',
-          color: selected ? '#00d2ff' : 'rgba(255,255,255,0.5)',
+          background: 'var(--app-glass)',
+          border: '1px solid var(--app-glass-border)',
+          color: 'var(--app-text)',
         }}
       >
         <FolderOpen size={13} className="opacity-60" />
@@ -144,9 +144,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
           <div
             className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl overflow-hidden"
             style={{
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              background: 'rgba(15,12,41,0.97)',
-              border: '1px solid rgba(0,210,255,0.25)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              background: 'var(--app-overlay)',
+              border: '1px solid var(--app-overlay-border)',
               backdropFilter: 'blur(16px)',
             }}
           >
@@ -154,14 +154,15 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
               onClick={() => { onChange(null); setOpen(false) }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
               style={{
-                background: projectId === null ? 'rgba(0,210,255,0.15)' : 'transparent',
-                color: projectId === null ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                background: projectId === null ? 'var(--app-glass)' : 'transparent',
+                color: 'var(--app-text)',
+                borderBottom: '1px solid var(--app-glass-border)',
+                fontWeight: projectId === null ? 600 : 400,
               }}
-              onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
+              onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
               onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
             >
-              <FolderOpen size={14} style={{ color: '#00d2ff', opacity: 0.7 }} />
+              <FolderOpen size={14} style={{ opacity: 0.7 }} />
               No Project
             </button>
             <div className="max-h-48 overflow-y-auto">
@@ -171,12 +172,13 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
                   onClick={() => { onChange(p.id); setOpen(false) }}
                   className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
                   style={{
-                    background: projectId === p.id ? 'rgba(0,210,255,0.15)' : 'transparent',
-                    color: projectId === p.id ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    background: projectId === p.id ? 'var(--app-glass)' : 'transparent',
+                    color: 'var(--app-text)',
+                    borderBottom: '1px solid var(--app-glass-border)',
+                    fontWeight: projectId === p.id ? 600 : 400,
                   }}
-                  onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'rgba(0,210,255,0.08)' }}
-                  onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'rgba(0,210,255,0.15)' : 'transparent' }}
+                  onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
+                  onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-glass)' : 'transparent' }}
                 >
                   {p.name}
                 </button>
@@ -264,7 +266,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
 
 // ── Sub-test case editor (edit mode) ─────────────────────────────────────────
 
-function SubTCEditor({ tc, onChange, onRemove, index, id }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string }) {
+function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string }) {
   const patch = (fields: Partial<CustomTC>) => onChange({ ...tc, ...fields })
 
   const addStep = () => patch({ steps: [...tc.steps, ''] })
@@ -276,13 +278,13 @@ function SubTCEditor({ tc, onChange, onRemove, index, id }: { tc: CustomTC; onCh
       <div className="flex items-center gap-2 mb-2">
         <span style={{
           fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-          background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
+          background: 'var(--app-accent-gradient)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           flexShrink: 0,
         }}>
           Test Case {String(index + 1).padStart(2, '0')}
         </span>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+        <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
         <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case">
           <X size={14} />
         </button>
@@ -337,7 +339,7 @@ function SubTCEditor({ tc, onChange, onRemove, index, id }: { tc: CustomTC; onCh
       </div>
 
       {/* Expected */}
-      <div>
+      <div className="mb-3">
         <p className="text-xs font-medium text-muted-foreground mb-1.5">Expected Result</p>
         <input
           type="text"
@@ -347,6 +349,76 @@ function SubTCEditor({ tc, onChange, onRemove, index, id }: { tc: CustomTC; onCh
           className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
         />
       </div>
+
+      {/* Notes */}
+      <div className="mb-2">
+        <p className="text-xs font-medium text-muted-foreground mb-1.5">Notes</p>
+        <textarea
+          value={tc.notes ?? ''}
+          onChange={(e) => patch({ notes: e.target.value })}
+          placeholder="Add notes, observations, or comments..."
+          rows={2}
+          className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors resize-vertical"
+          style={{ lineHeight: 1.7, fontFamily: "'Poppins', sans-serif" }}
+        />
+      </div>
+
+      {/* Attachments */}
+      <Attachments testCaseId={`${parentTcId}__${tc.id}`} />
+    </div>
+  )
+}
+
+// ── Per-sub-TC notes (real-time save) ────────────────────────────────────────
+
+function SubTCNotes({ tc, subId, initialValue }: { tc: CustomTestCase; subId: string; initialValue: string }) {
+  const [value, setValue] = useState(initialValue)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const saveNow = useCallback((v: string) => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      const updatedSubs = tc.testCases.map((s) => s.id === subId ? { ...s, notes: v } : s)
+      updateCustomTestCase({ ...tc, testCases: updatedSubs, updatedAt: new Date().toISOString() })
+    }, 600)
+  }, [tc, subId])
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
+  return (
+    <div style={{ marginTop: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <StickyNote size={13} style={{ opacity: 0.6 }} />
+        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Notes
+        </span>
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => { setValue(e.target.value); saveNow(e.target.value) }}
+        placeholder="Add notes, observations, or comments..."
+        rows={3}
+        style={{
+          width: '100%',
+          background: 'var(--app-glass)',
+          border: '1px solid var(--app-glass-border)',
+          borderRadius: '8px',
+          padding: '10px 12px',
+          color: 'var(--app-text)',
+          fontSize: '0.82rem',
+          lineHeight: 1.7,
+          resize: 'vertical',
+          outline: 'none',
+          fontFamily: "'Poppins', sans-serif",
+          boxSizing: 'border-box',
+          transition: 'border-color 0.15s',
+        }}
+        onFocus={(e) => { e.target.style.borderColor = 'var(--app-input-focus-border)' }}
+        onBlur={(e) => { e.target.style.borderColor = 'var(--app-glass-border)' }}
+      />
+      <p style={{ margin: '4px 0 0', fontSize: '0.65rem', color: 'var(--app-text-secondary)' }}>
+        Auto-saved as you type
+      </p>
     </div>
   )
 }
@@ -358,23 +430,6 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
   const { projects } = useProjects()
-  const [notes, setNotes] = useState(tc.notes ?? '')
-  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const saveNotes = useCallback((value: string) => {
-    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
-    notesTimerRef.current = setTimeout(() => {
-      updateCustomTestCase({ ...tc, notes: value, updatedAt: new Date().toISOString() })
-    }, 600)
-  }, [tc])
-
-  const handleNotesChange = (value: string) => {
-    setNotes(value)
-    saveNotes(value)
-  }
-
-  // Flush pending save on unmount
-  useEffect(() => () => { if (notesTimerRef.current) clearTimeout(notesTimerRef.current) }, [])
 
   useEffect(() => {
     const stored = loadExpectedMap()
@@ -386,11 +441,11 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
   const statusCurrent = STATUS_OPTIONS.find((o) => o.value === status) ?? STATUS_OPTIONS[2]
 
   return (
-    <div className="min-h-screen text-white overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movecid2 { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-cid2 { position:absolute; border-radius:50%; background:linear-gradient(45deg,#6a11cb,#00d2ff); filter:blur(80px); opacity:0.3; animation:movecid2 20s infinite alternate; pointer-events:none; }
+        .blob-cid2 { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movecid2 20s infinite alternate; pointer-events:none; }
       `}</style>
       <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
@@ -400,14 +455,14 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, rgba(106,17,203,0.35), rgba(0,210,255,0.35))', border: '1px solid rgba(0,210,255,0.35)', color: '#fff', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px rgba(106,17,203,0.2)' }}
+            style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: `0 2px 10px var(--app-btn-outline-shadow)` }}
           >
             <ArrowLeft size={14} /> Back to Test Cases
           </Link>
           <button
             onClick={() => onEdit()}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
           >
             <Pencil size={14} /> Edit
           </button>
@@ -466,29 +521,29 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
 
           {/* Objective */}
           {tc.objective && (
-            <section style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+            <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Objective</h2>
-                <button onClick={() => onEdit('edit-objective')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <button onClick={() => onEdit('edit-objective')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
-              <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.7 }}>{tc.objective}</p>
+              <p style={{ margin: 0, color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.7 }}>{tc.objective}</p>
             </section>
           )}
 
           {/* Preconditions */}
           {tc.preconditions.filter(Boolean).length > 0 && (
-            <section style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+            <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Preconditions</h2>
-                <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
               <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {tc.preconditions.filter(Boolean).map((item, i) => (
-                  <li key={i} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item}</li>
+                  <li key={i} style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item}</li>
                 ))}
               </ul>
             </section>
@@ -496,7 +551,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
 
           {/* Sub test cases */}
           {tc.testCases.map((sub, i) => (
-            <section key={sub.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+            <section key={sub.id} style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
               {/* Identifier row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
                 <span style={{
@@ -506,8 +561,8 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
                 }}>
                   Test Case {String(i + 1).padStart(2, '0')}
                 </span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
+                <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
                   <Pencil size={11} /> Edit
                 </button>
               </div>
@@ -519,7 +574,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
 
               {/* Priority */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Priority:</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--app-text-secondary)' }}>Priority:</span>
                 <Dropdown
                   label={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
                   options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
@@ -536,10 +591,10 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
               {/* Steps */}
               {sub.steps.filter(Boolean).length > 0 && (
                 <div style={{ marginBottom: '14px' }}>
-                  <p style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Steps</p>
+                  <p style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Steps</p>
                   <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {sub.steps.filter(Boolean).map((step, si) => (
-                      <li key={si} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.6 }}>{step}</li>
+                      <li key={si} style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{step}</li>
                     ))}
                   </ol>
                 </div>
@@ -553,47 +608,14 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
                   onToggle={(v) => setPassedCount((c) => (v ? c + 1 : c - 1))}
                 />
               )}
+
+              {/* Notes — per sub test case, real-time save */}
+              <SubTCNotes tc={tc} subId={sub.id} initialValue={sub.notes ?? ''} />
+
+              {/* Attachments — per sub test case */}
+              <Attachments testCaseId={`${tc.id}__${sub.id}`} />
             </section>
           ))}
-        </div>
-
-        {/* Notes — real-time save */}
-        <section style={{ marginTop: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-            <StickyNote size={16} style={{ color: 'rgba(0,210,255,0.7)' }} />
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Notes</h2>
-          </div>
-          <textarea
-            value={notes}
-            onChange={(e) => handleNotesChange(e.target.value)}
-            placeholder="Add notes, observations, or comments..."
-            rows={4}
-            style={{
-              width: '100%',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '8px',
-              padding: '12px 14px',
-              color: 'rgba(255,255,255,0.8)',
-              fontSize: '0.85rem',
-              lineHeight: 1.7,
-              resize: 'vertical',
-              outline: 'none',
-              fontFamily: "'Poppins', sans-serif",
-              boxSizing: 'border-box',
-              transition: 'border-color 0.15s',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = 'rgba(0,210,255,0.4)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)' }}
-          />
-          <p style={{ margin: '8px 0 0', fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
-            Auto-saved as you type
-          </p>
-        </section>
-
-        {/* Attachments — always interactive, no edit mode needed */}
-        <div style={{ marginTop: '16px' }}>
-          <Attachments testCaseId={tc.id} />
         </div>
 
       </div>
@@ -649,17 +671,17 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
   }
 
   const doneButtonStyle: React.CSSProperties = {
-    background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
-    color: '#fff',
-    boxShadow: '0 2px 12px rgba(106,17,203,0.3)',
+    background: 'var(--app-btn-primary)',
+    color: 'var(--app-text)',
+    boxShadow: '0 2px 12px var(--app-btn-primary-shadow)',
   }
 
   return (
-    <div className="min-h-screen text-white overflow-hidden relative" style={{ background: '#0f0c29', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movecid2 { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-cid2 { position:absolute; border-radius:50%; background:linear-gradient(45deg,#6a11cb,#00d2ff); filter:blur(80px); opacity:0.3; animation:movecid2 20s infinite alternate; pointer-events:none; }
+        .blob-cid2 { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movecid2 20s infinite alternate; pointer-events:none; }
       `}</style>
       <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
@@ -669,14 +691,14 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, rgba(106,17,203,0.35), rgba(0,210,255,0.35))', border: '1px solid rgba(0,210,255,0.35)', color: '#fff', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px rgba(106,17,203,0.2)' }}
+            style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: `0 2px 10px var(--app-btn-outline-shadow)` }}
           >
             <ArrowLeft size={14} /> Back to Test Cases
           </Link>
           <button
             onClick={() => setAiOpen(true)}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
           >
             <Sparkles size={14} /> AI Test Case Generator
           </button>
@@ -741,7 +763,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
         </div>
 
         {/* Objective */}
-        <section id="edit-objective" className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section id="edit-objective" className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
           <div className="rounded-lg border border-border bg-card p-4">
             <textarea
@@ -755,7 +777,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
         </section>
 
         {/* Preconditions */}
-        <section id="edit-preconditions" className="mb-6 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section id="edit-preconditions" className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
           <div className="rounded-lg border border-border bg-card p-4">
             <ul className="space-y-2 mb-3">
@@ -780,7 +802,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
         </section>
 
         {/* Test cases */}
-        <section id="edit-testcases" className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <section id="edit-testcases" className="rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
           {draft.testCases.map((sub, i) => (
             <SubTCEditor
@@ -790,6 +812,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
               index={i}
               onChange={updateSubTC}
               onRemove={() => removeSubTC(sub.id)}
+              parentTcId={tc.id}
             />
           ))}
           <button
@@ -799,29 +822,6 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
             <Plus size={14} /> Add Test Case
           </button>
         </section>
-
-        {/* Notes */}
-        <section id="edit-notes" className="mt-4 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-            <StickyNote size={16} style={{ color: 'rgba(0,210,255,0.7)' }} />
-            <h2 className="text-lg font-semibold" style={{ margin: 0 }}>Notes</h2>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <textarea
-              value={draft.notes}
-              onChange={(e) => patch({ notes: e.target.value })}
-              placeholder="Add notes, observations, or comments..."
-              rows={4}
-              className="w-full text-sm text-foreground bg-transparent outline-none resize-vertical placeholder:text-muted-foreground/60"
-              style={{ lineHeight: 1.7, fontFamily: "'Poppins', sans-serif" }}
-            />
-          </div>
-        </section>
-
-        {/* Attachments (read-only in edit mode) */}
-        <div className="mt-4">
-          <Attachments testCaseId={tc.id} readOnly />
-        </div>
 
         {/* Bottom Done button */}
         <div className="mt-8 flex justify-center">
