@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown, Sparkles } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -16,6 +16,7 @@ import {
   type TestStatus,
 } from '@/lib/useTestStatus'
 import { useProjects, type Project } from '@/lib/projects'
+import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -371,7 +372,8 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
           </Link>
           <button
             onClick={onEdit}
-            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
+            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
           >
             <Pencil size={14} /> Edit
           </button>
@@ -431,7 +433,12 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
           {/* Objective */}
           {tc.objective && (
             <>
-              <h2>Objective</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 style={{ margin: 0 }}>Objective</h2>
+                <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                  <Pencil size={11} /> Edit
+                </button>
+              </div>
               <p>{tc.objective}</p>
               <hr className="border-border my-6" />
             </>
@@ -440,7 +447,12 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
           {/* Preconditions */}
           {tc.preconditions.length > 0 && (
             <>
-              <h2>Preconditions</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 style={{ margin: 0 }}>Preconditions</h2>
+                <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                  <Pencil size={11} /> Edit
+                </button>
+              </div>
               <ul>
                 {tc.preconditions.filter(Boolean).map((item, i) => <li key={i}>{item}</li>)}
               </ul>
@@ -452,7 +464,12 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
           {tc.testCases.map((sub, i) => (
             <div key={sub.id}>
               {i > 0 && <hr className="border-border my-6" />}
-              <h2>{sub.name || `TC-0${i + 1}`}</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 style={{ margin: 0 }}>{sub.name || `TC-0${i + 1}`}</h2>
+                <button onClick={onEdit} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 8px rgba(106,17,203,0.3)' }}>
+                  <Pencil size={11} /> Edit
+                </button>
+              </div>
               <div className="flex items-center gap-2 mb-3">
                 <strong>Priority:</strong>
                 <Dropdown
@@ -511,6 +528,23 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
   const updateSubTC = (updated: CustomTC) => patch({ testCases: draft.testCases.map((s) => (s.id === updated.id ? updated : s)) })
   const removeSubTC = (id: string) => patch({ testCases: draft.testCases.filter((s) => s.id !== id) })
 
+  const [aiOpen, setAiOpen] = useState(false)
+
+  const handleAiFill = (result: AIFillResult) => {
+    patch({
+      title: result.title,
+      summary: result.summary,
+      objective: result.objective,
+      preconditions: result.preconditions,
+      testCases: result.testCases.map((sub) => ({
+        ...createCustomTC(),
+        name: sub.name,
+        steps: sub.steps,
+        expected: sub.expected,
+      })),
+    })
+  }
+
   const doneButtonStyle: React.CSSProperties = {
     background: 'linear-gradient(45deg, #6a11cb, #00d2ff)',
     color: '#fff',
@@ -528,10 +562,17 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
       <div className="max-w-3xl mx-auto px-4 pt-2 pb-12 relative z-10">
 
-        <div className="mb-4">
+        <div className="flex items-center justify-between mb-4">
           <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
             <ArrowLeft size={16} /> Back to Test Cases
           </Link>
+          <button
+            onClick={() => setAiOpen(true)}
+            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
+          >
+            <Sparkles size={14} /> AI Fill
+          </button>
         </div>
 
         {/* Title */}
@@ -660,6 +701,13 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         </div>
 
       </div>
+
+      {aiOpen && (
+        <AIFillPanel
+          onFill={handleAiFill}
+          onClose={() => setAiOpen(false)}
+        />
+      )}
     </div>
   )
 }

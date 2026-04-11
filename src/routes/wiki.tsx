@@ -1089,10 +1089,10 @@ function WikiPage() {
                   className="wiki-sidebar-item"
                   style={{
                     fontWeight: 600,
-                    color: active === section.id ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-                    background: active === section.id ? 'rgba(0,210,255,0.1)' : 'transparent',
+                    color: (active === section.id || section.subsections?.some((s) => s.id === active)) ? '#00d2ff' : 'rgba(255,255,255,0.7)',
+                    background: (active === section.id || section.subsections?.some((s) => s.id === active)) ? 'rgba(0,210,255,0.1)' : 'transparent',
                   }}
-                  onClick={() => { setActive(section.id); setMobileOpen(false) }}
+                  onClick={() => { setActive(section.subsections ? section.subsections[0].id : section.id); setMobileOpen(false) }}
                 >
                   {section.label}
                 </button>

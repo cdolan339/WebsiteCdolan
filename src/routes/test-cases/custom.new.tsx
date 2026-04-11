@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, X, Plus, FolderOpen, ChevronDown } from 'lucide-react'
+import { ArrowLeft, X, Plus, FolderOpen, ChevronDown, Sparkles } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { createCustomTestCase, createCustomTC, addCustomTestCase, type CustomTestCase, type CustomTC } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
+import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 
 export const Route = createFileRoute('/test-cases/custom/new')({
   component: NewTestCase,
@@ -240,6 +241,7 @@ function NewTestCase() {
     projectId: null,
   })
   const [titleError, setTitleError] = useState<string | null>(null)
+  const [aiOpen, setAiOpen] = useState(false)
 
   // Default to whatever project is currently active on the homepage
   useEffect(() => {
@@ -260,6 +262,21 @@ function NewTestCase() {
     const tc = { ...createCustomTestCase(), ...draft, title: draft.title.trim(), projectId: draft.projectId }
     addCustomTestCase(tc)
     navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })
+  }
+
+  const handleAiFill = (result: AIFillResult) => {
+    patch({
+      title: result.title,
+      summary: result.summary,
+      objective: result.objective,
+      preconditions: result.preconditions,
+      testCases: result.testCases.map((sub) => ({
+        ...createCustomTC(),
+        name: sub.name,
+        steps: sub.steps,
+        expected: sub.expected,
+      })),
+    })
   }
 
   const addPrecondition = () => patch({ preconditions: [...draft.preconditions, ''] })
@@ -284,11 +301,20 @@ function NewTestCase() {
       <div className="blob-new" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
       <div className="max-w-3xl mx-auto px-4 py-12 relative z-10">
 
-        {/* Back */}
-        <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors">
-          <ArrowLeft size={16} />
-          Back to Test Cases
-        </Link>
+        {/* Back + AI button */}
+        <div className="flex items-center justify-between mb-8">
+          <Link to="/homepage" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft size={16} />
+            Back to Test Cases
+          </Link>
+          <button
+            onClick={() => setAiOpen(true)}
+            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(45deg, #6a11cb, #00d2ff)', color: '#fff', boxShadow: '0 2px 12px rgba(106,17,203,0.3)' }}
+          >
+            <Sparkles size={14} /> AI Fill
+          </button>
+        </div>
 
         {/* Title */}
         <div className="mb-2">
@@ -427,6 +453,13 @@ function NewTestCase() {
         </div>
 
       </div>
+
+      {aiOpen && (
+        <AIFillPanel
+          onFill={handleAiFill}
+          onClose={() => setAiOpen(false)}
+        />
+      )}
     </div>
   )
 }
