@@ -284,6 +284,7 @@ function NewTestCase() {
       testCases: result.testCases.map((sub) => ({
         ...createCustomTC(),
         name: sub.name,
+        priority: sub.priority ?? 'medium',
         steps: sub.steps,
         expected: sub.expected,
       })),
