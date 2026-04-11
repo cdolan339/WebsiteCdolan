@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown, Sparkles } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown, Sparkles, StickyNote } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   useCustomTestCase,
@@ -18,6 +18,7 @@ import {
 import { useProjects, type Project } from '@/lib/projects'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
+import { Attachments } from '@/components/Attachments'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -357,6 +358,23 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
   const { projects } = useProjects()
+  const [notes, setNotes] = useState(tc.notes ?? '')
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const saveNotes = useCallback((value: string) => {
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+    notesTimerRef.current = setTimeout(() => {
+      updateCustomTestCase({ ...tc, notes: value, updatedAt: new Date().toISOString() })
+    }, 600)
+  }, [tc])
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value)
+    saveNotes(value)
+  }
+
+  // Flush pending save on unmount
+  useEffect(() => () => { if (notesTimerRef.current) clearTimeout(notesTimerRef.current) }, [])
 
   useEffect(() => {
     const stored = loadExpectedMap()
@@ -538,6 +556,46 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
             </section>
           ))}
         </div>
+
+        {/* Notes — real-time save */}
+        <section style={{ marginTop: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <StickyNote size={16} style={{ color: 'rgba(0,210,255,0.7)' }} />
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>Notes</h2>
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => handleNotesChange(e.target.value)}
+            placeholder="Add notes, observations, or comments..."
+            rows={4}
+            style={{
+              width: '100%',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              color: 'rgba(255,255,255,0.8)',
+              fontSize: '0.85rem',
+              lineHeight: 1.7,
+              resize: 'vertical',
+              outline: 'none',
+              fontFamily: "'Poppins', sans-serif",
+              boxSizing: 'border-box',
+              transition: 'border-color 0.15s',
+            }}
+            onFocus={(e) => { e.target.style.borderColor = 'rgba(0,210,255,0.4)' }}
+            onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)' }}
+          />
+          <p style={{ margin: '8px 0 0', fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
+            Auto-saved as you type
+          </p>
+        </section>
+
+        {/* Attachments — always interactive, no edit mode needed */}
+        <div style={{ marginTop: '16px' }}>
+          <Attachments testCaseId={tc.id} />
+        </div>
+
       </div>
     </div>
   )
@@ -741,6 +799,29 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
             <Plus size={14} /> Add Test Case
           </button>
         </section>
+
+        {/* Notes */}
+        <section id="edit-notes" className="mt-4 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <StickyNote size={16} style={{ color: 'rgba(0,210,255,0.7)' }} />
+            <h2 className="text-lg font-semibold" style={{ margin: 0 }}>Notes</h2>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <textarea
+              value={draft.notes}
+              onChange={(e) => patch({ notes: e.target.value })}
+              placeholder="Add notes, observations, or comments..."
+              rows={4}
+              className="w-full text-sm text-foreground bg-transparent outline-none resize-vertical placeholder:text-muted-foreground/60"
+              style={{ lineHeight: 1.7, fontFamily: "'Poppins', sans-serif" }}
+            />
+          </div>
+        </section>
+
+        {/* Attachments (read-only in edit mode) */}
+        <div className="mt-4">
+          <Attachments testCaseId={tc.id} readOnly />
+        </div>
 
         {/* Bottom Done button */}
         <div className="mt-8 flex justify-center">

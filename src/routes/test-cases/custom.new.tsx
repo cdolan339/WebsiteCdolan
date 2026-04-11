@@ -250,6 +250,7 @@ function NewTestCase() {
     preconditions: [],
     priority: 'medium',
     testCases: [],
+    notes: '',
     projectId: null,
   })
   const [titleError, setTitleError] = useState<string | null>(null)

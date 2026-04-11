@@ -57,3 +57,46 @@ export async function api<T = unknown>(
 
   return res.json() as Promise<T>;
 }
+
+/**
+ * Upload files via FormData (multipart).
+ * Does NOT set Content-Type — the browser adds the boundary automatically.
+ */
+export async function apiUpload<T = unknown>(
+  path: string,
+  body: FormData,
+): Promise<T> {
+  const t = getToken();
+  const headers: Record<string, string> = {};
+  if (t) headers["Authorization"] = `Bearer ${t}`;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers,
+    body,
+  });
+
+  if (res.status === 401) {
+    setToken(null);
+    const p = typeof window !== "undefined" ? window.location.pathname : "";
+    if (p && !p.startsWith("/login") && p !== "/403" && p !== "/404") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized");
+  }
+
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new Error((b as { error?: string }).error || `HTTP ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Build a full URL to an attachment file (for img src, download links, etc.)
+ */
+export function attachmentUrl(testCaseId: string, attachmentId: number): string {
+  const t = getToken();
+  return `${API_BASE}/attachments/${testCaseId}/${attachmentId}/file${t ? `?token=${t}` : ""}`;
+}

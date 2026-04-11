@@ -29,6 +29,7 @@ export type CustomTestCase = {
   preconditions: string[];
   priority: "low" | "medium" | "high" | "critical";
   testCases: CustomTC[];
+  notes: string;
   completed?: boolean;
   completedAt?: string | null;
   projectId?: number | null;
@@ -121,6 +122,7 @@ export function createCustomTestCase(): CustomTestCase {
     preconditions: [],
     priority: "medium",
     testCases: [],
+    notes: "",
   };
 }
 
