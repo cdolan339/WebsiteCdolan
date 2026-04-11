@@ -18,6 +18,7 @@ export type AIFillResult = {
   summary: string
   objective: string
   preconditions: string[]
+  tags: string[]
   testCases: {
     name: string
     priority: 'low' | 'medium' | 'high' | 'critical'

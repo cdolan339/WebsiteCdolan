@@ -382,7 +382,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(6px)' }}
+            style={{ background: 'linear-gradient(45deg, rgba(106,17,203,0.35), rgba(0,210,255,0.35))', border: '1px solid rgba(0,210,255,0.35)', color: '#fff', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px rgba(106,17,203,0.2)' }}
           >
             <ArrowLeft size={14} /> Back to Test Cases
           </Link>
@@ -579,6 +579,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
       summary: result.summary,
       objective: result.objective,
       preconditions: result.preconditions,
+      tags: result.tags ?? [],
       testCases: result.testCases.map((sub) => ({
         ...createCustomTC(),
         name: sub.name,
@@ -610,7 +611,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(6px)' }}
+            style={{ background: 'linear-gradient(45deg, rgba(106,17,203,0.35), rgba(0,210,255,0.35))', border: '1px solid rgba(0,210,255,0.35)', color: '#fff', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px rgba(106,17,203,0.2)' }}
           >
             <ArrowLeft size={14} /> Back to Test Cases
           </Link>
