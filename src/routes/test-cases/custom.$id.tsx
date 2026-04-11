@@ -17,6 +17,7 @@ import {
 } from '@/lib/useTestStatus'
 import { useProjects, type Project } from '@/lib/projects'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
+import { LoadingCurtain } from '@/components/LoadingCurtain'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -391,7 +392,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: () => void }) {
         </div>
 
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-3">{tc.title || 'Untitled Test Case'}</h1>
+          <h1 className="text-3xl font-bold mb-3" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.title || 'Untitled Test Case'}</h1>
           {tc.summary && <p className="text-muted-foreground text-lg mb-4">{tc.summary}</p>}
 
           <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -560,6 +561,7 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
   const removeSubTC = (id: string) => patch({ testCases: draft.testCases.filter((s) => s.id !== id) })
 
   const [aiOpen, setAiOpen] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
 
   const handleAiFill = (result: AIFillResult) => {
     patch({
@@ -570,6 +572,7 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
       testCases: result.testCases.map((sub) => ({
         ...createCustomTC(),
         name: sub.name,
+        priority: sub.priority ?? 'medium',
         steps: sub.steps,
         expected: sub.expected,
       })),
@@ -613,6 +616,7 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
           onChange={(e) => patch({ title: e.target.value })}
           placeholder="Test case title…"
           className="w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground mb-2 focus:underline decoration-muted-foreground/40"
+          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
         />
 
         {/* Summary */}
@@ -737,8 +741,11 @@ function EditMode({ tc, onDone }: { tc: CustomTestCase; onDone: () => void }) {
         <AIFillPanel
           onFill={handleAiFill}
           onClose={() => setAiOpen(false)}
+          onLoading={setAiLoading}
         />
       )}
+
+      <LoadingCurtain visible={aiLoading} message="Generating test cases" />
     </div>
   )
 }

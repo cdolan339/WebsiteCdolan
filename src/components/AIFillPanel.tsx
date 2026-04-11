@@ -20,6 +20,7 @@ export type AIFillResult = {
   preconditions: string[]
   testCases: {
     name: string
+    priority: 'low' | 'medium' | 'high' | 'critical'
     steps: string[]
     expected: string
   }[]
@@ -28,9 +29,10 @@ export type AIFillResult = {
 type Props = {
   onFill: (result: AIFillResult) => void
   onClose: () => void
+  onLoading?: (loading: boolean) => void
 }
 
-export function AIFillPanel({ onFill, onClose }: Props) {
+export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +41,7 @@ export function AIFillPanel({ onFill, onClose }: Props) {
     if (!prompt.trim()) return
     setLoading(true)
     setError(null)
+    onLoading?.(true)
     try {
       const result = await api<AIFillResult>('/ai/fill-test-case', {
         method: 'POST',
@@ -53,6 +56,7 @@ export function AIFillPanel({ onFill, onClose }: Props) {
       setError(msg)
     } finally {
       setLoading(false)
+      onLoading?.(false)
     }
   }
 

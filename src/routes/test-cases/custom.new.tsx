@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createCustomTestCase, createCustomTC, addCustomTestCase, type CustomTestCase, type CustomTC } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
+import { LoadingCurtain } from '@/components/LoadingCurtain'
 
 export const Route = createFileRoute('/test-cases/custom/new')({
   component: NewTestCase,
@@ -253,6 +254,7 @@ function NewTestCase() {
   })
   const [titleError, setTitleError] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
 
   // Default to whatever project is currently active on the homepage
   useEffect(() => {
@@ -284,6 +286,7 @@ function NewTestCase() {
       testCases: result.testCases.map((sub) => ({
         ...createCustomTC(),
         name: sub.name,
+        priority: sub.priority ?? 'medium',
         steps: sub.steps,
         expected: sub.expected,
       })),
@@ -337,6 +340,7 @@ function NewTestCase() {
             placeholder="Test case title…"
             autoFocus
             className={`w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground focus:underline decoration-muted-foreground/40 ${titleError ? 'text-destructive placeholder:text-destructive/50' : ''}`}
+            style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
           />
           {titleError && (
             <p className="text-sm text-destructive mt-1">{titleError}</p>
@@ -469,8 +473,11 @@ function NewTestCase() {
         <AIFillPanel
           onFill={handleAiFill}
           onClose={() => setAiOpen(false)}
+          onLoading={setAiLoading}
         />
       )}
+
+      <LoadingCurtain visible={aiLoading} message="Generating test cases" />
     </div>
   )
 }
