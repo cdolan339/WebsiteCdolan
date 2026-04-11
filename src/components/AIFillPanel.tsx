@@ -20,7 +20,6 @@ export type AIFillResult = {
   preconditions: string[]
   testCases: {
     name: string
-    priority: 'low' | 'medium' | 'high' | 'critical'
     steps: string[]
     expected: string
   }[]
