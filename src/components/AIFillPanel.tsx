@@ -11,7 +11,7 @@
 
 import { useState } from 'react'
 import { X, Sparkles, Loader2, AlertTriangle } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 
 export type AIFillResult = {
   title: string
@@ -60,12 +60,11 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
       onClose()
     } catch (err: unknown) {
       console.error('AI fill error:', err)
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
-      // Detect when the AI returned a conversational response instead of JSON
-      // (backend error will be long or contain AI-like phrasing)
-      if (msg.length > 100 || msg.includes('provide') || msg.includes('Please share') || msg.includes('requirement')) {
+      // Check if the backend flagged this as an AI conversational response (not JSON)
+      if (err instanceof ApiError && err.aiMessage) {
         setShowNeedsDetail(true)
       } else {
+        const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
         setError(msg)
       }
     } finally {

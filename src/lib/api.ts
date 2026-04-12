@@ -5,6 +5,18 @@
  * All your other lib files import from here instead of calling fetch directly.
  */
 
+/** Thrown when the API returns an error response. May include extra fields from the body. */
+export class ApiError extends Error {
+  status: number;
+  aiMessage?: string;
+  constructor(message: string, status: number, aiMessage?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.aiMessage = aiMessage;
+  }
+}
+
 const API_BASE = import.meta.env.DEV
   ? "/api"                                          // local dev (proxied by Vite)
   : "https://qa-assistant-api.onrender.com/api";    // production (your Render URL)
@@ -51,8 +63,8 @@ export async function api<T = unknown>(
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error || `HTTP ${res.status}`);
+    const body = await res.json().catch(() => ({})) as { error?: string; aiMessage?: string };
+    throw new ApiError(body.error || `HTTP ${res.status}`, res.status, body.aiMessage);
   }
 
   return res.json() as Promise<T>;
