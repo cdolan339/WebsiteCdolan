@@ -483,7 +483,7 @@ function NewTestCase() {
         />
       )}
 
-      <LoadingCurtain visible={aiLoading} message="Generating test cases" />
+      <LoadingCurtain visible={aiLoading} message="Generating test cases" transparent />
     </div>
   )
 }

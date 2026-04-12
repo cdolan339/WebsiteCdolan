@@ -14,6 +14,11 @@ const css = `
   animation: curtainFadeIn 0.2s ease-out;
 }
 
+.curtain-overlay.curtain-transparent {
+  background: color-mix(in oklch, var(--app-bg) 80%, transparent);
+  backdrop-filter: blur(8px);
+}
+
 .curtain-overlay.curtain-exit {
   animation: curtainFadeOut 0.4s ease-in forwards;
 }
@@ -235,7 +240,7 @@ const css = `
 }
 `
 
-export function LoadingCurtain({ visible, message }: { visible: boolean; message?: string }) {
+export function LoadingCurtain({ visible, message, transparent }: { visible: boolean; message?: string; transparent?: boolean }) {
   const [show, setShow] = useState(visible)
   const [exiting, setExiting] = useState(false)
 
@@ -252,13 +257,23 @@ export function LoadingCurtain({ visible, message }: { visible: boolean; message
 
   if (!show) return null
 
+  const classes = [
+    'curtain-overlay',
+    transparent && 'curtain-transparent',
+    exiting && 'curtain-exit',
+  ].filter(Boolean).join(' ')
+
   return (
     <>
       <style>{css}</style>
-      <div className={`curtain-overlay${exiting ? ' curtain-exit' : ''}`}>
+      <div className={classes}>
         {/* Background blobs */}
-        <div style={{ position: 'absolute', width: 300, height: 300, top: -80, left: -80, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 200, height: 200, bottom: -40, right: -40, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
+        {!transparent && (
+          <>
+            <div style={{ position: 'absolute', width: 300, height: 300, top: -80, left: -80, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', width: 200, height: 200, bottom: -40, right: -40, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
+          </>
+        )}
 
         <div className="curtain-ship-wrap">
           <div className="curtain-sun" />

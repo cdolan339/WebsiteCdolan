@@ -842,7 +842,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
         />
       )}
 
-      <LoadingCurtain visible={aiLoading} message="Generating test cases" />
+      <LoadingCurtain visible={aiLoading} message="Generating test cases" transparent />
     </div>
   )
 }

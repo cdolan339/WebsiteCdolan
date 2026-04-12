@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react'
-import { X, Sparkles, Loader2 } from 'lucide-react'
+import { X, Sparkles, Loader2, AlertTriangle } from 'lucide-react'
 import { api } from '@/lib/api'
 
 export type AIFillResult = {
@@ -37,24 +37,37 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showNeedsDetail, setShowNeedsDetail] = useState(false)
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return
     setLoading(true)
     setError(null)
+    setShowNeedsDetail(false)
     onLoading?.(true)
     try {
-      const result = await api<AIFillResult>('/ai/fill-test-case', {
+      const result = await api<AIFillResult & { aiMessage?: string }>('/ai/fill-test-case', {
         method: 'POST',
         body: JSON.stringify({ prompt }),
       })
+      // If the backend sent an aiMessage field, the AI couldn't parse the input
+      if (result.aiMessage) {
+        setShowNeedsDetail(true)
+        return
+      }
       console.log('AI result:', result)
       onFill(result)
       onClose()
     } catch (err: unknown) {
       console.error('AI fill error:', err)
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
-      setError(msg)
+      // Detect when the AI returned a conversational response instead of JSON
+      // (backend error will be long or contain AI-like phrasing)
+      if (msg.length > 100 || msg.includes('provide') || msg.includes('Please share') || msg.includes('requirement')) {
+        setShowNeedsDetail(true)
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
       onLoading?.(false)
@@ -155,6 +168,45 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
               color: '#fca5a5', fontSize: '0.8rem', lineHeight: 1.5,
             }}>
               {error}
+            </div>
+          )}
+
+          {/* Curated feedback — shown when the AI couldn't generate test cases */}
+          {showNeedsDetail && (
+            <div style={{
+              marginTop: '12px', borderRadius: '10px', overflow: 'hidden',
+              border: '1px solid rgba(202,138,4,0.3)',
+              background: 'rgba(202,138,4,0.08)',
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: 'rgba(202,138,4,0.12)',
+                borderBottom: '1px solid rgba(202,138,4,0.2)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={14} style={{ color: '#ca8a04' }} />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--app-text)' }}>More Detail Needed</span>
+                </div>
+                <button
+                  onClick={() => setShowNeedsDetail(false)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--app-text-secondary)', padding: 2 }}
+                  aria-label="Dismiss"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div style={{ padding: '12px 14px', fontSize: '0.82rem', lineHeight: 1.7, color: 'var(--app-text)' }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 600 }}>The AI couldn't generate test cases from your input.</p>
+                <p style={{ margin: '0 0 10px', color: 'var(--app-text-secondary)' }}>
+                  Your prompt needs to describe a specific feature or requirement. Try including:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--app-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <li>The feature or user flow being tested</li>
+                  <li>Expected behaviors or acceptance criteria</li>
+                  <li>Any edge cases or error scenarios</li>
+                </ul>
+              </div>
             </div>
           )}
 
