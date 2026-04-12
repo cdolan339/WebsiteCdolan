@@ -5,6 +5,7 @@ import { createCustomTestCase, createCustomTC, addCustomTestCase, type CustomTes
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
+import { PreconditionAttachments, uploadPreconditionImages, type PendingImage } from '@/components/PreconditionAttachments'
 
 export const Route = createFileRoute('/test-cases/custom/new')({
   component: NewTestCase,
@@ -258,6 +259,7 @@ function NewTestCase() {
   const [titleError, setTitleError] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [pendingPrecondImages, setPendingPrecondImages] = useState<PendingImage[]>([])
 
   // Default to whatever project is currently active on the homepage
   useEffect(() => {
@@ -271,12 +273,23 @@ function NewTestCase() {
     if ('title' in fields) setTitleError(null)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const error = validateTitle(draft.title)
     if (error) { setTitleError(error); return }
 
     const tc = { ...createCustomTestCase(), ...draft, title: draft.title.trim(), projectId: draft.projectId }
     addCustomTestCase(tc)
+
+    // Upload any pending precondition images now that we have an ID
+    if (pendingPrecondImages.length > 0) {
+      try {
+        await uploadPreconditionImages(`precond:${tc.id}`, pendingPrecondImages)
+      } catch {
+        // Non-blocking — test case is already saved, images can be re-uploaded manually
+        console.error('Failed to upload precondition images')
+      }
+    }
+
     navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })
   }
 
@@ -295,6 +308,19 @@ function NewTestCase() {
         expected: sub.expected,
       })),
     })
+
+    // Convert extracted images from the AI response to pending precondition images
+    if (result.extractedImages && result.extractedImages.length > 0) {
+      const pending: PendingImage[] = result.extractedImages.map((img) => {
+        const byteChars = atob(img.data)
+        const byteArray = new Uint8Array(byteChars.length)
+        for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i)
+        const blob = new Blob([byteArray], { type: img.contentType })
+        const file = new File([blob], img.name, { type: img.contentType })
+        return { file, preview: URL.createObjectURL(blob), name: img.name }
+      })
+      setPendingPrecondImages((prev) => [...prev, ...pending])
+    }
   }
 
   const addPrecondition = () => patch({ preconditions: [...draft.preconditions, ''] })
@@ -432,6 +458,10 @@ function NewTestCase() {
               Add Precondition
             </button>
           </div>
+          <PreconditionAttachments
+            pendingImages={pendingPrecondImages}
+            onPendingChange={setPendingPrecondImages}
+          />
         </section>
 
         {/* Test cases */}

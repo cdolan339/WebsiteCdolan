@@ -17,8 +17,10 @@ import {
 } from '@/lib/useTestStatus'
 import { useProjects, type Project } from '@/lib/projects'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
+import { uploadPreconditionImages, type PendingImage } from '@/components/PreconditionAttachments'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { Attachments } from '@/components/Attachments'
+import { PreconditionAttachments } from '@/components/PreconditionAttachments'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -532,21 +534,22 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
           )}
 
           {/* Preconditions */}
-          {tc.preconditions.filter(Boolean).length > 0 && (
-            <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--app-text)' }}>Preconditions</h2>
-                <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                  <Pencil size={11} /> Edit
-                </button>
-              </div>
+          <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--app-text)' }}>Preconditions</h2>
+              <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
+                <Pencil size={11} /> Edit
+              </button>
+            </div>
+            {tc.preconditions.filter(Boolean).length > 0 && (
               <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {tc.preconditions.filter(Boolean).map((item, i) => (
                   <li key={i} style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item}</li>
                 ))}
               </ul>
-            </section>
-          )}
+            )}
+            <PreconditionAttachments testCaseId={`precond:${tc.id}`} />
+          </section>
 
           {/* Sub test cases */}
           {tc.testCases.map((sub, i) => (
@@ -667,6 +670,21 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
         expected: sub.expected,
       })),
     })
+
+    // Upload extracted images as precondition attachments immediately (test case already exists)
+    if (result.extractedImages && result.extractedImages.length > 0) {
+      const pending: PendingImage[] = result.extractedImages.map((img) => {
+        const byteChars = atob(img.data)
+        const byteArray = new Uint8Array(byteChars.length)
+        for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i)
+        const blob = new Blob([byteArray], { type: img.contentType })
+        const file = new File([blob], img.name, { type: img.contentType })
+        return { file, preview: URL.createObjectURL(blob), name: img.name }
+      })
+      uploadPreconditionImages(`precond:${tc.id}`, pending).catch(() => {
+        console.error('Failed to upload precondition images')
+      })
+    }
   }
 
   const doneButtonStyle: React.CSSProperties = {
@@ -797,6 +815,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
               <Plus size={14} /> Add Precondition
             </button>
           </div>
+          <PreconditionAttachments testCaseId={`precond:${tc.id}`} />
         </section>
 
         {/* Test cases */}

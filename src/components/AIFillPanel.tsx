@@ -13,6 +13,12 @@ import { useState, useRef } from 'react'
 import { X, Sparkles, Loader2, AlertTriangle, Paperclip, FileText, Image, File } from 'lucide-react'
 import { apiUpload, ApiError } from '@/lib/api'
 
+export type ExtractedImage = {
+  data: string      // base64
+  contentType: string
+  name: string
+}
+
 export type AIFillResult = {
   title: string
   summary: string
@@ -25,6 +31,7 @@ export type AIFillResult = {
     steps: string[]
     expected: string
   }[]
+  extractedImages?: ExtractedImage[]
 }
 
 type Props = {
