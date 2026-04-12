@@ -2,16 +2,16 @@
  * AIFillPanel
  *
  * A slide-in panel that lets the user paste a business story / BA requirements
- * and have Claude fill out the test case fields automatically.
+ * or upload documents, and have Claude fill out the test case fields automatically.
  *
  * Props:
  *   onFill(result) — called with the AI-generated fields to merge into draft state
  *   onClose       — called when the panel should close
  */
 
-import { useState } from 'react'
-import { X, Sparkles, Loader2, AlertTriangle } from 'lucide-react'
-import { api, ApiError } from '@/lib/api'
+import { useState, useRef } from 'react'
+import { X, Sparkles, Loader2, AlertTriangle, Paperclip, FileText, Image, File } from 'lucide-react'
+import { apiUpload, ApiError } from '@/lib/api'
 
 export type AIFillResult = {
   title: string
@@ -33,24 +33,61 @@ type Props = {
   onLoading?: (loading: boolean) => void
 }
 
+const MAX_CHARS = 10_000
+
+const ACCEPT_EXTENSIONS = '.pdf,.docx,.txt,.md,.csv,.jpg,.jpeg,.png,.webp'
+
+function fileIcon(mime: string) {
+  if (mime.startsWith('image/')) return <Image size={14} />
+  if (mime === 'application/pdf') return <FileText size={14} />
+  return <File size={14} />
+}
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
   const [prompt, setPrompt] = useState('')
+  const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showNeedsDetail, setShowNeedsDetail] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const overLimit = prompt.length > MAX_CHARS
+  const hasInput = prompt.trim().length > 0 || files.length > 0
+  const canGenerate = hasInput && !overLimit && !loading
+
+  const handleFiles = (incoming: FileList | null) => {
+    if (!incoming) return
+    const added = Array.from(incoming).slice(0, 5 - files.length)
+    setFiles((prev) => [...prev, ...added].slice(0, 5))
+    // Reset the input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return
+    if (!canGenerate) return
     setLoading(true)
     setError(null)
     setShowNeedsDetail(false)
     onLoading?.(true)
     try {
-      const result = await api<AIFillResult & { aiMessage?: string }>('/ai/fill-test-case', {
-        method: 'POST',
-        body: JSON.stringify({ prompt }),
-      })
-      // If the backend sent an aiMessage field, the AI couldn't parse the input
+      const formData = new FormData()
+      if (prompt.trim()) formData.append('prompt', prompt.trim())
+      for (const file of files) {
+        formData.append('files', file)
+      }
+
+      const result = await apiUpload<AIFillResult & { aiMessage?: string }>('/ai/fill-test-case', formData)
+
       if (result.aiMessage) {
         setShowNeedsDetail(true)
         return
@@ -60,7 +97,6 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
       onClose()
     } catch (err: unknown) {
       console.error('AI fill error:', err)
-      // Check if the backend flagged this as an AI conversational response (not JSON)
       if (err instanceof ApiError && err.aiMessage) {
         setShowNeedsDetail(true)
       } else {
@@ -129,7 +165,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
           <p style={{ fontSize: '0.82rem', color: 'var(--app-text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
-            Paste your business story, user story, or BA requirements below. Claude will generate
+            Paste your business story, user story, or BA requirements below — or upload a document. Claude will generate
             the title, summary, objective, preconditions, and test cases for you.
           </p>
 
@@ -140,11 +176,11 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={`Example:\n\nAs a user, I want to be able to log in using my email and password so that I can access my account securely. The system should lock the account after 5 failed attempts and show a clear error message.`}
-            rows={12}
+            rows={10}
             style={{
               width: '100%',
               background: 'var(--app-glass)',
-              border: '1px solid var(--app-glass-border)',
+              border: `1px solid ${overLimit ? 'rgba(220,38,38,0.5)' : 'var(--app-glass-border)'}`,
               borderRadius: '10px',
               padding: '12px 14px',
               color: 'var(--app-text)',
@@ -155,10 +191,116 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
               fontFamily: "'Segoe UI', system-ui, sans-serif",
               boxSizing: 'border-box',
             }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--app-input-focus-border)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--app-glass-border)' }}
+            onFocus={(e) => { if (!overLimit) e.target.style.borderColor = 'var(--app-input-focus-border)' }}
+            onBlur={(e) => { if (!overLimit) e.target.style.borderColor = 'var(--app-glass-border)' }}
             disabled={loading}
           />
+          {/* Character counter */}
+          <div style={{
+            display: 'flex', justifyContent: 'flex-end', marginTop: '4px',
+            fontSize: '0.72rem',
+            color: overLimit ? '#dc2626' : prompt.length > MAX_CHARS * 0.9 ? '#ca8a04' : 'var(--app-text-secondary)',
+          }}>
+            {prompt.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+          </div>
+
+          {/* File upload area */}
+          <div style={{ marginTop: '12px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              marginBottom: '8px',
+            }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--app-text-secondary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Attachments
+              </label>
+              <span style={{ fontSize: '0.72rem', color: 'var(--app-text-secondary)' }}>
+                {files.length}/5 files
+              </span>
+            </div>
+
+            {/* File list */}
+            {files.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                {files.map((file, i) => (
+                  <div
+                    key={`${file.name}-${i}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '8px 10px', borderRadius: '8px',
+                      background: 'var(--app-glass)',
+                      border: '1px solid var(--app-glass-border)',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--app-accent-color)', flexShrink: 0 }}>
+                      {fileIcon(file.type)}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {file.name}
+                    </span>
+                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.72rem', flexShrink: 0 }}>
+                      {formatSize(file.size)}
+                    </span>
+                    <button
+                      onClick={() => removeFile(i)}
+                      disabled={loading}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: 'var(--app-text-secondary)', padding: 2, flexShrink: 0,
+                      }}
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload button */}
+            {files.length < 5 && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '8px',
+                  background: 'transparent',
+                  border: '1px dashed var(--app-glass-border)',
+                  color: 'var(--app-text-secondary)',
+                  fontSize: '0.8rem', fontWeight: 500,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  transition: 'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.borderColor = 'var(--app-accent-color)'
+                    e.currentTarget.style.color = 'var(--app-accent-color)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--app-glass-border)'
+                  e.currentTarget.style.color = 'var(--app-text-secondary)'
+                }}
+              >
+                <Paperclip size={14} />
+                Upload document
+              </button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_EXTENSIONS}
+              multiple
+              onChange={(e) => handleFiles(e.target.files)}
+              style={{ display: 'none' }}
+            />
+
+            <p style={{ fontSize: '0.7rem', color: 'var(--app-text-secondary)', marginTop: '6px', lineHeight: 1.5 }}>
+              PDF, Word (.docx), text, markdown, CSV, or images (JPG, PNG, WebP). Max 20 MB per file.
+            </p>
+          </div>
 
           {error && (
             <div style={{
@@ -240,18 +382,18 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
           </button>
           <button
             onClick={handleGenerate}
-            disabled={loading || !prompt.trim()}
+            disabled={!canGenerate}
             style={{
               flex: 2, padding: '10px', borderRadius: '8px',
-              background: loading || !prompt.trim()
+              background: !canGenerate
                 ? 'var(--app-glass)'
                 : 'var(--app-btn-primary)',
               border: 'none',
-              color: loading || !prompt.trim() ? 'var(--app-text-secondary)' : 'var(--app-btn-text)',
+              color: !canGenerate ? 'var(--app-text-secondary)' : 'var(--app-btn-text)',
               fontSize: '0.85rem', fontWeight: 600,
-              cursor: loading || !prompt.trim() ? 'not-allowed' : 'pointer',
+              cursor: !canGenerate ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              boxShadow: loading || !prompt.trim() ? 'none' : '0 2px 16px var(--app-btn-primary-shadow)',
+              boxShadow: !canGenerate ? 'none' : '0 2px 16px var(--app-btn-primary-shadow)',
               transition: 'opacity 0.15s',
             }}
           >

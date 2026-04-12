@@ -98,8 +98,8 @@ export async function apiUpload<T = unknown>(
   }
 
   if (!res.ok) {
-    const b = await res.json().catch(() => ({}));
-    throw new Error((b as { error?: string }).error || `HTTP ${res.status}`);
+    const b = await res.json().catch(() => ({})) as { error?: string; aiMessage?: string };
+    throw new ApiError(b.error || `HTTP ${res.status}`, res.status, b.aiMessage);
   }
 
   return res.json() as Promise<T>;
