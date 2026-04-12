@@ -341,15 +341,22 @@ export function Attachments({ testCaseId, readOnly = false }: Props) {
     }
   }
 
-  const handleDownload = (att: AttachmentMeta) => {
-    const url = attachmentUrl(testCaseId, att.id)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = att.note || att.filename
-    a.target = '_blank'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+  const handleDownload = async (att: AttachmentMeta) => {
+    try {
+      const url = attachmentUrl(testCaseId, att.id)
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = att.note || att.filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      setError('Failed to download file')
+    }
   }
 
   const images = attachments.filter((a) => isImage(a.mimetype))

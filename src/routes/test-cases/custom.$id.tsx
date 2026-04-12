@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown, Sparkles, StickyNote } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown, ChevronUp, Sparkles, StickyNote } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -268,7 +268,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
 
 // ── Sub-test case editor (edit mode) ─────────────────────────────────────────
 
-function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string }) {
+function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, onMoveDown }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string; onMoveUp?: () => void; onMoveDown?: () => void }) {
   const patch = (fields: Partial<CustomTC>) => onChange({ ...tc, ...fields })
 
   const addStep = () => patch({ steps: [...tc.steps, ''] })
@@ -287,6 +287,26 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId }: { tc: Cu
           Test Case {String(index + 1).padStart(2, '0')}
         </span>
         <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
+        {(onMoveUp || onMoveDown) && (
+          <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+            <button
+              onClick={onMoveUp}
+              disabled={!onMoveUp}
+              style={{ background: 'transparent', border: 'none', cursor: onMoveUp ? 'pointer' : 'default', color: onMoveUp ? 'var(--app-text-secondary)' : 'var(--app-glass-border)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
+              aria-label="Move up"
+            >
+              <ChevronUp size={16} />
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={!onMoveDown}
+              style={{ background: 'transparent', border: 'none', cursor: onMoveDown ? 'pointer' : 'default', color: onMoveDown ? 'var(--app-text-secondary)' : 'var(--app-glass-border)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
+              aria-label="Move down"
+            >
+              <ChevronDown size={16} />
+            </button>
+          </div>
+        )}
         <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case">
           <X size={14} />
         </button>
@@ -564,6 +584,36 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
                   Test Case {String(i + 1).padStart(2, '0')}
                 </span>
                 <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
+                {tc.testCases.length > 1 && (
+                  <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                    <button
+                      onClick={() => {
+                        if (i === 0) return
+                        const next = [...tc.testCases]
+                        ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
+                        save(tc, { testCases: next })
+                      }}
+                      disabled={i === 0}
+                      style={{ background: 'transparent', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? 'var(--app-glass-border)' : 'var(--app-text-secondary)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
+                      aria-label="Move up"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (i === tc.testCases.length - 1) return
+                        const next = [...tc.testCases]
+                        ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+                        save(tc, { testCases: next })
+                      }}
+                      disabled={i === tc.testCases.length - 1}
+                      style={{ background: 'transparent', border: 'none', cursor: i === tc.testCases.length - 1 ? 'default' : 'pointer', color: i === tc.testCases.length - 1 ? 'var(--app-glass-border)' : 'var(--app-text-secondary)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
+                      aria-label="Move down"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+                )}
                 <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
                   <Pencil size={11} /> Edit
                 </button>
@@ -651,6 +701,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
   const addSubTC = () => patch({ testCases: [...draft.testCases, createCustomTC()] })
   const updateSubTC = (updated: CustomTC) => patch({ testCases: draft.testCases.map((s) => (s.id === updated.id ? updated : s)) })
   const removeSubTC = (id: string) => patch({ testCases: draft.testCases.filter((s) => s.id !== id) })
+  const moveSubTC = (from: number, to: number) => { const next = [...draft.testCases]; [next[from], next[to]] = [next[to], next[from]]; patch({ testCases: next }) }
 
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
@@ -830,6 +881,8 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
               onChange={updateSubTC}
               onRemove={() => removeSubTC(sub.id)}
               parentTcId={tc.id}
+              onMoveUp={i > 0 ? () => moveSubTC(i, i - 1) : undefined}
+              onMoveDown={i < draft.testCases.length - 1 ? () => moveSubTC(i, i + 1) : undefined}
             />
           ))}
           <button

@@ -5,7 +5,8 @@
       "Bash(npx tsc:*)",
       "Bash(grep -E \"\\\\.\\(html|css|config|json\\)$\")",
       "Bash(python3 -c ':*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")"
     ]
   }
 }

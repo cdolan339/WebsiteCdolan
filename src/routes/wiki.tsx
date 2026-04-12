@@ -55,6 +55,7 @@ const SECTIONS: Section[] = [
       { id: 'comp-websocket-sync',  label: 'WebSocketSync' },
       { id: 'comp-loading-curtain', label: 'LoadingCurtain' },
       { id: 'comp-ai-fill-panel',   label: 'AIFillPanel' },
+      { id: 'comp-precond-attach',   label: 'PreconditionAttachments' },
     ],
   },
   {
@@ -68,6 +69,7 @@ const SECTIONS: Section[] = [
       { id: 'api-perms',      label: 'Permissions' },
       { id: 'api-websocket',  label: 'WebSocket' },
       { id: 'api-ai',         label: 'AI (Test Case Generator)' },
+      { id: 'api-attach',     label: 'Attachments' },
     ],
   },
   {
@@ -418,7 +420,23 @@ getToken(): string | null
 
 api<T>(path: string, options?: RequestInit): Promise<T>
   // Performs a fetch to API_BASE + path with Content-Type: application/json
-  // and Authorization: Bearer <token>. Throws on 4xx/5xx responses.`} />
+  // and Authorization: Bearer <token>. Throws ApiError on 4xx/5xx.
+
+apiUpload<T>(path: string, formData: FormData): Promise<T>
+  // Performs a multipart POST (no Content-Type header — browser sets boundary).
+  // Used for file uploads (AI Fill, attachments). Throws ApiError on failure.
+
+attachmentUrl(testCaseId: string, attachmentId: number): string
+  // Returns the full URL to serve an attachment file, with ?token= appended
+  // so <img src="..."> works without a separate auth header.`} />
+      <Divider />
+      {subHeader('ApiError class')}
+      {prose('Both api() and apiUpload() throw an ApiError (extends Error) when the server responds with a non-OK status. This class carries structured error data from the response body.')}
+      <CodeBlock code={`class ApiError extends Error {
+  status:    number           // HTTP status code
+  aiMessage: string | null    // Raw AI text (present on 422 from /ai/fill-test-case)
+}`} />
+      {prose('The aiMessage field is populated when the AI returned conversational text instead of valid JSON. The frontend uses this to show a curated "More Detail Needed" card rather than exposing the raw AI response.')}
       <Divider />
       {subHeader('Base URL')}
       <CodeBlock code={`DEV:  /api          (proxied by Vite → http://localhost:3001)
@@ -664,7 +682,22 @@ PROD: wss://qa-assistant-api.onrender.com/ws?token=<jwt>`} />
     <div style={card}>
       {sectionHeader('LoadingCurtain')}
       {prose('A full-screen overlay that fades in/out with a gradient animation. Used during page transitions (login → homepage, logout), while data is loading on most pages, and while the AI generator is running.')}
-      <CodeBlock code={`<LoadingCurtain visible={boolean} message="Loading Test Cases" />`} />
+      <Divider />
+      {subHeader('Props')}
+      <CodeBlock code={`type Props = {
+  visible:      boolean    // controls fade in/out
+  message?:     string     // text shown below the boat animation
+  transparent?: boolean    // see-through mode (shows the page behind)
+}`} />
+      <Divider />
+      {subHeader('Standard mode')}
+      <CodeBlock code={`<LoadingCurtain visible={isLoading} message="Loading Test Cases" />`} />
+      {prose('Solid gradient background with animated blobs. Used for page transitions and initial data loading.')}
+      <Divider />
+      {subHeader('Transparent mode')}
+      <CodeBlock code={`<LoadingCurtain visible={aiLoading} message="Generating..." transparent />`} />
+      {prose('Semi-transparent overlay with backdrop blur — the page content shows through behind the boat animation. Used during AI generation so the user can see their form while waiting. The gradient blobs are hidden in this mode.')}
+      <Divider />
       {prose('Uses CSS transitions — when visible=false, opacity fades to 0 and pointer-events are disabled. The component stays mounted so the fade-out animation plays before the element is removed.')}
     </div>
   )
@@ -672,7 +705,7 @@ PROD: wss://qa-assistant-api.onrender.com/ws?token=<jwt>`} />
   if (active === 'comp-ai-fill-panel') return (
     <div style={card}>
       {sectionHeader('AIFillPanel')}
-      {prose('A slide-in drawer panel that lets the user paste business requirements, user stories, or BA notes and have Claude generate a complete test case structure. Mounted on both the New Test Case and Edit Test Case pages.')}
+      {prose('A slide-in drawer panel that lets the user paste business requirements, user stories, or BA notes — or upload documents — and have Claude generate a complete test case structure. Mounted on both the New Test Case and Edit Test Case pages.')}
       <Divider />
       {subHeader('Props')}
       <CodeBlock code={`type Props = {
@@ -687,28 +720,97 @@ PROD: wss://qa-assistant-api.onrender.com/ws?token=<jwt>`} />
   summary:       string
   objective:     string
   preconditions: string[]
+  tags:          string[]
   testCases: {
     name:     string
+    priority: 'low' | 'medium' | 'high' | 'critical'
     steps:    string[]
     expected: string
   }[]
+  extractedImages?: ExtractedImage[]  // images pulled from .docx or direct uploads
+}
+
+type ExtractedImage = {
+  data:        string   // base64-encoded image data
+  contentType: string   // e.g. "image/png"
+  name:        string   // e.g. "requirements_image_1.png"
 }`} />
+      <Divider />
+      {subHeader('Input methods')}
+      {prose('Users can provide requirements via text, file upload, or both. The text area has a 10,000 character limit with a live counter (yellow at 90%, red when over). Up to 5 files can be attached per generation.')}
+      <CodeBlock code={`Accepted file types:
+  PDF (.pdf)          → sent to Claude as a native document block
+  Word (.docx)        → text + images extracted via mammoth
+  Text (.txt)         → read as UTF-8 text
+  Markdown (.md)      → read as UTF-8 text
+  CSV (.csv)          → read as UTF-8 text
+  Images (.jpg, .png, .webp) → sent as image blocks
+
+Max file size: 20 MB per file
+Max files:     5 per generation`} />
+      <Divider />
+      {subHeader('Document image extraction')}
+      {prose('When a .docx file is uploaded, the backend uses mammoth to extract embedded images. These images are sent to Claude as image content blocks (so the AI can see and reference them) AND returned to the frontend as extractedImages. The frontend converts them to PendingImage objects and displays them in the PreconditionAttachments section under Preconditions.')}
+      {prose('Directly uploaded images (JPG, PNG, WebP) follow the same path — sent to Claude for analysis and returned as extractedImages for the precondition section.')}
+      {prose('PDF images are not individually extracted. Claude reads the full PDF natively as a document block but embedded images are not separated out for precondition attachments.')}
       <Divider />
       {subHeader('Flow')}
       <CodeBlock code={`1. User clicks "AI Fill" button (top-right of New/Edit page)
 2. AIFillPanel slides in from the right
-3. User pastes business story / BA requirements into the textarea
+3. User pastes business story and/or uploads documents
 4. User clicks "Generate Test Case"
-5. onLoading(true) fires → LoadingCurtain appears over the page
-6. POST /api/ai/fill-test-case is called with { prompt }
-7. Claude (claude-haiku) returns structured JSON
+5. onLoading(true) fires → transparent LoadingCurtain appears
+6. POST /api/ai/fill-test-case is called with multipart FormData
+   (prompt text + file attachments)
+7. Claude (claude-haiku) returns structured JSON + extractedImages
 8. onFill(result) merges title, summary, objective, preconditions,
-   and testCases into the draft state
-9. Panel closes, LoadingCurtain fades out
-10. Priority, project, and tags are left for the user to set manually`} />
+   tags, priority, and testCases into the draft state
+9. Extracted images are added to the Precondition Attachments section
+10. Panel closes, LoadingCurtain fades out`} />
+      <Divider />
+      {subHeader('Error handling')}
+      {prose('If the user provides a vague prompt (e.g. just the word "test"), the AI may return conversational text instead of JSON. The backend returns a 422 with an aiMessage field. The panel catches this via ApiError and shows a curated "More Detail Needed" warning card with bullet points on how to improve the prompt — the raw AI response is never shown to the user.')}
       <Divider />
       {subHeader('What the AI fills')}
-      {prose('Title, summary, objective, preconditions, and all test case sub-items (name, steps, expected result). Priority, project, and tags are intentionally excluded — the user sets those manually.')}
+      {prose('Title, summary, objective, preconditions, tags, priority (per sub-case), and all test case sub-items (name, steps, expected result). Project selection is left for the user to set manually.')}
+    </div>
+  )
+
+  if (active === 'comp-precond-attach') return (
+    <div style={card}>
+      {sectionHeader('PreconditionAttachments')}
+      {prose('An image upload and display section shown under the Preconditions area of a test case. Supports two modes depending on whether the test case has been saved yet.')}
+      <Divider />
+      {subHeader('Props')}
+      <CodeBlock code={`type Props = {
+  testCaseId?:     string                              // DB mode — loads from server
+  readOnly?:       boolean                             // hides upload/delete controls
+  pendingImages?:  PendingImage[]                      // memory mode — for unsaved test cases
+  onPendingChange?: (images: PendingImage[]) => void   // memory mode — state setter
+}`} />
+      <Divider />
+      {subHeader('Two modes')}
+      {prose('DB mode (testCaseId provided): Fetches attachments from GET /api/attachments/:id?category=precondition on mount. Uploads go directly to the server via POST with category="precondition". Delete calls DELETE /api/attachments/:id/:attachmentId.')}
+      {prose('Memory mode (pendingImages provided): Used on the New Test Case page before save. Images are held in memory as PendingImage objects. On save, the parent calls uploadPreconditionImages(testCaseId, images) to persist them.')}
+      <CodeBlock code={`type PendingImage = {
+  file:    File     // the actual File object
+  preview: string   // object URL for display (URL.createObjectURL)
+  name:    string   // display name
+}`} />
+      <Divider />
+      {subHeader('Features')}
+      <CodeBlock code={`• Image grid with thumbnails
+• Click-to-open lightbox overlay
+• Hover overlay with remove button
+• Delete confirmation modal
+• Non-image documents shown in a separate list (view / delete)
+• Upload button accepts images and PDFs
+• AI-extracted images auto-populate via onFill callback`} />
+      <Divider />
+      {subHeader('Exported helper')}
+      <CodeBlock code={`uploadPreconditionImages(testCaseId: string, images: PendingImage[]): Promise<void>
+  // Uploads an array of PendingImage files to the server with category='precondition'.
+  // Called after saving a new test case to persist the AI-extracted images.`} />
     </div>
   )
 
@@ -861,43 +963,125 @@ wss://qa-assistant-api.onrender.com/ws?token=<jwt>  // prod`} />
   if (active === 'api-ai') return (
     <div style={card}>
       {sectionHeader('API — AI (Test Case Generator)')}
-      {prose('Single authenticated endpoint that accepts a free-text business requirement and returns a structured test case JSON generated by Claude (claude-haiku). The ANTHROPIC_API_KEY environment variable must be set on the server.')}
+      {prose('Single authenticated endpoint that accepts a text prompt and/or file uploads and returns a structured test case JSON generated by Claude (claude-haiku). The ANTHROPIC_API_KEY environment variable must be set on the server.')}
       <Divider />
-      <RouteRow method="POST" path="/api/ai/fill-test-case" desc="Generate a structured test case from a business story. Body: { prompt: string }." />
+      <RouteRow method="POST" path="/api/ai/fill-test-case" desc="Generate a structured test case from a business story and/or uploaded documents. Multipart FormData." />
       <Divider />
       {subHeader('Request')}
       <CodeBlock code={`POST /api/ai/fill-test-case
 Authorization: Bearer <jwt>
-Content-Type: application/json
+Content-Type: multipart/form-data
 
-{ "prompt": "As a user I want to log in with email and password..." }`} />
+Fields:
+  prompt  (text, optional)   — free-text business requirements
+  files   (file[], optional) — up to 5 files, 20 MB each
+
+At least one of prompt or files must be provided.
+
+Accepted file types:
+  application/pdf
+  application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx)
+  text/plain, text/markdown, text/csv
+  image/jpeg, image/png, image/webp`} />
       {subHeader('Response')}
       <CodeBlock code={`{
   "title": "User Login Authentication",
   "summary": "Verify the login flow works correctly...",
   "objective": "Ensure that users can authenticate...",
   "preconditions": ["User account exists", "User is on /login"],
+  "tags": ["auth", "login", "ui"],
   "testCases": [
     {
       "name": "Successful login with valid credentials",
+      "priority": "critical",
       "steps": ["Navigate to /login", "Enter valid email", "Click Submit"],
       "expected": "User is redirected to /homepage"
     }
+  ],
+  "extractedImages": [
+    {
+      "data": "<base64>",
+      "contentType": "image/png",
+      "name": "requirements_image_1.png"
+    }
   ]
 }`} />
+      {prose('The extractedImages array is present only when the uploaded files contained images (directly uploaded images or images extracted from .docx files). The frontend uses these to populate the PreconditionAttachments section.')}
+      <Divider />
+      {subHeader('File processing pipeline')}
+      <CodeBlock code={`PDF   → Claude document block (native reading)
+.docx → mammoth extracts text + images
+        Text  → Claude text block
+        Images → Claude image blocks + returned as extractedImages
+Images → Claude image block + returned as extractedImages
+Text/MD/CSV → Claude text block`} />
       <Divider />
       {subHeader('System prompt behaviour')}
       {prose('The AI is instructed to think as a QA Engineer, Business Analyst, and Product Owner combined. It generates: happy path cases first, then negative/error handling cases, then boundary and edge cases. Each test case has at least 3 detailed steps and a specific observable expected result.')}
       <CodeBlock code={`Model:      claude-haiku-4-5-20251001
-Max tokens: 4096
+Max tokens: 8192
 Coverage:   3-8 sub test cases per generation
 Priority:   Assigned per sub case (critical/high/medium/low)`} />
       <Divider />
+      {subHeader('JSON resilience')}
+      {prose('The backend uses an assistant prefill technique (starting the AI response with "{") to force JSON output. If parsing still fails, it runs a repair prompt asking Claude to fix the broken JSON. Truncation (max_tokens hit) is detected via stop_reason and returns a clear error message.')}
+      <Divider />
       {subHeader('Error responses')}
-      <CodeBlock code={`400  { error: "Prompt is required" }
+      <CodeBlock code={`400  { error: "Provide a text prompt, upload a file, or both." }
+400  { error: "Unsupported file type: <name>. Accepted: PDF, Word..." }
+400  { error: "Could not extract any content from the uploaded file(s)." }
+422  { error: "AI returned an unexpected format...", aiMessage: "<raw AI text>" }
 500  { error: "AI service not configured — ANTHROPIC_API_KEY missing" }
-502  { error: "AI response was incomplete. Please try again." }
-500  { error: "<anthropic SDK error message>" }`} />
+500  { error: "The AI response was too long and got cut off..." }
+502  { error: "AI response was incomplete. Please try again." }`} />
+    </div>
+  )
+
+  // ── API — ATTACHMENTS ───────────────────────────────────────────────────────
+
+  if (active === 'api-attach') return (
+    <div style={card}>
+      {sectionHeader('API — Attachments')}
+      {prose('File storage for test case attachments. Files are stored as binary data in PostgreSQL (BYTEA column). Each attachment belongs to a specific test case and user, with an optional category for filtering (e.g. "general" vs "precondition").')}
+      <Divider />
+      <RouteRow method="POST" path="/api/attachments/:testCaseId" desc="Upload up to 5 files (multipart). Optional body field: category." />
+      <RouteRow method="GET" path="/api/attachments/:testCaseId" desc="List attachment metadata. Optional query: ?category=precondition." />
+      <RouteRow method="GET" path="/api/attachments/:testCaseId/:id/file" desc="Serve the actual file binary. Supports ?token= for img src." />
+      <RouteRow method="DELETE" path="/api/attachments/:testCaseId/:id" desc="Delete a single attachment." />
+      <Divider />
+      {subHeader('Upload')}
+      <CodeBlock code={`POST /api/attachments/:testCaseId
+Authorization: Bearer <jwt>
+Content-Type: multipart/form-data
+
+Fields:
+  files    (file[], required) — up to 5 files, 10 MB each
+  note     (text, optional)   — description for the attachment
+  category (text, optional)   — "general" (default) or "precondition"
+
+Allowed MIME types:
+  image/jpeg, image/png, image/gif, image/webp, image/svg+xml
+  application/pdf, text/plain
+  application/msword, application/vnd.openxmlformats-officedocument...`} />
+      <CodeBlock code={`Response: 201
+[
+  { "id": 42, "filename": "screenshot.png", "mimetype": "image/png",
+    "size": 204800, "note": "", "category": "precondition",
+    "created_at": "2026-04-12T..." }
+]`} />
+      <Divider />
+      {subHeader('List')}
+      <CodeBlock code={`GET /api/attachments/:testCaseId
+GET /api/attachments/:testCaseId?category=precondition
+
+Response: 200
+[{ id, filename, mimetype, size, note, category, created_at }]`} />
+      <Divider />
+      {subHeader('Serve file')}
+      {prose('Returns the raw file with Content-Type and inline Content-Disposition headers. Supports a ?token= query parameter so that <img src="..."> tags can authenticate without a custom header — the promoteQueryToken middleware promotes the query token to an Authorization header before the auth middleware runs.')}
+      <Divider />
+      {subHeader('Categories')}
+      {prose('"general" attachments appear in the main Attachments section of a test case. "precondition" attachments appear in the Reference Images section under Preconditions, populated automatically when the AI extracts images from uploaded .docx files or when the user manually uploads reference images.')}
     </div>
   )
 
@@ -974,6 +1158,19 @@ Priority:   Assigned per sub case (critical/high/medium/low)`} />
         { col: 'granted_at', type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
         { col: '',           type: 'UNIQUE',      note: '(user_id, permission)' },
       ]} />
+      <DBTable name="attachments" columns={[
+        { col: 'id',           type: 'SERIAL PK',   note: 'Auto-incrementing attachment ID' },
+        { col: 'user_id',      type: 'INTEGER FK',  note: 'References users(id) CASCADE' },
+        { col: 'test_case_id', type: 'VARCHAR(200)', note: 'Test case ID or "precond:<tc-id>"' },
+        { col: 'filename',     type: 'VARCHAR(500)', note: 'Original upload filename' },
+        { col: 'mimetype',     type: 'VARCHAR(100)', note: 'e.g. "image/png", "application/pdf"' },
+        { col: 'size',         type: 'INTEGER',     note: 'File size in bytes' },
+        { col: 'data',         type: 'BYTEA',       note: 'Binary file content' },
+        { col: 'note',         type: 'TEXT',        note: 'User-provided description, DEFAULT empty' },
+        { col: 'category',     type: 'VARCHAR(50)', note: '"general" (default) or "precondition"' },
+        { col: 'created_at',   type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
+      ]} />
+      {prose('The category column distinguishes general attachments from reference images under Preconditions. Added via migration: ALTER TABLE attachments ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT \'general\'.')}
     </div>
   )
 
