@@ -44,10 +44,10 @@ const STATUS_CONFIG: { [K in TestStatus]: StatusConfig } = {
 }
 
 const PRIORITY_BADGE: { [key: string]: React.CSSProperties } = {
-  low:      { background: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.3)' },
-  medium:   { background: 'rgba(0,210,255,0.15)',   color: '#00d2ff', border: '1px solid rgba(0,210,255,0.3)'   },
-  high:     { background: 'rgba(168,85,247,0.15)',  color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)'  },
-  critical: { background: 'rgba(244,63,142,0.15)',  color: '#f43f8e', border: '1px solid rgba(244,63,142,0.3)'  },
+  low:      { background: 'rgba(22,163,74,0.15)',   color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'   },
+  medium:   { background: 'rgba(202,138,4,0.15)',   color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'   },
+  high:     { background: 'rgba(234,88,12,0.15)',   color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'   },
+  critical: { background: 'rgba(220,38,38,0.15)',   color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'   },
 }
 
 // ── Status summary (same as homepage) ─────────────────────────────────────────
@@ -102,7 +102,7 @@ function TestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount }: {
       <Link
         to="/test-cases/custom/$id"
         params={{ id: tc.id }}
-        className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-white/5"
+        className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-foreground/5"
       >
         <span className="flex-shrink-0 mt-0.5">{cfg.icon}</span>
         <div className="flex-1 min-w-0">
@@ -112,12 +112,12 @@ function TestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount }: {
               {resolvedPriority}
             </span>
             {tc.completed && (
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.2)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)' }}>
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}>
                 Completed
               </span>
             )}
             {passedCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.2)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)' }}>
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}>
                 ✓ {passedCount} passed
               </span>
             )}
@@ -157,7 +157,7 @@ function ProjectHeader({ project }: { project: Project }) {
       style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}
     >
       {project.description && (
-        <p className="text-sm text-white/60 mb-3">{project.description}</p>
+        <p className="text-sm text-muted-foreground mb-3">{project.description}</p>
       )}
 
       {project.tags.length > 0 && (
@@ -168,7 +168,7 @@ function ProjectHeader({ project }: { project: Project }) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-white/40">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs" style={{ color: 'var(--app-text-secondary)' }}>
         {(project.timelineStart || project.timelineEnd) && (
           <span className="inline-flex items-center gap-1">
             <Clock size={12} />
@@ -233,13 +233,13 @@ function ProjectDetailPage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
         <div className="text-center">
-          <FolderOpen size={48} className="mx-auto mb-4 text-white/20" />
+          <FolderOpen size={48} className="mx-auto mb-4" style={{ color: 'var(--app-text-secondary)' }} />
           <h2 className="text-xl font-bold mb-2">Project Not Found</h2>
           <p className="text-muted-foreground mb-4">This project doesn't exist or has been deleted.</p>
           <button
             onClick={() => navigate({ to: '/projects' })}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
           >
             <ArrowLeft size={16} />
             Back to Projects
@@ -254,10 +254,9 @@ function ProjectDetailPage() {
   return (
     <div
       className="min-h-screen text-foreground overflow-hidden relative"
-      style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}
+      style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movepd {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }
@@ -280,10 +279,10 @@ function ProjectDetailPage() {
         <div className="flex items-start gap-4 mb-6">
           <button
             onClick={() => navigate({ to: '/projects' })}
-            className="mt-1 p-2 rounded-lg transition-colors hover:bg-white/10"
+            className="mt-1 p-2 rounded-lg transition-colors hover:bg-foreground/10"
             style={{ border: '1px solid var(--app-glass-border)' }}
           >
-            <ArrowLeft size={18} className="text-white/60" />
+            <ArrowLeft size={18} className="text-muted-foreground" />
           </button>
           <div>
             <h1 className="text-3xl font-bold mb-1">{project.name}</h1>

@@ -81,7 +81,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
         borderLeft: '1px solid var(--app-panel-border)',
         boxShadow: '-8px 0 40px rgba(0,0,0,0.3)',
         display: 'flex', flexDirection: 'column',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: "'Segoe UI', system-ui, sans-serif",
         color: 'var(--app-text)',
       }}>
 
@@ -98,7 +98,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 12px var(--app-btn-primary-shadow)',
             }}>
-              <Sparkles size={16} color="var(--app-text)" />
+              <Sparkles size={16} color="var(--app-btn-text)" />
             </div>
             <div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>AI Test Case Generator</div>
@@ -140,7 +140,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
               lineHeight: 1.6,
               resize: 'vertical',
               outline: 'none',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: "'Segoe UI', system-ui, sans-serif",
               boxSizing: 'border-box',
             }}
             onFocus={(e) => { e.target.style.borderColor = 'var(--app-input-focus-border)' }}
@@ -196,7 +196,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
                 ? 'var(--app-glass)'
                 : 'var(--app-btn-primary)',
               border: 'none',
-              color: loading || !prompt.trim() ? 'var(--app-text-secondary)' : 'var(--app-text)',
+              color: loading || !prompt.trim() ? 'var(--app-text-secondary)' : 'var(--app-btn-text)',
               fontSize: '0.85rem', fontWeight: 600,
               cursor: loading || !prompt.trim() ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',

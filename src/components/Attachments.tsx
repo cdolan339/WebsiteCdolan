@@ -107,7 +107,7 @@ function UploadDialog({ onUpload, onClose, uploading }: UploadDialogProps) {
         width: '420px',
         maxWidth: '92vw',
         boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: "'Segoe UI', system-ui, sans-serif",
         color: 'var(--app-text)',
       }}>
         {/* Header */}
@@ -119,7 +119,7 @@ function UploadDialog({ onUpload, onClose, uploading }: UploadDialogProps) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 12px var(--app-btn-primary-shadow)',
             }}>
-              <Upload size={15} color="var(--app-text)" />
+              <Upload size={15} color="var(--app-btn-text)" />
             </div>
             <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>Attach a file</span>
           </div>
@@ -153,7 +153,7 @@ function UploadDialog({ onUpload, onClose, uploading }: UploadDialogProps) {
               style={{
                 padding: '8px 16px', borderRadius: '8px',
                 background: 'var(--app-btn-primary)',
-                border: 'none', color: 'var(--app-text)',
+                border: 'none', color: 'var(--app-btn-text)',
                 fontSize: '0.82rem', fontWeight: 600,
                 cursor: 'pointer',
                 boxShadow: '0 2px 8px var(--app-btn-primary-shadow)',
@@ -191,7 +191,7 @@ function UploadDialog({ onUpload, onClose, uploading }: UploadDialogProps) {
               color: 'var(--app-text)',
               fontSize: '0.82rem',
               outline: 'none',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: "'Segoe UI', system-ui, sans-serif",
               boxSizing: 'border-box',
             }}
             onFocus={(e) => { e.target.style.borderColor = 'var(--app-input-focus-border)' }}
@@ -276,7 +276,7 @@ function UploadDialog({ onUpload, onClose, uploading }: UploadDialogProps) {
                 ? 'var(--app-btn-primary)'
                 : 'var(--app-glass)',
               border: 'none',
-              color: canSubmit ? 'var(--app-text)' : 'var(--app-text-secondary)',
+              color: canSubmit ? 'var(--app-btn-text)' : 'var(--app-text-secondary)',
               fontSize: '0.82rem', fontWeight: 600,
               cursor: canSubmit ? 'pointer' : 'not-allowed',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -380,7 +380,7 @@ export function Attachments({ testCaseId, readOnly = false }: Props) {
             className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90"
             style={{
               background: 'var(--app-btn-primary)',
-              color: 'var(--app-text)',
+              color: 'var(--app-btn-text)',
               boxShadow: '0 2px 8px var(--app-btn-primary-shadow)',
             }}
           >

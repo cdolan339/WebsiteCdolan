@@ -15,7 +15,6 @@ export const Route = createFileRoute('/login')({
 })
 
 const css = `
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
 .login-wrapper {
   min-height: 100vh;
@@ -26,7 +25,7 @@ const css = `
   color: var(--app-text);
   overflow: hidden;
   position: relative;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .bg-animate {
@@ -310,13 +309,13 @@ const css = `
   font-weight: 700;
   margin-bottom: 6px;
   color: var(--app-text);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .mascot-subtitle {
   font-size: 0.8rem;
   color: var(--app-text-secondary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .form-section {
@@ -330,14 +329,14 @@ const css = `
 .form-section h2 {
   font-size: 1.8rem;
   margin-bottom: 10px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .desc {
   font-size: 0.85rem;
   color: var(--app-text-secondary);
   margin-bottom: 25px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .login-input-group {
@@ -349,7 +348,7 @@ const css = `
   font-size: 0.75rem;
   margin-bottom: 5px;
   color: var(--app-text-secondary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .login-input-group input {
@@ -360,7 +359,7 @@ const css = `
   border-radius: 10px;
   color: var(--app-text);
   outline: none;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 0.9rem;
 }
 
@@ -379,12 +378,12 @@ const css = `
   border: none;
   border-radius: 10px;
   background: var(--app-btn-primary);
-  color: var(--app-text);
+  color: var(--app-btn-text);
   font-weight: 600;
   cursor: pointer;
   margin-top: 15px;
   transition: 0.3s;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 0.95rem;
 }
 
@@ -397,7 +396,7 @@ const css = `
   font-size: 0.8rem;
   color: #dc2626;
   margin-bottom: 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 @keyframes fadeIn {

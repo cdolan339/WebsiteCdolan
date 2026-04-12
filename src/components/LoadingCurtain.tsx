@@ -10,7 +10,7 @@ const css = `
   align-items: center;
   justify-content: center;
   background: var(--app-bg);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   animation: curtainFadeIn 0.2s ease-out;
 }
 

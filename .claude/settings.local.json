@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(grep -E \"\\\\.\\(html|css|config|json\\)$\")"
+      "Bash(grep -E \"\\\\.\\(html|css|config|json\\)$\")",
+      "Bash(python3 -c ':*)",
+      "Bash(node -e ':*)"
     ]
   }
 }

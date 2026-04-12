@@ -9,9 +9,8 @@ function NotFoundPage() {
   const loggedIn = typeof window !== 'undefined' && isAuthenticated()
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes move404 {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }
@@ -44,7 +43,7 @@ function NotFoundPage() {
           padding: '14px 32px',
           borderRadius: 10,
           background: 'var(--app-btn-primary)',
-          color: 'var(--app-text)',
+          color: 'var(--app-btn-text)',
           fontWeight: 600,
           fontSize: '0.95rem',
           textDecoration: 'none',

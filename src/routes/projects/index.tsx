@@ -78,7 +78,7 @@ function ProjectFormModal({
   const inputStyle: React.CSSProperties = {
     background: 'var(--app-glass)',
     border: '1px solid var(--app-glass-border)',
-    color: '#fff',
+    color: 'var(--app-text)',
   }
 
   return (
@@ -98,9 +98,9 @@ function ProjectFormModal({
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 p-1 rounded hover:bg-foreground/10 transition-colors"
         >
-          <X size={18} className="text-white/50" />
+          <X size={18} className="text-muted-foreground" />
         </button>
 
         <h2 className="text-xl font-bold mb-6">
@@ -116,32 +116,32 @@ function ProjectFormModal({
         <div className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1">Project Name *</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Project Name *</label>
             <input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Sprint 12 Regression"
-              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30"
+              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
               style={inputStyle}
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1">Description</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="Brief project description..."
               rows={3}
-              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none resize-none focus:ring-1 focus:ring-white/30"
+              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none resize-none focus:ring-1 focus:ring-foreground/30"
               style={inputStyle}
             />
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1">Tags</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Tags</label>
             <div className="flex gap-2 mb-2 flex-wrap">
               {form.tags.map((tag) => (
                 <span
@@ -150,7 +150,7 @@ function ProjectFormModal({
                   style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
                 >
                   {tag}
-                  <button onClick={() => handleRemoveTag(tag)} className="hover:text-white">
+                  <button onClick={() => handleRemoveTag(tag)} className="hover:text-foreground">
                     <X size={12} />
                   </button>
                 </span>
@@ -162,7 +162,7 @@ function ProjectFormModal({
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag() } }}
                 placeholder="Add a tag..."
-                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-white/30"
+                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
                 style={inputStyle}
               />
               <button
@@ -178,22 +178,22 @@ function ProjectFormModal({
           {/* Timeline */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">Timeline Start</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Timeline Start</label>
               <input
                 type="date"
                 value={form.timelineStart}
                 onChange={(e) => setForm((f) => ({ ...f, timelineStart: e.target.value }))}
-                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30"
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
                 style={{ ...inputStyle, colorScheme: 'dark' }}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">Timeline End</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Timeline End</label>
               <input
                 type="date"
                 value={form.timelineEnd}
                 onChange={(e) => setForm((f) => ({ ...f, timelineEnd: e.target.value }))}
-                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30"
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
                 style={{ ...inputStyle, colorScheme: 'dark' }}
               />
             </div>
@@ -201,12 +201,12 @@ function ProjectFormModal({
 
           {/* Deadline */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1">Deadline</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Deadline</label>
             <input
               type="date"
               value={form.deadline}
               onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30"
+              className="w-full rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
               style={{ ...inputStyle, colorScheme: 'dark' }}
             />
           </div>
@@ -224,8 +224,8 @@ function ProjectFormModal({
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
+            className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
           >
             {saving ? 'Saving...' : initial ? 'Save Changes' : 'Create Project'}
           </button>
@@ -262,8 +262,8 @@ function DeleteConfirmModal({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold mb-2">Delete Project</h3>
-        <p className="text-sm text-white/60 mb-6">
-          Are you sure you want to delete <strong className="text-white">"{project.name}"</strong>? All test cases in this project will also be deleted. This cannot be undone.
+        <p className="text-sm text-muted-foreground mb-6">
+          Are you sure you want to delete <strong className="text-foreground">"{project.name}"</strong>? All test cases in this project will also be deleted. This cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
           <button
@@ -324,36 +324,36 @@ function ProjectTile({
         }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <FolderOpen size={16} className="text-white/50 flex-shrink-0" />
-          <h3 className="font-semibold text-white truncate">{project.name}</h3>
+          <FolderOpen size={16} className="flex-shrink-0" style={{ color: 'var(--app-text-secondary)' }} />
+          <h3 className="font-semibold truncate" style={{ color: 'var(--app-text)' }}>{project.name}</h3>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {canEdit && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit() }}
-                className="p-1.5 rounded-md hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1.5 rounded-md hover:bg-foreground/10 transition-colors opacity-0 group-hover:opacity-100"
                 title="Edit project"
               >
-                <Pencil size={14} className="text-white/50" />
+                <Pencil size={14} style={{ color: 'var(--app-text-secondary)' }} />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete() }}
-                className="p-1.5 rounded-md hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1.5 rounded-md hover:bg-foreground/10 transition-colors opacity-0 group-hover:opacity-100"
                 title="Delete project"
               >
-                <Trash2 size={14} className="text-white/50" />
+                <Trash2 size={14} style={{ color: 'var(--app-text-secondary)' }} />
               </button>
             </>
           )}
-          <ChevronRight size={16} className="text-white/30" />
+          <ChevronRight size={16} style={{ color: 'var(--app-text-secondary)' }} />
         </div>
       </div>
 
       {/* Body */}
       <div className="px-5 py-4 space-y-3">
         {project.description && (
-          <p className="text-sm text-white/60 line-clamp-2">{project.description}</p>
+          <p className="text-sm line-clamp-2" style={{ color: 'var(--app-text-secondary)' }}>{project.description}</p>
         )}
 
         {/* Tags */}
@@ -363,13 +363,13 @@ function ProjectTile({
               <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
             ))}
             {project.tags.length > 5 && (
-              <span className="text-xs text-white/40">+{project.tags.length - 5} more</span>
+              <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>+{project.tags.length - 5} more</span>
             )}
           </div>
         )}
 
         {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/40">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>
           {/* Timeline */}
           {(project.timelineStart || project.timelineEnd) && (
             <span className="inline-flex items-center gap-1">
@@ -404,7 +404,7 @@ function ProjectTile({
         </div>
 
         {/* Created date */}
-        <div className="flex items-center gap-1 text-xs text-white/30">
+        <div className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>
           <Calendar size={11} />
           Created {new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </div>
@@ -459,10 +459,9 @@ function ProjectsPage() {
   return (
     <div
       className="min-h-screen text-foreground overflow-hidden relative"
-      style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}
+      style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movepr {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }
@@ -491,8 +490,8 @@ function ProjectsPage() {
           {canCreate && (
             <button
               onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
-              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
+              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
             >
               <Plus size={16} />
               New Project
@@ -505,10 +504,10 @@ function ProjectsPage() {
             className="rounded-xl px-4 py-16 text-center"
             style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
           >
-            <FolderOpen size={40} className="mx-auto mb-3 text-white/20" />
-            <p className="text-muted-foreground">No projects yet.</p>
+            <FolderOpen size={40} className="mx-auto mb-3" style={{ color: 'var(--app-text-secondary)' }} />
+            <p style={{ color: 'var(--app-text-secondary)' }}>No projects yet.</p>
             {canCreate && (
-              <p className="text-sm text-white/40 mt-1">Click "New Project" to create one.</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--app-text-secondary)' }}>Click "New Project" to create one.</p>
             )}
           </div>
         ) : (

@@ -177,9 +177,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
         style={{
-          background: 'var(--app-glass)',
+          background: selected ? 'var(--app-accent-bg)' : 'var(--app-glass)',
           border: '1px solid var(--app-glass-border)',
-          color: 'var(--app-text)',
+          color: selected ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
         }}
       >
         <FolderOpen size={14} style={{ opacity: 0.7 }} />
@@ -201,8 +201,8 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
             onMouseDown={() => { onChange(null); setOpen(false) }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
             style={{
-              background: projectId === null ? 'var(--app-glass)' : 'transparent',
-              color: 'var(--app-text)',
+              background: projectId === null ? 'var(--app-accent-bg)' : 'transparent',
+              color: projectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
               borderBottom: '1px solid var(--app-glass-border)',
               fontWeight: projectId === null ? 600 : 400,
             }}
@@ -219,13 +219,13 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
                 onMouseDown={() => { onChange(p.id); setOpen(false) }}
                 className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
                 style={{
-                  background: projectId === p.id ? 'var(--app-glass)' : 'transparent',
-                  color: 'var(--app-text)',
+                  background: projectId === p.id ? 'var(--app-accent-bg)' : 'transparent',
+                  color: 'var(--app-accent-color)',
                   borderBottom: '1px solid var(--app-glass-border)',
                   fontWeight: projectId === p.id ? 600 : 400,
                 }}
                 onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-glass)' : 'transparent' }}
+                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-accent-bg)' : 'transparent' }}
               >
                 {p.name}
               </button>
@@ -309,9 +309,8 @@ function NewTestCase() {
     patch({ preconditions: draft.preconditions.filter((_, idx) => idx !== i) })
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes movenew { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
         .blob-new { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movenew 20s infinite alternate; pointer-events:none; }
       `}</style>
@@ -331,7 +330,7 @@ function NewTestCase() {
           <button
             onClick={() => setAiOpen(true)}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
             <Sparkles size={14} /> AI Test Case Generator
           </button>
@@ -461,7 +460,7 @@ function NewTestCase() {
           <button
             onClick={handleSave}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
             Save Test Case
           </button>

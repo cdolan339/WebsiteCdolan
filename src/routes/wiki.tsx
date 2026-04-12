@@ -111,7 +111,7 @@ const prose = (text: string) => (
   <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '12px' }}>{text}</p>
 )
 
-const Chip = ({ label, color = '#00d2ff' }: { label: string; color?: string }) => (
+const Chip = ({ label, color = '#0891b2' }: { label: string; color?: string }) => (
   <span style={{
     display: 'inline-block',
     background: `${color}22`,
@@ -127,18 +127,18 @@ const Chip = ({ label, color = '#00d2ff' }: { label: string; color?: string }) =
 )
 
 const Method = ({ m }: { m: string }) => {
-  const colors: Record<string, string> = { GET: '#4ade80', POST: '#60a5fa', PUT: '#f59e0b', PATCH: '#c084fc', DELETE: '#f87171' }
+  const colors: Record<string, string> = { GET: '#16a34a', POST: '#2563eb', PUT: '#ca8a04', PATCH: '#9333ea', DELETE: '#dc2626' }
   return <Chip label={m} color={colors[m] ?? '#fff'} />
 }
 
 const CodeBlock = ({ code }: { code: string }) => (
   <pre style={{
-    background: 'rgba(0,0,0,0.4)',
+    background: 'var(--app-code-bg)',
     border: '1px solid var(--app-glass-border)',
     borderRadius: '8px',
     padding: '14px 16px',
     fontSize: '0.8rem',
-    color: '#c084fc',
+    color: 'var(--app-code-text)',
     overflowX: 'auto',
     marginBottom: '12px',
     fontFamily: "'Fira Code', 'Consolas', monospace",
@@ -163,7 +163,7 @@ function RouteRow({ method, path, desc, auth = true }: { method: string; path: s
       borderBottom: '1px solid var(--app-glass-border)',
     }}>
       <div style={{ flexShrink: 0, width: '60px' }}><Method m={method} /></div>
-      <div style={{ flexShrink: 0, minWidth: '280px', fontFamily: 'monospace', fontSize: '0.82rem', color: '#e2e8f0' }}>{path}</div>
+      <div style={{ flexShrink: 0, minWidth: '280px', fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--app-code-mono)' }}>{path}</div>
       <div style={{ color: 'var(--app-text-secondary)', fontSize: '0.82rem', flex: 1 }}>{desc}{!auth && <Chip label="public" color="#fbbf24" />}</div>
     </div>
   )
@@ -186,8 +186,8 @@ function DBTable({ name, columns }: { name: string; columns: { col: string; type
         </div>
         {columns.map(({ col, type, note }) => (
           <div key={col} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', padding: '7px 14px', borderBottom: '1px solid var(--app-glass-border)' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: '#e2e8f0' }}>{col}</span>
-            <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#a78bfa' }}>{type}</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--app-code-mono)' }}>{col}</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--app-code-type)' }}>{type}</span>
             <span style={{ fontSize: '0.78rem', color: 'var(--app-text-secondary)' }}>{note ?? ''}</span>
           </div>
         ))}
@@ -1127,9 +1127,8 @@ function WikiPage() {
   )
 
   return (
-    <div style={{ background: 'var(--app-bg)', minHeight: '100vh', fontFamily: "'Poppins', sans-serif", color: 'var(--app-text)', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--app-bg)', minHeight: '100vh', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'var(--app-text)', position: 'relative', overflow: 'hidden' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
         @keyframes movewiki { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
         .blob-wiki { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.15; animation:movewiki 20s infinite alternate; pointer-events:none; }
@@ -1180,7 +1179,7 @@ function WikiPage() {
             top: '20px',
             maxHeight: 'calc(100vh - 80px)',
             overflowY: 'auto',
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--app-glass)',
             border: '1px solid var(--app-glass-border)',
             borderRadius: '14px',
             padding: '12px 8px',
@@ -1191,8 +1190,8 @@ function WikiPage() {
                   className="wiki-sidebar-item"
                   style={{
                     fontWeight: 600,
-                    color: (active === section.id || section.subsections?.some((s) => s.id === active)) ? '#00d2ff' : 'rgba(255,255,255,0.7)',
-                    background: (active === section.id || section.subsections?.some((s) => s.id === active)) ? 'rgba(0,210,255,0.1)' : 'transparent',
+                    color: (active === section.id || section.subsections?.some((s) => s.id === active)) ? 'var(--app-text)' : 'var(--app-text-secondary)',
+                    background: (active === section.id || section.subsections?.some((s) => s.id === active)) ? 'var(--app-glass)' : 'transparent',
                   }}
                   onClick={() => { setActive(section.subsections ? section.subsections[0].id : section.id); setMobileOpen(false) }}
                 >
@@ -1203,8 +1202,8 @@ function WikiPage() {
                     key={sub.id}
                     className="wiki-sidebar-sub"
                     style={{
-                      color: active === sub.id ? '#00d2ff' : 'rgba(255,255,255,0.45)',
-                      background: active === sub.id ? 'rgba(0,210,255,0.08)' : 'transparent',
+                      color: active === sub.id ? 'var(--app-text)' : 'var(--app-text-secondary)',
+                      background: active === sub.id ? 'var(--app-glass)' : 'transparent',
                       fontWeight: active === sub.id ? 600 : 400,
                     }}
                     onClick={() => { setActive(sub.id); setMobileOpen(false) }}
@@ -1219,7 +1218,7 @@ function WikiPage() {
           {/* ── Content ─────────────────────────────────────────────────── */}
           <main style={{ flex: 1, minWidth: 0 }}>
             {/* Breadcrumb */}
-            <div style={{ marginBottom: '16px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)' }}>
+            <div style={{ marginBottom: '16px', fontSize: '0.78rem', color: 'var(--app-text-secondary)' }}>
               Wiki
               {currentSection && (
                 <>

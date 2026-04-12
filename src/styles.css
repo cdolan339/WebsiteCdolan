@@ -4,11 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@property --hue {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
 body {
   @apply m-0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -53,28 +57,57 @@ code {
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.871 0.006 286.286);
 
-  /* ── App theme colors (light mode) ── */
-  --app-bg: #e8e8e4;
-  --app-text: #2d2d2a;
-  --app-text-secondary: rgba(45, 45, 42, 0.6);
-  --app-glass: rgba(109, 109, 100, 0.08);
-  --app-glass-border: rgba(109, 109, 100, 0.2);
-  --app-overlay: rgba(109, 109, 100, 0.95);
-  --app-overlay-border: rgba(109, 109, 100, 0.3);
-  --app-nav-bg: rgba(109, 109, 100, 0.15);
-  --app-nav-border: rgba(109, 109, 100, 0.2);
-  --app-accent-gradient: linear-gradient(45deg, #5a5a52, #7a7a70);
-  --app-accent-gradient-hover: linear-gradient(45deg, #4a4a42, #6a6a60);
-  --app-btn-primary: linear-gradient(45deg, #6D6D64, #8a8a80);
-  --app-btn-primary-shadow: rgba(109, 109, 100, 0.3);
-  --app-btn-outline-bg: linear-gradient(45deg, rgba(109, 109, 100, 0.15), rgba(130, 130, 120, 0.15));
-  --app-btn-outline-border: rgba(109, 109, 100, 0.35);
-  --app-btn-outline-shadow: rgba(109, 109, 100, 0.15);
-  --app-section-header-bg: rgba(109, 109, 100, 0.12);
-  --app-input-focus-border: rgba(109, 109, 100, 0.5);
-  --app-curtain-bg: #e8e8e4;
-  --app-panel-bg: linear-gradient(160deg, #e0e0dc 0%, #e8e8e4 100%);
-  --app-panel-border: rgba(109, 109, 100, 0.3);
+  /* ── OKLCH Tokens ── */
+  --h-brand:   292.1;
+  --h-error:    17.0;
+  --h-warning:  73.1;
+  --h-success: 164.2;
+  --h-neutral: 284.1;
+  --h-cursor:  162.7;
+
+  --l-background: 99%;
+  --l-surface:    95%;
+  --l-action:     55%;
+  --l-text:       15%;
+  --l-shadow:     10%;
+  --l-selected:   45%;
+
+  --c-neon:  0.26;
+  --c-soft:  0.05;
+  --c-bg:    0.01;
+
+  /* ── App theme colors (light mode — OKLCH) ── */
+  --app-bg: oklch(var(--l-background) var(--c-bg) var(--h-neutral));
+  --app-text: oklch(var(--l-text) var(--c-soft) var(--h-neutral));
+  --app-text-secondary: oklch(var(--l-text) var(--c-soft) var(--h-neutral) / 0.55);
+  --app-glass: oklch(var(--l-surface) 0.04 var(--h-neutral) / 0.5);
+  --app-glass-border: oklch(var(--l-action) var(--c-soft) var(--h-neutral) / 0.18);
+  --app-overlay: oklch(var(--l-background) var(--c-bg) var(--h-neutral) / 0.97);
+  --app-overlay-border: oklch(var(--l-action) var(--c-soft) var(--h-neutral) / 0.25);
+  --app-nav-bg: oklch(var(--l-surface) 0.04 var(--h-neutral) / 0.6);
+  --app-nav-border: oklch(var(--l-action) var(--c-soft) var(--h-neutral) / 0.15);
+  --app-accent-gradient: linear-gradient(45deg, oklch(var(--l-action) var(--c-neon) var(--h-brand)), oklch(var(--l-action) var(--c-neon) var(--h-cursor)));
+  --app-accent-gradient-hover: linear-gradient(45deg, oklch(calc(var(--l-action) - 10%) var(--c-neon) var(--h-brand)), oklch(calc(var(--l-action) - 10%) var(--c-neon) var(--h-cursor)));
+  --app-btn-primary: linear-gradient(45deg, oklch(var(--l-action) var(--c-neon) var(--h-brand)), oklch(var(--l-action) var(--c-neon) var(--h-cursor)));
+  --app-btn-primary-shadow: oklch(var(--l-shadow) 0.1 var(--h-brand) / 0.2);
+  --app-btn-outline-bg: linear-gradient(45deg, oklch(var(--l-surface) 0.04 var(--h-brand) / 0.25), oklch(var(--l-surface) 0.04 var(--h-cursor) / 0.25));
+  --app-btn-outline-border: oklch(var(--l-action) var(--c-soft) var(--h-brand) / 0.35);
+  --app-btn-outline-shadow: oklch(var(--l-shadow) 0.1 var(--h-brand) / 0.1);
+  --app-section-header-bg: oklch(var(--l-surface) 0.03 var(--h-neutral) / 0.7);
+  --app-input-focus-border: oklch(var(--l-action) var(--c-neon) var(--h-brand) / 0.5);
+  --app-curtain-bg: oklch(var(--l-background) var(--c-bg) var(--h-neutral));
+  --app-panel-bg: linear-gradient(160deg, oklch(var(--l-surface) 0.02 var(--h-neutral)) 0%, oklch(var(--l-background) var(--c-bg) var(--h-neutral)) 100%);
+  --app-panel-border: oklch(var(--l-action) var(--c-soft) var(--h-brand) / 0.25);
+  --app-btn-text: oklch(98% 0.01 0);
+  --app-success: #15803d;
+  --app-success-light: rgba(22,163,74,0.12);
+  --app-success-border: rgba(22,163,74,0.35);
+  --app-accent-color: oklch(45% 0.2 264);
+  --app-accent-bg: oklch(45% 0.2 264 / 0.08);
+  --app-code-bg: oklch(95% 0.01 var(--h-neutral));
+  --app-code-text: oklch(40% 0.15 var(--h-brand));
+  --app-code-mono: oklch(var(--l-text) 0.03 var(--h-neutral));
+  --app-code-type: oklch(45% 0.18 var(--h-brand));
 }
 
 .dark {
@@ -133,6 +166,16 @@ code {
   --app-curtain-bg: #0f0c29;
   --app-panel-bg: linear-gradient(160deg, #130d2e 0%, #0f0c29 100%);
   --app-panel-border: rgba(106, 17, 203, 0.4);
+  --app-btn-text: #ffffff;
+  --app-success: #4ade80;
+  --app-success-light: rgba(22,163,74,0.2);
+  --app-success-border: rgba(22,163,74,0.3);
+  --app-accent-color: #00d2ff;
+  --app-accent-bg: rgba(0, 210, 255, 0.15);
+  --app-code-bg: rgba(0, 0, 0, 0.4);
+  --app-code-text: #c084fc;
+  --app-code-mono: #e2e8f0;
+  --app-code-type: #a78bfa;
 }
 
 @theme inline {

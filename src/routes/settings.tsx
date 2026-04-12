@@ -16,9 +16,8 @@ function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('general')
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         @keyframes moveSettings {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }

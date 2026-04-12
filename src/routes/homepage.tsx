@@ -107,7 +107,7 @@ function ProjectSelector({
             ? 'var(--app-btn-primary)'
             : 'var(--app-btn-outline-bg)',
           border: '1px solid var(--app-btn-outline-border)',
-          color: 'var(--app-text)',
+          color: activeProject ? 'var(--app-btn-text)' : 'var(--app-text)',
           boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
         }}
       >
@@ -131,8 +131,8 @@ function ProjectSelector({
             onMouseDown={() => { onSelect(null); setOpen(false) }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
             style={{
-              background: activeProjectId === null ? 'var(--app-glass)' : 'transparent',
-              color: 'var(--app-text)',
+              background: activeProjectId === null ? 'var(--app-accent-bg)' : 'transparent',
+              color: activeProjectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
               borderBottom: '1px solid var(--app-glass-border)',
               fontWeight: activeProjectId === null ? 600 : 400,
             }}
@@ -151,13 +151,13 @@ function ProjectSelector({
                 onMouseDown={() => { onSelect(project.id); setOpen(false) }}
                 className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
                 style={{
-                  background: activeProjectId === project.id ? 'var(--app-glass)' : 'transparent',
-                  color: 'var(--app-text)',
+                  background: activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent',
+                  color: 'var(--app-accent-color)',
                   borderBottom: '1px solid var(--app-glass-border)',
                   fontWeight: activeProjectId === project.id ? 600 : 400,
                 }}
                 onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'var(--app-glass)' : 'transparent' }}
+                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent' }}
               >
                 <span className="truncate">{project.name}</span>
               </button>
@@ -237,9 +237,9 @@ function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: st
           onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
           style={{
-            background: 'rgba(16,185,129,0.1)',
-            color: '#10b981',
-            border: '1px solid rgba(16,185,129,0.25)',
+            background: 'var(--app-success-light)',
+            color: 'var(--app-success)',
+            border: '1px solid var(--app-success-border)',
           }}
         >
           <CheckCheck size={13} />
@@ -254,7 +254,7 @@ function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: st
           <button
             onClick={() => { onComplete(tc.customId!); setConfirming(false) }}
             className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
           >
             Yes
           </button>
@@ -300,7 +300,7 @@ function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (
           <button
             onClick={() => { onReactivate(tc.customId!); setConfirming(false) }}
             className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
           >
             Yes
           </button>
@@ -370,7 +370,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
           {tc.projectName && (
             <span
               className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
+              style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}
             >
               <FolderOpen size={10} />
               {tc.projectName}
@@ -379,7 +379,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
 
           {/* Passed count */}
           {passedCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(22,163,74,0.2)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)' }}>
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}>
               ✓ {passedCount} passed
             </span>
           )}
@@ -516,10 +516,9 @@ function TestCaseIndex() {
   }
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-        @keyframes movehp {
+                @keyframes movehp {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }
         }
@@ -546,7 +545,7 @@ function TestCaseIndex() {
           <button
             onClick={handleCreate}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-text)' }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
           >
             <Plus size={16} />
             New Test Case
@@ -569,7 +568,7 @@ function TestCaseIndex() {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
             style={tab === 'active' ? {
               background: 'var(--app-btn-primary)',
-              color: 'var(--app-text)',
+              color: 'var(--app-btn-text)',
               boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
             } : {
               background: 'transparent',
@@ -581,7 +580,7 @@ function TestCaseIndex() {
             <span
               className="text-xs px-2 py-0.5 rounded-full font-bold"
               style={tab === 'active'
-                ? { background: 'var(--app-glass)', color: 'var(--app-text)' }
+                ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
                 : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
               }
             >
@@ -593,7 +592,7 @@ function TestCaseIndex() {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
             style={tab === 'completed' ? {
               background: 'var(--app-btn-primary)',
-              color: 'var(--app-text)',
+              color: 'var(--app-btn-text)',
               boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
             } : {
               background: 'transparent',
@@ -605,7 +604,7 @@ function TestCaseIndex() {
             <span
               className="text-xs px-2 py-0.5 rounded-full font-bold"
               style={tab === 'completed'
-                ? { background: 'var(--app-glass)', color: 'var(--app-text)' }
+                ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
                 : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
               }
             >
