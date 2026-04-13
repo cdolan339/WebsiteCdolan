@@ -689,8 +689,20 @@ function ViewMode({ tc, onEdit, isOwner }: { tc: CustomTestCase; onEdit: (target
                 />
               )}
 
-              {/* Notes — per sub test case, real-time save */}
-              <SubTCNotes tc={tc} subId={sub.id} initialValue={sub.notes ?? ''} />
+              {/* Notes — per sub test case, real-time save (owner), read-only (shared) */}
+              {isOwner ? (
+                <SubTCNotes tc={tc} subId={sub.id} initialValue={sub.notes ?? ''} />
+              ) : sub.notes ? (
+                <div style={{ marginTop: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <StickyNote size={13} style={{ opacity: 0.6 }} />
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Notes
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, color: 'var(--app-text-secondary)', fontSize: '0.82rem', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{sub.notes}</p>
+                </div>
+              ) : null}
 
               {/* Attachments — per sub test case */}
               <Attachments testCaseId={`${tc.id}__${sub.id}`} />
