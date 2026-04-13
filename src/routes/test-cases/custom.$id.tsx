@@ -16,6 +16,7 @@ import {
   type TestStatus,
 } from '@/lib/useTestStatus'
 import { useProjects, type Project } from '@/lib/projects'
+import { getSession } from '@/lib/auth'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 import { uploadPreconditionImages, type PendingImage } from '@/components/PreconditionAttachments'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
@@ -447,7 +448,7 @@ function SubTCNotes({ tc, subId, initialValue }: { tc: CustomTestCase; subId: st
 
 // ── View mode ─────────────────────────────────────────────────────────────────
 
-function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string) => void }) {
+function ViewMode({ tc, onEdit, isOwner }: { tc: CustomTestCase; onEdit: (target?: string) => void; isOwner: boolean }) {
   const slug = `custom:${tc.id}`
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
@@ -480,13 +481,15 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
           >
             <ArrowLeft size={14} /> Back to Test Cases
           </Link>
-          <button
-            onClick={() => onEdit()}
-            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
-          >
-            <Pencil size={14} /> Edit
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => onEdit()}
+              className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
+              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
+            >
+              <Pencil size={14} /> Edit
+            </button>
+          )}
         </div>
 
         <div className="mb-6">
@@ -502,25 +505,38 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
               badgeClass={STATUS_STYLES[status]}
               onSelect={(v) => setStatus(v as TestStatus)}
             />
-            {/* Priority dropdown */}
-            <Dropdown
-              label={`${priorityOpt.label} priority`}
-              options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-              current={tc.priority}
-              badgeClass="rounded-full font-medium capitalize text-sm px-3 py-1" badgeStyle={priorityOpt.style}
-              onSelect={(v) => updateCustomTestCase({ ...tc, priority: v as CustomTestCase['priority'], updatedAt: new Date().toISOString() })}
-            />
+            {/* Priority dropdown (owner) or read-only badge (shared) */}
+            {isOwner ? (
+              <Dropdown
+                label={`${priorityOpt.label} priority`}
+                options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
+                current={tc.priority}
+                badgeClass="rounded-full font-medium capitalize text-sm px-3 py-1" badgeStyle={priorityOpt.style}
+                onSelect={(v) => updateCustomTestCase({ ...tc, priority: v as CustomTestCase['priority'], updatedAt: new Date().toISOString() })}
+              />
+            ) : (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide" style={priorityOpt.style}>
+                {priorityOpt.label} priority
+              </span>
+            )}
             {passedCount > 0 && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
                 <Check size={13} /> {passedCount} passed
               </span>
             )}
-            {/* Project assignment */}
-            <ProjectPicker
-              projectId={tc.projectId ?? null}
-              onChange={(id) => updateCustomTestCase({ ...tc, projectId: id, updatedAt: new Date().toISOString() })}
-              projects={projects}
-            />
+            {/* Project assignment (owner can change, shared users see read-only) */}
+            {isOwner ? (
+              <ProjectPicker
+                projectId={tc.projectId ?? null}
+                onChange={(id) => updateCustomTestCase({ ...tc, projectId: id, updatedAt: new Date().toISOString() })}
+                projects={projects}
+              />
+            ) : tc.projectId ? (
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium" style={{ background: 'var(--app-accent-bg)', border: '1px solid var(--app-glass-border)', color: 'var(--app-accent-color)' }}>
+                <FolderOpen size={13} style={{ opacity: 0.7 }} />
+                {projects.find((p) => p.id === tc.projectId)?.name ?? 'Project'}
+              </span>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
@@ -545,9 +561,11 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
             <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--app-text)' }}>Objective</h2>
-                <button onClick={() => onEdit('edit-objective')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                  <Pencil size={11} /> Edit
-                </button>
+                {isOwner && (
+                  <button onClick={() => onEdit('edit-objective')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
+                    <Pencil size={11} /> Edit
+                  </button>
+                )}
               </div>
               <p style={{ margin: 0, color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.7 }}>{tc.objective}</p>
             </section>
@@ -557,9 +575,11 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
           <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--app-text)' }}>Preconditions</h2>
-              <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                <Pencil size={11} /> Edit
-              </button>
+              {isOwner && (
+                <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
+                  <Pencil size={11} /> Edit
+                </button>
+              )}
             </div>
             {tc.preconditions.filter(Boolean).length > 0 && (
               <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -584,7 +604,7 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
                   Test Case {String(i + 1).padStart(2, '0')}
                 </span>
                 <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
-                {tc.testCases.length > 1 && (
+                {isOwner && tc.testCases.length > 1 && (
                   <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
                     <button
                       onClick={() => {
@@ -614,9 +634,11 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
                     </button>
                   </div>
                 )}
-                <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                  <Pencil size={11} /> Edit
-                </button>
+                {isOwner && (
+                  <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
+                    <Pencil size={11} /> Edit
+                  </button>
+                )}
               </div>
 
               {/* Name */}
@@ -627,17 +649,23 @@ function ViewMode({ tc, onEdit }: { tc: CustomTestCase; onEdit: (target?: string
               {/* Priority */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--app-text-secondary)' }}>Priority:</span>
-                <Dropdown
-                  label={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
-                  options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-                  current={sub.priority}
-                  badgeClass="rounded-full font-medium capitalize text-xs px-2 py-0.5"
-                  badgeStyle={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.style}
-                  onSelect={(v) => {
-                    const updatedSubs = tc.testCases.map((s) => s.id === sub.id ? { ...s, priority: v as CustomTC['priority'] } : s)
-                    updateCustomTestCase({ ...tc, testCases: updatedSubs, updatedAt: new Date().toISOString() })
-                  }}
-                />
+                {isOwner ? (
+                  <Dropdown
+                    label={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
+                    options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
+                    current={sub.priority}
+                    badgeClass="rounded-full font-medium capitalize text-xs px-2 py-0.5"
+                    badgeStyle={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.style}
+                    onSelect={(v) => {
+                      const updatedSubs = tc.testCases.map((s) => s.id === sub.id ? { ...s, priority: v as CustomTC['priority'] } : s)
+                      updateCustomTestCase({ ...tc, testCases: updatedSubs, updatedAt: new Date().toISOString() })
+                    }}
+                  />
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize" style={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.style}>
+                    {PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
+                  </span>
+                )}
               </div>
 
               {/* Steps */}
@@ -934,6 +962,9 @@ function CustomTestCaseDetail() {
 
   if (!ready || !tc) return null
 
+  const session = getSession()
+  const isOwner = !tc.userId || tc.userId === session?.id
+
   if (editing) return <EditMode tc={tc} onDone={() => setEditing(false)} scrollTarget={scrollTarget} />
-  return <ViewMode tc={tc} onEdit={(target?: string) => { setScrollTarget(target ?? null); setEditing(true) }} />
+  return <ViewMode tc={tc} isOwner={isOwner} onEdit={(target?: string) => { setScrollTarget(target ?? null); setEditing(true) }} />
 }

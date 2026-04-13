@@ -31,6 +31,23 @@ export type CreateProjectPayload = {
   deadline?: string | null;
 };
 
+export type ProjectMember = {
+  membershipId: number;
+  userId: number;
+  username: string;
+  addedAt: string;
+};
+
+export type ProjectMembersResponse = {
+  owner: { user_id: number; username: string } | null;
+  members: ProjectMember[];
+};
+
+export type AppUser = {
+  id: number;
+  username: string;
+};
+
 // ── In-memory cache ───────────────────────────────────────────────
 
 let projectCache: Project[] | null = null;
@@ -132,6 +149,29 @@ export async function deleteProject(id: number): Promise<void> {
     setActiveProjectId(null);
   }
   notify();
+}
+
+// ── Project members ──────────────────────────────────────────────
+
+export async function getProjectMembers(projectId: number): Promise<ProjectMembersResponse> {
+  return api<ProjectMembersResponse>(`/projects/${projectId}/members`);
+}
+
+export async function addProjectMember(projectId: number, userId: number): Promise<ProjectMember> {
+  return api<ProjectMember>(`/projects/${projectId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function removeProjectMember(projectId: number, userId: number): Promise<void> {
+  await api(`/projects/${projectId}/members/${userId}`, { method: "DELETE" });
+}
+
+// ── Users list ───────────────────────────────────────────────────
+
+export async function fetchUsers(): Promise<AppUser[]> {
+  return api<AppUser[]>("/auth/users");
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────

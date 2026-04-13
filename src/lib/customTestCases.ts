@@ -21,6 +21,7 @@ export type CustomTC = {
 
 export type CustomTestCase = {
   id: string;
+  userId?: number;
   title: string;
   summary: string;
   createdAt: string;

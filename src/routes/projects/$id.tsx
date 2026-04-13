@@ -1,12 +1,18 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useProjects, type Project } from '@/lib/projects'
+import {
+  useProjects, type Project, type ProjectMember, type AppUser,
+  getProjectMembers, addProjectMember, removeProjectMember, fetchUsers,
+} from '@/lib/projects'
 import { api } from '@/lib/api'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
+import { useHasPermission } from '@/lib/permissions'
+import { getSession } from '@/lib/auth'
 import { Badge } from '@/components/ui/badge'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { useState, useEffect } from 'react'
 import {
   CheckCircle2, XCircle, Clock, Ban, Calendar, ArrowLeft, FolderOpen,
+  Users, UserPlus, X, Crown,
 } from 'lucide-react'
 import type { CustomTestCase } from '@/lib/customTestCases'
 
@@ -200,6 +206,161 @@ function ProjectHeader({ project }: { project: Project }) {
   )
 }
 
+// ── Members section ──────────────────────────────────────────────────────────
+
+function MembersSection({ projectId, ownerId }: { projectId: number; ownerId: number }) {
+  const canManage = useHasPermission('STAFF_CREATE_PROJECT')
+  const session = getSession()
+
+  const [members, setMembers] = useState<ProjectMember[]>([])
+  const [ownerName, setOwnerName] = useState<string>('')
+  const [users, setUsers] = useState<AppUser[]>([])
+  const [showAdd, setShowAdd] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    getProjectMembers(projectId).then((data) => {
+      setMembers(data.members)
+      if (data.owner) setOwnerName(data.owner.username)
+    })
+  }, [projectId])
+
+  useEffect(() => {
+    if (showAdd && users.length === 0) {
+      fetchUsers().then(setUsers)
+    }
+  }, [showAdd])
+
+  // Filter out owner and existing members from the picker
+  const existingIds = new Set([ownerId, ...members.map((m) => m.userId)])
+  const availableUsers = users.filter((u) => !existingIds.has(u.id))
+
+  const handleAdd = async () => {
+    if (!selectedUserId) return
+    setBusy(true)
+    setError('')
+    try {
+      const member = await addProjectMember(projectId, selectedUserId)
+      setMembers((prev) => [...prev, member])
+      setSelectedUserId(null)
+      setShowAdd(false)
+    } catch {
+      setError('Failed to add member')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleRemove = async (userId: number) => {
+    setBusy(true)
+    setError('')
+    try {
+      await removeProjectMember(projectId, userId)
+      setMembers((prev) => prev.filter((m) => m.userId !== userId))
+    } catch {
+      setError('Failed to remove member')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="rounded-xl p-5 mb-8"
+      style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Users size={16} className="text-muted-foreground" />
+          <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+            Members ({members.length + 1})
+          </h3>
+        </div>
+        {canManage && session?.id === ownerId && (
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-foreground/10"
+            style={{ border: '1px solid var(--app-glass-border)' }}
+          >
+            {showAdd ? <X size={14} /> : <UserPlus size={14} />}
+            {showAdd ? 'Cancel' : 'Add Member'}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-400 mb-3">{error}</p>
+      )}
+
+      {/* Add member form */}
+      {showAdd && (
+        <div className="flex items-center gap-2 mb-4 p-3 rounded-lg" style={{ background: 'var(--app-section-header-bg)', border: '1px solid var(--app-glass-border)' }}>
+          <select
+            value={selectedUserId ?? ''}
+            onChange={(e) => setSelectedUserId(e.target.value ? Number(e.target.value) : null)}
+            className="flex-1 text-sm px-3 py-2 rounded-lg bg-background border"
+            style={{ borderColor: 'var(--app-glass-border)' }}
+          >
+            <option value="">Select a user...</option>
+            {availableUsers.map((u) => (
+              <option key={u.id} value={u.id}>{u.username}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleAdd}
+            disabled={!selectedUserId || busy}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      {/* Member list */}
+      <div className="space-y-2">
+        {/* Owner */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'var(--app-section-header-bg)' }}>
+          <div className="flex items-center gap-2">
+            <Crown size={14} className="text-yellow-500" />
+            <span className="text-sm font-medium">{ownerName}</span>
+            <span className="text-xs text-muted-foreground">(Owner)</span>
+          </div>
+        </div>
+
+        {/* Members */}
+        {members.map((m) => (
+          <div key={m.membershipId} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'var(--app-section-header-bg)' }}>
+            <div className="flex items-center gap-2">
+              <Users size={14} className="text-muted-foreground" />
+              <span className="text-sm">{m.username}</span>
+              <span className="text-xs text-muted-foreground">
+                added {new Date(m.addedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+            {canManage && session?.id === ownerId && (
+              <button
+                onClick={() => handleRemove(m.userId)}
+                disabled={busy}
+                className="p-1 rounded transition-colors hover:bg-red-500/20 text-muted-foreground hover:text-red-400 disabled:opacity-50"
+                title="Remove member"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        ))}
+
+        {members.length === 0 && (
+          <p className="text-xs text-muted-foreground px-3 py-2">No additional members yet.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 function ProjectDetailPage() {
@@ -296,6 +457,9 @@ function ProjectDetailPage() {
         {(project.description || project.tags.length > 0 || project.timelineStart || project.deadline) && (
           <ProjectHeader project={project} />
         )}
+
+        {/* Members */}
+        <MembersSection projectId={project.id} ownerId={project.userId} />
 
         {/* Status summary */}
         <StatusSummary statuses={statuses} total={testCases.length} slugs={slugs} />
