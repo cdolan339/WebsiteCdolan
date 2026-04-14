@@ -2,9 +2,9 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTestOrder } from '@/lib/useTestOrder'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2 } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
-import { useCustomTestCases, completeTestCase, reloadForProject } from '@/lib/customTestCases'
+import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { useState, useCallback, useRef, useEffect } from 'react'
@@ -317,6 +317,52 @@ function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (
   )
 }
 
+// ── Delete button with popover confirm ──────────────────────────────────
+
+function DeleteButton({ tc, onDelete }: { tc: DisplayTC; onDelete: (id: string) => void }) {
+  const [confirming, setConfirming] = useState(false)
+
+  return (
+    <div className="relative">
+      {!confirming ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
+          style={{
+            background: 'rgba(220,38,38,0.1)',
+            color: '#dc2626',
+            border: '1px solid rgba(220,38,38,0.25)',
+          }}
+        >
+          <Trash2 size={13} />
+          Delete
+        </button>
+      ) : (
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Delete permanently?</span>
+          <button
+            onClick={() => { onDelete(tc.customId!); setConfirming(false) }}
+            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
+            style={{ background: '#dc2626', color: '#fff' }}
+          >
+            Yes
+          </button>
+          <button
+            onClick={() => setConfirming(false)}
+            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
+            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
+          >
+            No
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Test case row ──────────────────────────────────────────────────────────
 
 type TestCaseRowProps = {
@@ -327,9 +373,10 @@ type TestCaseRowProps = {
   tab: Tab
   onComplete: (id: string) => void
   onReactivate: (id: string) => void
+  onDelete: (id: string) => void
 }
 
-function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount, tab, onComplete, onReactivate }: TestCaseRowProps) {
+function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount, tab, onComplete, onReactivate, onDelete }: TestCaseRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tc.slug,
   })
@@ -400,6 +447,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
             {tab === 'completed' && (
               <ReactivateButton tc={tc} onReactivate={onReactivate} />
             )}
+            <DeleteButton tc={tc} onDelete={onDelete} />
           </div>
         </div>
 
@@ -509,6 +557,10 @@ function TestCaseIndex() {
 
   const handleReactivate = useCallback((id: string) => {
     completeTestCase(id, false)
+  }, [])
+
+  const handleDelete = useCallback((id: string) => {
+    deleteCustomTestCase(id)
   }, [])
 
   if (loading) {
@@ -653,6 +705,7 @@ function TestCaseIndex() {
                         tab={tab}
                         onComplete={handleComplete}
                         onReactivate={handleReactivate}
+                        onDelete={handleDelete}
                       />
                     )
                   })}

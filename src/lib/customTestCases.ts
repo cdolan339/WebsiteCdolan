@@ -200,6 +200,18 @@ export async function completeTestCase(
   }
 }
 
+export async function deleteCustomTestCase(id: string): Promise<void> {
+  await ensureLoaded();
+  caseCache = (caseCache ?? []).filter((tc) => tc.id !== id);
+  notify();
+
+  try {
+    await api(`/custom-test-cases/${id}`, { method: "DELETE" });
+  } catch (err) {
+    console.error("Failed to delete test case:", err);
+  }
+}
+
 // ── Hooks (same signatures) ───────────────────────────────────────
 
 export function useCustomTestCases(): { cases: CustomTestCase[]; loading: boolean } {
