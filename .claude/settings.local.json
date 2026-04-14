@@ -6,7 +6,8 @@
       "Bash(grep -E \"\\\\.\\(html|css|config|json\\)$\")",
       "Bash(python3 -c ':*)",
       "Bash(node -e ':*)",
-      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
+      "Bash(xargs grep:*)"
     ]
   }
 }

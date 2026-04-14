@@ -447,7 +447,6 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
             {tab === 'completed' && (
               <ReactivateButton tc={tc} onReactivate={onReactivate} />
             )}
-            <DeleteButton tc={tc} onDelete={onDelete} />
           </div>
         </div>
 
@@ -467,8 +466,8 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
           <p className="text-sm text-muted-foreground mb-3 line-clamp-2" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.summary}</p>
         )}
 
-        {/* ── Tags ── */}
-        {tc.tags.length > 0 && (
+        {/* ── Tags + Delete ── */}
+        <div className="flex items-end justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             {tc.tags.slice(0, 4).map((tag: string) => (
               <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
@@ -490,7 +489,10 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
               </HoverCard>
             )}
           </div>
-        )}
+          <div className="flex-shrink-0">
+            <DeleteButton tc={tc} onDelete={onDelete} />
+          </div>
+        </div>
       </div>
     </li>
   )
