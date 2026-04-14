@@ -976,7 +976,9 @@ function CustomTestCaseDetail() {
 
   const session = getSession()
   const isOwner = !tc.userId || tc.userId === session?.id
+  // Project test cases: all members can edit. Non-project: owner only.
+  const canEdit = isOwner || !!tc.projectId
 
   if (editing) return <EditMode tc={tc} onDone={() => setEditing(false)} scrollTarget={scrollTarget} />
-  return <ViewMode tc={tc} isOwner={isOwner} onEdit={(target?: string) => { setScrollTarget(target ?? null); setEditing(true) }} />
+  return <ViewMode tc={tc} isOwner={canEdit} onEdit={(target?: string) => { setScrollTarget(target ?? null); setEditing(true) }} />
 }
