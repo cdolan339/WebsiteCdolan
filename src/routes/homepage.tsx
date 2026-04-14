@@ -396,7 +396,11 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
       <div
         {...attributes}
         {...listeners}
-        className={`px-5 py-4 transition-colors cursor-grab active:cursor-grabbing ${cfg.rowClass}`}
+        className="px-5 py-4 transition-all cursor-grab active:cursor-grabbing rounded-xl"
+        style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}
       >
         {/* ── Meta strip (top) ── */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -690,7 +694,7 @@ function TestCaseIndex() {
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
               <SortableContext items={order} strategy={verticalListSortingStrategy}>
-                <ul className="divide-y" style={{ borderColor: 'var(--app-glass-border)' }}>
+                <ul className="flex flex-col gap-3 p-3">
                   {sorted.map((tc) => {
                     const resolvedStatus: TestStatus = statuses[tc.slug] ?? 'pending'
                     const resolvedPriority = tc.isCustom
