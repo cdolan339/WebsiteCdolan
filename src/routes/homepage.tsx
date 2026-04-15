@@ -383,10 +383,11 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition ? 'transform 200ms ease' : undefined,
     opacity: isDragging ? 0.5 : 1,
     position: 'relative',
     zIndex: isDragging ? 10 : undefined,
+    willChange: isDragging ? 'transform' : undefined,
   }
 
   return (
@@ -394,7 +395,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
       <div
         {...attributes}
         {...listeners}
-        className="px-5 py-4 transition-all cursor-grab active:cursor-grabbing rounded-xl homepage-card"
+        className="px-5 py-4 cursor-grab active:cursor-grabbing rounded-xl homepage-card"
       >
         {/* ── Meta strip (top) ── */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
