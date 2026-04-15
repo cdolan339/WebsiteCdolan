@@ -477,9 +477,9 @@ function ViewMode({ tc, onEdit, isOwner }: { tc: CustomTestCase; onEdit: (target
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: `0 2px 10px var(--app-btn-outline-shadow)` }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
-            <ArrowLeft size={14} /> Back to Test Cases
+            <ArrowLeft size={14} /> Back to Home
           </Link>
           {isOwner && (
             <button
@@ -798,9 +798,9 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           <Link
             to="/homepage"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: `0 2px 10px var(--app-btn-outline-shadow)` }}
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
-            <ArrowLeft size={14} /> Back to Test Cases
+            <ArrowLeft size={14} /> Back to Home
           </Link>
           <button
             onClick={() => setAiOpen(true)}

@@ -327,15 +327,13 @@ function DeleteButton({ tc, onDelete }: { tc: DisplayTC; onDelete: (id: string) 
       {!confirming ? (
         <button
           onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
-          style={{
-            background: 'rgba(220,38,38,0.1)',
-            color: '#dc2626',
-            border: '1px solid rgba(220,38,38,0.25)',
-          }}
+          className="inline-flex items-center p-1.5 rounded-md transition-all hover:scale-110"
+          style={{ color: '#dc2626', opacity: 0.6 }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent' }}
+          title="Delete test case"
         >
-          <Trash2 size={13} />
-          Delete
+          <Trash2 size={14} />
         </button>
       ) : (
         <div
@@ -396,11 +394,7 @@ function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount
       <div
         {...attributes}
         {...listeners}
-        className="px-5 py-4 transition-all cursor-grab active:cursor-grabbing rounded-xl"
-        style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}
+        className="px-5 py-4 transition-all cursor-grab active:cursor-grabbing rounded-xl homepage-card"
       >
         {/* ── Meta strip (top) ── */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -576,7 +570,7 @@ function TestCaseIndex() {
   return (
     <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <style>{`
-                @keyframes movehp {
+        @keyframes movehp {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }
         }
@@ -588,6 +582,15 @@ function TestCaseIndex() {
           opacity: 0.18;
           animation: movehp 20s infinite alternate;
           pointer-events: none;
+        }
+        .dark .homepage-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+        :root:not(.dark) .homepage-card {
+          background: rgba(0,0,0,0.02);
+          border: 1px solid rgba(0,0,0,0.1);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
       `}</style>
       <div className="blob-hp" style={{ width: 400, height: 400, top: -100, left: -100 }} />
