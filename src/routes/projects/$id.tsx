@@ -12,9 +12,10 @@ import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { useState, useEffect } from 'react'
 import {
   CheckCircle2, XCircle, Clock, Ban, Calendar, ArrowLeft, FolderOpen,
-  Users, UserPlus, X, Crown,
+  Users, UserPlus, X, Crown, BookOpen, CalendarClock,
 } from 'lucide-react'
 import type { CustomTestCase } from '@/lib/customTestCases'
+import type { Story, StoryStatus } from '@/lib/stories'
 
 export const Route = createFileRoute('/projects/$id')({
   component: ProjectDetailPage,
@@ -56,6 +57,14 @@ const PRIORITY_BADGE: { [key: string]: React.CSSProperties } = {
   critical: { background: 'rgba(220,38,38,0.15)',   color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'   },
 }
 
+const STORY_STATUS_META: Record<StoryStatus, { label: string; style: React.CSSProperties }> = {
+  discovery:   { label: 'Discovery',   style: { background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' } },
+  analysis:    { label: 'Analysis',    style: { background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' } },
+  development: { label: 'Development', style: { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  } },
+  uat:         { label: 'UAT',         style: { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  } },
+  done:        { label: 'Done',        style: { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  } },
+}
+
 // ── Status summary (same as homepage) ─────────────────────────────────────────
 
 function StatusSummary({ statuses, total, slugs }: {
@@ -93,9 +102,9 @@ function StatusSummary({ statuses, total, slugs }: {
   )
 }
 
-// ── Test case row ─────────────────────────────────────────────────────────────
+// ── Test plan row ─────────────────────────────────────────────────────────────
 
-function TestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount }: {
+function TestPlanRow({ tc, resolvedStatus, resolvedPriority, passedCount }: {
   tc: CustomTestCase
   resolvedStatus: TestStatus
   resolvedPriority: string
@@ -113,7 +122,7 @@ function TestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount }: {
         <span className="flex-shrink-0 mt-0.5">{cfg.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="font-medium text-foreground">{tc.title || 'Untitled Test Case'}</span>
+            <span className="font-medium text-foreground">{tc.title || 'Untitled Test Plan'}</span>
             <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
               {resolvedPriority}
             </span>
@@ -142,6 +151,50 @@ function TestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount }: {
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar size={12} />
             {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </div>
+        </div>
+      </Link>
+    </li>
+  )
+}
+
+// ── Story row ────────────────────────────────────────────────────────────────
+
+function StoryRow({ story }: { story: Story }) {
+  const meta = STORY_STATUS_META[story.status]
+  const counts = story.userStories.length + story.requirements.length + story.processFlows.length
+
+  return (
+    <li>
+      <Link
+        to="/stories/$id"
+        params={{ id: story.id }}
+        className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-foreground/5"
+      >
+        <span className="flex-shrink-0 mt-0.5">
+          <BookOpen size={16} style={{ color: 'var(--app-accent-color)' }} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="font-medium text-foreground">{story.title || 'Untitled Story'}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={meta.style}>
+              {meta.label}
+            </span>
+          </div>
+          {story.summary && (
+            <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{story.summary}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--app-text-secondary)' }}>
+            <span>{story.userStories.length} user stor{story.userStories.length === 1 ? 'y' : 'ies'}</span>
+            <span>{story.requirements.length} requirement{story.requirements.length === 1 ? '' : 's'}</span>
+            <span>{story.processFlows.length} flow{story.processFlows.length === 1 ? '' : 's'}</span>
+            {counts === 0 && <span className="italic">Empty — click to fill in</span>}
+          </div>
+        </div>
+        <div className="hidden sm:flex flex-col items-end gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CalendarClock size={12} />
+            {new Date(story.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         </div>
       </Link>
@@ -373,6 +426,8 @@ function ProjectDetailPage() {
 
   const [testCases, setTestCases] = useState<CustomTestCase[]>([])
   const [loadingCases, setLoadingCases] = useState(true)
+  const [stories, setStories] = useState<Story[]>([])
+  const [loadingStories, setLoadingStories] = useState(true)
 
   const project = projects.find((p) => p.id === Number(id))
 
@@ -384,7 +439,15 @@ function ProjectDetailPage() {
       .finally(() => setLoadingCases(false))
   }, [id])
 
-  const loading = projectsLoading || loadingCases
+  useEffect(() => {
+    setLoadingStories(true)
+    api<Story[]>(`/stories?projectId=${id}`)
+      .then((data) => setStories(data))
+      .catch(() => setStories([]))
+      .finally(() => setLoadingStories(false))
+  }, [id])
+
+  const loading = projectsLoading || loadingCases || loadingStories
 
   if (loading) {
     return <LoadingCurtain visible={true} message="Loading Project" />
@@ -448,7 +511,9 @@ function ProjectDetailPage() {
           <div>
             <h1 className="text-3xl font-bold mb-1">{project.name}</h1>
             <p className="text-muted-foreground text-sm">
-              {testCases.length} test case{testCases.length !== 1 ? 's' : ''} in this project
+              {testCases.length} test plan{testCases.length !== 1 ? 's' : ''}
+              {' · '}
+              {stories.length} stor{stories.length === 1 ? 'y' : 'ies'} in this project
             </p>
           </div>
         </div>
@@ -464,7 +529,37 @@ function ProjectDetailPage() {
         {/* Status summary */}
         <StatusSummary statuses={statuses} total={testCases.length} slugs={slugs} />
 
-        {/* Test case list */}
+        {/* Stories list */}
+        <div
+          className="rounded-lg overflow-hidden mb-6"
+          style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}
+        >
+          <div
+            className="px-4 py-3 flex items-center gap-2"
+            style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}
+          >
+            <BookOpen size={14} className="text-muted-foreground" />
+            <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+              Stories ({stories.length})
+            </h2>
+          </div>
+
+          {stories.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <p className="text-muted-foreground text-sm">
+                No stories linked to this project yet.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: 'var(--app-glass-border)' }}>
+              {stories.map((story) => (
+                <StoryRow key={story.id} story={story} />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Test plan list */}
         <div
           className="rounded-lg overflow-hidden"
           style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}
@@ -474,14 +569,14 @@ function ProjectDetailPage() {
             style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}
           >
             <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-              All Test Cases ({testCases.length})
+              All Test Plans ({testCases.length})
             </h2>
           </div>
 
           {testCases.length === 0 ? (
             <div className="px-4 py-12 text-center">
               <p className="text-muted-foreground text-sm">
-                No test cases in this project yet.
+                No test plans in this project yet.
               </p>
             </div>
           ) : (
@@ -492,7 +587,7 @@ function ProjectDetailPage() {
                 const resolvedPriority = priorities[slug] ?? tc.priority
                 const passedCount = expectedCounts[slug] ?? 0
                 return (
-                  <TestCaseRow
+                  <TestPlanRow
                     key={tc.id}
                     tc={tc}
                     resolvedStatus={resolvedStatus}

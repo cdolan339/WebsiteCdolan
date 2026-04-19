@@ -263,7 +263,7 @@ function DeleteConfirmModal({
       >
         <h3 className="text-lg font-bold mb-2">Delete Project</h3>
         <p className="text-sm text-muted-foreground mb-6">
-          Are you sure you want to delete <strong className="text-foreground">"{project.name}"</strong>? All test cases in this project will also be deleted. This cannot be undone.
+          Are you sure you want to delete <strong className="text-foreground">"{project.name}"</strong>? All test plans and stories in this project will also be deleted. This cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
           <button
@@ -484,7 +484,7 @@ function ProjectsPage() {
           <div>
             <h1 className="text-4xl font-bold mb-2">Projects</h1>
             <p className="text-muted-foreground text-lg">
-              Overview of all QA projects. Click a project to see its test cases.
+              Overview of all QA projects. Click a project to see its test plans and stories.
             </p>
           </div>
           {canCreate && (

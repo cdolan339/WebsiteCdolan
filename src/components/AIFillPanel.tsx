@@ -10,7 +10,7 @@
  */
 
 import { useState, useRef } from 'react'
-import { X, Sparkles, Loader2, AlertTriangle, Paperclip, FileText, Image, File } from 'lucide-react'
+import { X, Sparkles, Loader2, AlertTriangle, Paperclip, FileText, Image, File, ChevronDown, Lightbulb } from 'lucide-react'
 import { apiUpload, ApiError } from '@/lib/api'
 
 export type ExtractedImage = {
@@ -44,6 +44,48 @@ const MAX_CHARS = 10_000
 
 const ACCEPT_EXTENSIONS = '.pdf,.docx,.txt,.md,.csv,.jpg,.jpeg,.png,.webp'
 
+const EXAMPLES: Array<{ title: string; blurb: string; prompt: string }> = [
+  {
+    title: 'Login with email + password',
+    blurb: 'Auth flow — happy path, lockout, validation',
+    prompt: `Feature: Users log in to our customer portal with email + password.
+
+Happy path: user enters valid email + password, clicks Submit, lands on /dashboard. A session cookie is set and persists for 30 days unless the user clicks "Sign out".
+
+Security: after 5 consecutive failed attempts in 15 minutes the account is locked for 30 minutes. The lockout message must not reveal whether the email exists. Rate-limit login attempts from the same IP to 20/min.
+
+Validation: email must be a valid RFC-5322 address; password must be 8+ chars. Submit button disabled until both fields are non-empty. Show a clear inline error on 401 (invalid credentials) and a distinct message on 423 (locked).
+
+Edge cases to cover: leading/trailing whitespace on email, Unicode email addresses, extremely long password (>1,000 chars), browser back after login should not expose the login form.`,
+  },
+  {
+    title: 'Checkout — apply promo code',
+    blurb: 'E-commerce — validation, stacking rules, edge cases',
+    prompt: `Feature: At checkout, a shopper can enter a promo code to get a discount applied to their cart.
+
+Happy path: shopper types code "SAVE10" in the promo field on /checkout, clicks Apply, sees the discount line item appear and the order total update. The Apply button turns into a Remove button.
+
+Business rules: codes are case-insensitive. Only one promo can be active at a time — entering a second code replaces the first after confirmation. Promos cannot be combined with items already on sale (show an inline warning listing which items were excluded). Codes have an expiry date; expired codes show "This code has expired".
+
+Validation: reject empty input, codes over 32 chars, and codes containing whitespace. Show a generic "Invalid code" for codes that don't exist (don't leak valid-but-exhausted codes).
+
+Edge cases: applying a code, emptying the cart, then re-adding items — the code should stay applied if still valid. Promo applied on mobile (narrow viewport) renders without layout shift.`,
+  },
+  {
+    title: 'File upload with virus scan',
+    blurb: 'Document handling — size limits, scanning, errors',
+    prompt: `Feature: Users upload supporting documents to a claim. Files are virus-scanned before being attached.
+
+Happy path: user drags a PDF onto the dropzone on /claims/:id, sees a progress bar, then a green "Scanned — clean" badge next to the filename. The file appears in the attachments list and is downloadable.
+
+Constraints: accepted types are PDF, JPG, PNG, DOCX. Max file size 20 MB. Max 10 files per claim. Reject everything else with a specific error — don't just say "failed".
+
+Security: infected files are quarantined and the user sees "This file was blocked by our scanner". The file is not downloadable. An audit event is recorded.
+
+Edge cases: uploading multiple files at once where one is infected — the clean ones still upload, only the infected one is blocked. Network drop mid-upload should show a retry button, not silently fail. Same filename uploaded twice gets a " (1)" suffix. Extremely fast double-click on Upload should not create duplicate entries.`,
+  },
+]
+
 function fileIcon(mime: string) {
   if (mime.startsWith('image/')) return <Image size={14} />
   if (mime === 'application/pdf') return <FileText size={14} />
@@ -62,6 +104,7 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showNeedsDetail, setShowNeedsDetail] = useState(false)
+  const [examplesOpen, setExamplesOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const overLimit = prompt.length > MAX_CHARS
@@ -366,6 +409,71 @@ export function AIFillPanel({ onFill, onClose, onLoading }: Props) {
               <strong>Note:</strong> AI will fill title, summary, objective,
               preconditions, tags, and test case steps. Notes, attachments, and project are left for you to manage.
             </p>
+          </div>
+
+          {/* Examples (collapsible) */}
+          <div style={{
+            marginTop: '12px', borderRadius: '8px', overflow: 'hidden',
+            background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)',
+          }}>
+            <button
+              onClick={() => setExamplesOpen((o) => !o)}
+              style={{
+                width: '100%', padding: '10px 14px',
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                color: 'var(--app-text)', fontFamily: 'inherit',
+              }}
+              aria-expanded={examplesOpen}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lightbulb size={14} style={{ color: 'var(--app-accent-color)' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Examples</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--app-text-secondary)', fontWeight: 400 }}>
+                  (3) — click to use
+                </span>
+              </span>
+              <ChevronDown
+                size={16}
+                style={{
+                  color: 'var(--app-text-secondary)',
+                  transition: 'transform 0.2s',
+                  transform: examplesOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              />
+            </button>
+
+            {examplesOpen && (
+              <div style={{
+                padding: '4px 10px 10px',
+                borderTop: '1px solid var(--app-glass-border)',
+                display: 'flex', flexDirection: 'column', gap: '6px',
+              }}>
+                {EXAMPLES.map((ex, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setPrompt(ex.prompt); setExamplesOpen(false); setError(null); setShowNeedsDetail(false) }}
+                    disabled={loading}
+                    style={{
+                      textAlign: 'left',
+                      padding: '10px 12px', borderRadius: '6px',
+                      background: 'var(--app-bg)',
+                      border: '1px solid var(--app-glass-border)',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      color: 'var(--app-text)', fontFamily: 'inherit',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = 'var(--app-accent-color)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--app-glass-border)' }}
+                  >
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>{ex.title}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--app-text-secondary)', lineHeight: 1.4 }}>
+                      {ex.blurb}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

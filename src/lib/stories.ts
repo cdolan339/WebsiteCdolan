@@ -117,6 +117,8 @@ export type Story = {
   rtm: RtmEntry[];
   raid: RaidEntry[];
   notes: string;
+  completed?: boolean;
+  completedAt?: string | null;
 };
 
 // ── In-memory cache ───────────────────────────────────────────────
@@ -206,6 +208,8 @@ export function createStory(): Story {
     rtm: [],
     raid: [],
     notes: "",
+    completed: false,
+    completedAt: null,
   };
 }
 
@@ -285,7 +289,9 @@ export async function getStory(id: string): Promise<Story | undefined> {
 }
 
 export async function addStory(story: Story): Promise<void> {
-  const projectId = getActiveProjectId();
+  // Respect caller-provided projectId (including null to mean "unassigned");
+  // fall back to the active project when the caller didn't set one.
+  const projectId = story.projectId !== undefined ? story.projectId : getActiveProjectId();
   const payload = { ...story, projectId };
 
   await ensureLoaded();
@@ -315,6 +321,25 @@ export async function updateStory(updated: Story): Promise<void> {
     });
   } catch (err) {
     console.error("Failed to update story:", err);
+  }
+}
+
+export async function completeStory(id: string, completed: boolean): Promise<void> {
+  await ensureLoaded();
+  storyCache = (storyCache ?? []).map((s) =>
+    s.id === id
+      ? { ...s, completed, completedAt: completed ? new Date().toISOString() : null }
+      : s,
+  );
+  notify();
+
+  try {
+    await api(`/stories/${id}/complete`, {
+      method: "PATCH",
+      body: JSON.stringify({ completed }),
+    });
+  } catch (err) {
+    console.error("Failed to complete story:", err);
   }
 }
 

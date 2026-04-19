@@ -265,9 +265,10 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const links = [
-    { to: '/homepage', label: 'Home' },
+    { to: '/homepage', label: 'Dashboard' },
     { to: '/projects', label: 'Projects' },
     { to: '/stories', label: 'Stories' },
+    { to: '/test-suites', label: 'Test Suites' },
     { to: '/wiki', label: 'Wiki' },
   ]
 

@@ -6,6 +6,7 @@ import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { PreconditionAttachments, uploadPreconditionImages, type PendingImage } from '@/components/PreconditionAttachments'
+import { AutoGrowTextarea } from '@/components/AutoGrowTextarea'
 
 export const Route = createFileRoute('/test-cases/custom/new')({
   component: NewTestCase,
@@ -23,7 +24,7 @@ const ALL_EXISTING_TAGS: string[] = []
 function validateTitle(title: string): string | null {
   const trimmed = title.trim()
   if (!trimmed) return 'Title is required.'
-  if (trimmed.toLowerCase() === 'untitled test case') return '"Untitled Test Case" is not a valid title.'
+  if (trimmed.toLowerCase() === 'untitled test case' || trimmed.toLowerCase() === 'untitled test plan') return '"Untitled" is not a valid title.'
   return null
 }
 
@@ -347,11 +348,11 @@ function NewTestCase() {
         {/* Back + AI button */}
         <div className="flex items-center justify-between mb-8">
           <Link
-            to="/homepage"
+            to="/test-suites"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
             style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px var(--app-btn-outline-shadow)' }}
           >
-            <ArrowLeft size={14} /> Back to Test Cases
+            <ArrowLeft size={14} /> Back to Test Suites
           </Link>
           <button
             onClick={() => setAiOpen(true)}
@@ -369,7 +370,7 @@ function NewTestCase() {
             value={draft.title}
             onChange={(e) => patch({ title: e.target.value })}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
-            placeholder="Test case title…"
+            placeholder="Test plan title…"
             autoFocus
             className={`w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground focus:underline decoration-muted-foreground/40 ${titleError ? 'text-destructive placeholder:text-destructive/50' : ''}`}
             style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
@@ -380,12 +381,13 @@ function NewTestCase() {
         </div>
 
         {/* Summary */}
-        <textarea
+        <AutoGrowTextarea
           value={draft.summary}
           onChange={(e) => patch({ summary: e.target.value })}
           placeholder="Add a description…"
-          rows={2}
-          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/50 mb-4 focus:underline decoration-muted-foreground/40"
+          minHeight={52}
+          focusMinHeight={140}
+          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none placeholder:text-muted-foreground/50 mb-4 focus:underline decoration-muted-foreground/40"
         />
 
         {/* Priority */}
@@ -422,12 +424,13 @@ function NewTestCase() {
         <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
           <div className="rounded-lg border border-border bg-card p-4">
-            <textarea
+            <AutoGrowTextarea
               value={draft.objective}
               onChange={(e) => patch({ objective: e.target.value })}
-              placeholder="Describe the objective of this test case…"
-              rows={4}
-              className="w-full text-sm text-foreground bg-transparent outline-none resize-none placeholder:text-muted-foreground/60 transition-colors"
+              placeholder="Describe the objective of this test plan…"
+              minHeight={90}
+              focusMinHeight={200}
+              className="w-full text-sm text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors"
             />
           </div>
         </section>
@@ -495,7 +498,7 @@ function NewTestCase() {
             Save Test Case
           </button>
           <Link
-            to="/homepage"
+            to="/test-suites"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
             style={{ background: 'rgba(220,38,38,0.12)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)', backdropFilter: 'blur(6px)' }}
           >

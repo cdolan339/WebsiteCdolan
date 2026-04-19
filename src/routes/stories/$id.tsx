@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   ArrowLeft, Save, Plus, X, Trash2, Sparkles, Target, FileText, ListTree,
   GitBranch, Image as ImageIcon, Network, AlertTriangle, StickyNote, ChevronRight,
+  FolderOpen, ChevronDown, Users, HelpCircle, CheckCircle2, Clock,
 } from 'lucide-react'
 import {
   useStory, updateStory,
@@ -14,8 +15,10 @@ import {
   type UserStoryStatus, type RequirementType, type MoscowPriority, type RaciRole,
   type RtmStatus, type RaidImpact, type RaidStatus,
 } from '@/lib/stories'
+import { useProjects } from '@/lib/projects'
 import { AIFillStoryPanel, type AIStoryFillResult } from '@/components/AIFillStoryPanel'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
+import { AutoGrowTextarea } from '@/components/AutoGrowTextarea'
 
 export const Route = createFileRoute('/stories/$id')({
   component: StoryDetail,
@@ -48,7 +51,101 @@ const STATUS_OPTIONS: Array<{ value: StoryStatus; label: string }> = [
 
 const inputClass =
   'w-full px-3 py-2 rounded-md border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring'
-const textareaClass = inputClass + ' resize-y min-h-[80px]'
+const textareaClass = inputClass
+
+// ── Project picker pill (dark-mode aware custom dropdown) ─────────
+
+function StoryProjectPicker({
+  projects,
+  projectId,
+  onSelect,
+}: {
+  projects: Array<{ id: number; name: string }>
+  projectId: number | null
+  onSelect: (id: number | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const current = projects.find((p) => p.id === projectId)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 text-sm font-semibold pl-3 pr-2 py-1 rounded-full transition-colors hover:opacity-90"
+        style={{
+          background: projectId ? 'var(--app-accent-bg)' : 'var(--app-glass)',
+          color: projectId ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
+          border: '1px solid var(--app-glass-border)',
+        }}
+        title="Assign to a project"
+      >
+        <FolderOpen size={13} />
+        <span className="truncate max-w-[260px]">{current?.name ?? 'No project'}</span>
+        <ChevronDown size={12} className={`opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl overflow-hidden"
+          style={{
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            background: 'var(--app-overlay)',
+            border: '1px solid var(--app-overlay-border)',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <button
+            type="button"
+            onMouseDown={() => { onSelect(null); setOpen(false) }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
+            style={{
+              background: projectId === null ? 'var(--app-accent-bg)' : 'transparent',
+              color: projectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
+              borderBottom: '1px solid var(--app-glass-border)',
+              fontWeight: projectId === null ? 600 : 400,
+            }}
+            onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
+            onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
+          >
+            <FolderOpen size={15} style={{ opacity: 0.7 }} />
+            No project
+          </button>
+          <div className="max-h-60 overflow-y-auto">
+            {projects.map((p) => (
+              <button
+                type="button"
+                key={p.id}
+                onMouseDown={() => { onSelect(p.id); setOpen(false) }}
+                className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
+                style={{
+                  background: projectId === p.id ? 'var(--app-accent-bg)' : 'transparent',
+                  color: 'var(--app-accent-color)',
+                  borderBottom: '1px solid var(--app-glass-border)',
+                  fontWeight: projectId === p.id ? 600 : 400,
+                }}
+                onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
+                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-accent-bg)' : 'transparent' }}
+              >
+                <span className="truncate">{p.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Reusable list editor (strings) ─────────────────────────────────
 
@@ -148,7 +245,7 @@ function OverviewTab({ story, set }: { story: Story; set: (patch: Partial<Story>
   return (
     <>
       <SectionCard title="Business Case" subtitle="Why this project matters — problem statement and expected outcomes.">
-        <textarea
+        <AutoGrowTextarea
           className={textareaClass}
           placeholder="Describe the business problem, opportunity, and expected value…"
           value={story.businessCase}
@@ -204,17 +301,21 @@ function OverviewTab({ story, set }: { story: Story; set: (patch: Partial<Story>
             {story.stakeholders.map((sh) => (
               <div
                 key={sh.id}
-                className="grid grid-cols-12 gap-2 items-center p-3 rounded-md"
+                className="grid grid-cols-12 gap-2 items-start p-3 rounded-md"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
               >
-                <input
+                <AutoGrowTextarea
                   className={inputClass + ' col-span-12 md:col-span-4'}
+                  minHeight={38}
+                  focusMinHeight={100}
                   placeholder="Name"
                   value={sh.name}
                   onChange={(e) => updateStakeholder(sh.id, { name: e.target.value })}
                 />
-                <input
+                <AutoGrowTextarea
                   className={inputClass + ' col-span-8 md:col-span-5'}
+                  minHeight={38}
+                  focusMinHeight={100}
                   placeholder="Role (e.g. Product Owner)"
                   value={sh.role}
                   onChange={(e) => updateStakeholder(sh.id, { role: e.target.value })}
@@ -346,15 +447,15 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
                   <div>
                     <label className="text-[10px] uppercase tracking-wide text-muted-foreground">As a</label>
-                    <input className={inputClass} placeholder="role" value={us.asA} onChange={(e) => updateUS(us.id, { asA: e.target.value })} />
+                    <AutoGrowTextarea className={inputClass} minHeight={38} focusMinHeight={100} placeholder="role" value={us.asA} onChange={(e) => updateUS(us.id, { asA: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-[10px] uppercase tracking-wide text-muted-foreground">I want</label>
-                    <input className={inputClass} placeholder="goal" value={us.iWant} onChange={(e) => updateUS(us.id, { iWant: e.target.value })} />
+                    <AutoGrowTextarea className={inputClass} minHeight={38} focusMinHeight={100} placeholder="goal" value={us.iWant} onChange={(e) => updateUS(us.id, { iWant: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-[10px] uppercase tracking-wide text-muted-foreground">So that</label>
-                    <input className={inputClass} placeholder="benefit" value={us.soThat} onChange={(e) => updateUS(us.id, { soThat: e.target.value })} />
+                    <AutoGrowTextarea className={inputClass} minHeight={38} focusMinHeight={100} placeholder="benefit" value={us.soThat} onChange={(e) => updateUS(us.id, { soThat: e.target.value })} />
                   </div>
                 </div>
 
@@ -375,9 +476,9 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
                       {us.criteria.map((ac, i) => (
                         <div key={ac.id} className="grid grid-cols-12 gap-2 items-start">
                           <span className="col-span-1 text-xs text-muted-foreground mt-2 text-right">AC-{i + 1}</span>
-                          <input className={inputClass + ' col-span-11 md:col-span-3'} placeholder="Given…" value={ac.given} onChange={(e) => updateAC(us.id, ac.id, { given: e.target.value })} />
-                          <input className={inputClass + ' col-span-12 md:col-span-3 md:col-start-auto'} placeholder="When…" value={ac.when} onChange={(e) => updateAC(us.id, ac.id, { when: e.target.value })} />
-                          <input className={inputClass + ' col-span-11 md:col-span-4'} placeholder="Then…" value={ac.then} onChange={(e) => updateAC(us.id, ac.id, { then: e.target.value })} />
+                          <AutoGrowTextarea className={inputClass + ' col-span-11 md:col-span-3'} minHeight={38} focusMinHeight={100} placeholder="Given…" value={ac.given} onChange={(e) => updateAC(us.id, ac.id, { given: e.target.value })} />
+                          <AutoGrowTextarea className={inputClass + ' col-span-12 md:col-span-3 md:col-start-auto'} minHeight={38} focusMinHeight={100} placeholder="When…" value={ac.when} onChange={(e) => updateAC(us.id, ac.id, { when: e.target.value })} />
+                          <AutoGrowTextarea className={inputClass + ' col-span-11 md:col-span-4'} minHeight={38} focusMinHeight={100} placeholder="Then…" value={ac.then} onChange={(e) => updateAC(us.id, ac.id, { then: e.target.value })} />
                           <button
                             onClick={() => removeAC(us.id, ac.id)}
                             className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors mt-2"
@@ -442,8 +543,10 @@ function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<St
                 value={r.code}
                 onChange={(e) => updateReq(r.id, { code: e.target.value })}
               />
-              <textarea
-                className={inputClass + ' col-span-12 md:col-span-7 resize-y min-h-[44px]'}
+              <AutoGrowTextarea
+                className={inputClass + ' col-span-12 md:col-span-7'}
+                minHeight={44}
+                focusMinHeight={120}
                 placeholder="Description"
                 value={r.description}
                 onChange={(e) => updateReq(r.id, { description: e.target.value })}
@@ -555,22 +658,24 @@ function ProcessFlowsTab({ story, set }: { story: Story; set: (patch: Partial<St
               className="p-4 rounded-lg"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <input
+              <div className="flex items-start gap-2 mb-3">
+                <AutoGrowTextarea
                   className={inputClass + ' flex-1 font-semibold'}
+                  minHeight={38}
+                  focusMinHeight={100}
                   placeholder="Flow name (e.g. New user onboarding)"
                   value={pf.name}
                   onChange={(e) => updatePF(pf.id, { name: e.target.value })}
                 />
                 <button
                   onClick={() => removePF(pf.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-2"
                   aria-label="Remove flow"
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
-              <textarea
+              <AutoGrowTextarea
                 className={textareaClass + ' mb-3'}
                 placeholder="Describe the flow — trigger, happy path, alternate paths…"
                 value={pf.description}
@@ -588,23 +693,27 @@ function ProcessFlowsTab({ story, set }: { story: Story; set: (patch: Partial<St
               </div>
               <div className="flex flex-col gap-2">
                 {pf.steps.map((step, i) => (
-                  <div key={step.id} className="grid grid-cols-12 gap-2 items-center">
-                    <span className="col-span-1 text-xs text-muted-foreground text-right">{i + 1}.</span>
-                    <input
+                  <div key={step.id} className="grid grid-cols-12 gap-2 items-start">
+                    <span className="col-span-1 text-xs text-muted-foreground text-right mt-2">{i + 1}.</span>
+                    <AutoGrowTextarea
                       className={inputClass + ' col-span-4'}
+                      minHeight={38}
+                      focusMinHeight={100}
                       placeholder="Actor (e.g. User)"
                       value={step.actor}
                       onChange={(e) => updateStep(pf.id, step.id, { actor: e.target.value })}
                     />
-                    <input
+                    <AutoGrowTextarea
                       className={inputClass + ' col-span-6'}
+                      minHeight={38}
+                      focusMinHeight={100}
                       placeholder="Action (e.g. Submits signup form)"
                       value={step.action}
                       onChange={(e) => updateStep(pf.id, step.id, { action: e.target.value })}
                     />
                     <button
                       onClick={() => removeStep(pf.id, step.id)}
-                      className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors"
+                      className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors mt-2"
                       aria-label="Remove step"
                     >
                       <X size={13} />
@@ -653,16 +762,18 @@ function WireframesTab({ story, set }: { story: Story; set: (patch: Partial<Stor
               className="p-3 rounded-lg"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <input
+              <div className="flex items-start gap-2 mb-2">
+                <AutoGrowTextarea
                   className={inputClass + ' flex-1 font-semibold'}
+                  minHeight={38}
+                  focusMinHeight={100}
                   placeholder="Wireframe name"
                   value={wf.name}
                   onChange={(e) => updateWF(wf.id, { name: e.target.value })}
                 />
                 <button
                   onClick={() => removeWF(wf.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-2"
                   aria-label="Remove wireframe"
                 >
                   <Trash2 size={14} />
@@ -687,8 +798,10 @@ function WireframesTab({ story, set }: { story: Story; set: (patch: Partial<Stor
                   />
                 </div>
               )}
-              <textarea
+              <AutoGrowTextarea
                 className={textareaClass + ' text-xs'}
+                minHeight={60}
+                focusMinHeight={160}
                 placeholder="Notes about this wireframe…"
                 value={wf.notes}
                 onChange={(e) => updateWF(wf.id, { notes: e.target.value })}
@@ -886,14 +999,18 @@ function RaidTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =>
                       className="grid grid-cols-12 gap-2 items-start p-3 rounded-md"
                       style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
                     >
-                      <textarea
-                        className={inputClass + ' col-span-12 md:col-span-5 resize-y min-h-[44px]'}
+                      <AutoGrowTextarea
+                        className={inputClass + ' col-span-12 md:col-span-5'}
+                        minHeight={44}
+                        focusMinHeight={120}
                         placeholder="Description"
                         value={r.description}
                         onChange={(e) => updateRaid(r.id, { description: e.target.value })}
                       />
-                      <input
+                      <AutoGrowTextarea
                         className={inputClass + ' col-span-6 md:col-span-3 text-xs'}
+                        minHeight={38}
+                        focusMinHeight={100}
                         placeholder="Owner"
                         value={r.owner}
                         onChange={(e) => updateRaid(r.id, { owner: e.target.value })}
@@ -933,15 +1050,424 @@ function RaidTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =>
 
 // ── Notes tab ──────────────────────────────────────────────────────
 
-function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
+type NoteCategory = 'meeting' | 'question' | 'decision' | 'followup' | 'general'
+
+type NoteEntry = {
+  id: string
+  category: NoteCategory
+  title: string
+  content: string
+  createdAt: string
+}
+
+const NOTE_CATEGORIES: NoteCategory[] = ['meeting', 'question', 'decision', 'followup', 'general']
+
+const NOTE_CATEGORY_META: Record<
+  NoteCategory,
+  { label: string; icon: React.ReactNode; color: string; bg: string }
+> = {
+  meeting:  { label: 'Meeting',   icon: <Users size={13} />,        color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.14)' },
+  question: { label: 'Question',  icon: <HelpCircle size={13} />,   color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)' },
+  decision: { label: 'Decision',  icon: <CheckCircle2 size={13} />, color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)' },
+  followup: { label: 'Follow-up', icon: <Clock size={13} />,        color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.14)' },
+  general:  { label: 'General',   icon: <StickyNote size={13} />,   color: '#6b7280', bg: 'rgba(107, 114, 128, 0.14)' },
+}
+
+// Break up inline "(1) foo (2) bar" or "1. foo 2. bar" into line-separated form.
+function prettifyNoteBody(text: string): string {
+  return text
+    .replace(/([^\n\s])\s*\(\s*(\d+)\s*\)\s+/g, '$1\n$2. ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function inferNoteCategoryFromHeader(header: string): NoteCategory {
+  const h = header.toUpperCase()
+  if (h.includes('QUESTION'))                                                                  return 'question'
+  if (h.includes('DECISION'))                                                                  return 'decision'
+  if (h.includes('MEETING') || h.includes('STAND-UP') || h.includes('STANDUP') || h.includes('SYNC')) return 'meeting'
+  if (h.includes('FOLLOW') || h.includes('ACTION')   || h.includes('NEXT STEP') ||
+      h.includes('REVIEW') || h.includes('SPRINT')   || h.includes('TODO')      || h.includes('RETRO'))
+    return 'followup'
+  return 'general'
+}
+
+function titleCaseHeader(s: string): string {
+  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+// Split "OPEN QUESTIONS: (1) foo. (2) bar. POST-SPRINT-1 REVIEW: After…"
+// into separate entries by detecting UPPERCASE section headers ending in ':'.
+function splitLegacyNotes(raw: string): NoteEntry[] {
+  const trimmed = raw.trim()
+  if (!trimmed) return []
+
+  const headerRe = /(?:^|[\s.?!])([A-Z][A-Z0-9 &/-]{2,}):/g
+  const hits: Array<{ headerStart: number; header: string; afterHeader: number }> = []
+  let m: RegExpExecArray | null
+  while ((m = headerRe.exec(trimmed)) !== null) {
+    const header = m[1]
+    const headerStart = m.index + m[0].length - header.length - 1
+    hits.push({ headerStart, header, afterHeader: headerStart + header.length + 1 })
+  }
+
+  if (hits.length === 0) {
+    return [{
+      id: 'note-legacy-0',
+      category: 'general',
+      title: 'Notes',
+      content: prettifyNoteBody(trimmed),
+      createdAt: new Date().toISOString(),
+    }]
+  }
+
+  const sections: Array<{ header: string; body: string }> = []
+  const intro = trimmed.slice(0, hits[0].headerStart).trim()
+  if (intro) sections.push({ header: '', body: intro })
+
+  for (let i = 0; i < hits.length; i++) {
+    const { header, afterHeader } = hits[i]
+    const bodyEnd = i + 1 < hits.length ? hits[i + 1].headerStart : trimmed.length
+    const body = trimmed.slice(afterHeader, bodyEnd).trim()
+    sections.push({ header, body })
+  }
+
+  return sections
+    .filter((s) => s.header || s.body)
+    .map((s, i) => ({
+      id: `note-legacy-${i}`,
+      category: s.header ? inferNoteCategoryFromHeader(s.header) : 'general',
+      title: s.header ? titleCaseHeader(s.header) : 'Notes',
+      content: prettifyNoteBody(s.body),
+      createdAt: new Date().toISOString(),
+    }))
+}
+
+function parseNoteEntries(raw: string): NoteEntry[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((x) => x && typeof x === 'object' && 'id' in x && 'category' in x)
+    ) {
+      return parsed as NoteEntry[]
+    }
+  } catch { /* legacy plain-text */ }
+  return splitLegacyNotes(raw)
+}
+
+// ── Formatted display of an entry's body ──────────────────────────
+// Renders numbered-list runs as an <ol>, paragraphs otherwise.
+function NoteBodyDisplay({ text }: { text: string }) {
+  if (!text.trim()) return null
+
+  const blocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean)
+
   return (
-    <SectionCard title="Notes" subtitle="Free-form space for meeting notes, questions, decisions, follow-ups.">
-      <textarea
-        className={textareaClass + ' min-h-[300px]'}
-        placeholder="Capture anything relevant…"
-        value={story.notes}
-        onChange={(e) => set({ notes: e.target.value })}
-      />
+    <div className="text-sm leading-relaxed" style={{ color: 'var(--app-text)' }}>
+      {blocks.map((block, bi) => {
+        const lines = block.split('\n').map((l) => l.trim()).filter(Boolean)
+        const allNumbered = lines.length > 1 && lines.every((l) => /^\(?\d+[\).]/.test(l))
+
+        if (allNumbered) {
+          return (
+            <ol key={bi} className="pl-0 mt-0 mb-3 last:mb-0 flex flex-col gap-1.5">
+              {lines.map((line, li) => {
+                const mark = line.match(/^\(?(\d+)[\).]\s*(.*)$/)
+                const num = mark ? mark[1] : String(li + 1)
+                const body = mark ? mark[2] : line
+                return (
+                  <li key={li} className="flex gap-2.5">
+                    <span
+                      className="flex-shrink-0 text-xs font-semibold inline-flex items-center justify-center rounded-full"
+                      style={{
+                        background: 'var(--app-glass)',
+                        border: '1px solid var(--app-glass-border)',
+                        color: 'var(--app-text-secondary)',
+                        width: 22, height: 22,
+                      }}
+                    >
+                      {num}
+                    </span>
+                    <span className="flex-1 whitespace-pre-wrap break-words pt-0.5">{body}</span>
+                  </li>
+                )
+              })}
+            </ol>
+          )
+        }
+
+        return (
+          <p key={bi} className="whitespace-pre-wrap break-words mb-3 last:mb-0">{block}</p>
+        )
+      })}
+    </div>
+  )
+}
+
+function createNoteEntry(category: NoteCategory = 'general'): NoteEntry {
+  return {
+    id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    category,
+    title: '',
+    content: '',
+    createdAt: new Date().toISOString(),
+  }
+}
+
+function noteRelTime(iso: string): string {
+  try {
+    const then = new Date(iso).getTime()
+    if (!Number.isFinite(then)) return ''
+    const diff = Math.round((Date.now() - then) / 1000)
+    if (diff < 60)         return 'just now'
+    if (diff < 3600)       return `${Math.floor(diff / 60)}m ago`
+    if (diff < 86400)      return `${Math.floor(diff / 3600)}h ago`
+    if (diff < 86400 * 7)  return `${Math.floor(diff / 86400)}d ago`
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
+function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
+  const entries = parseNoteEntries(story.notes)
+  const [filter, setFilter] = useState<NoteCategory | 'all'>('all')
+  const [addOpen, setAddOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const addWrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!addOpen) return
+    const handler = (e: MouseEvent) => {
+      if (addWrapperRef.current && !addWrapperRef.current.contains(e.target as Node)) setAddOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [addOpen])
+
+  const commit = (next: NoteEntry[]) => set({ notes: JSON.stringify(next) })
+  const addEntry = (category: NoteCategory) => {
+    const fresh = createNoteEntry(category)
+    commit([fresh, ...entries])
+    setAddOpen(false)
+    setEditingId(fresh.id)
+  }
+  const updateEntry = (id: string, patch: Partial<NoteEntry>) => {
+    commit(entries.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+  }
+  const removeEntry = (id: string) => commit(entries.filter((e) => e.id !== id))
+
+  const counts: Record<NoteCategory | 'all', number> = {
+    all: entries.length,
+    meeting: 0, question: 0, decision: 0, followup: 0, general: 0,
+  }
+  for (const e of entries) counts[e.category]++
+
+  const visible = filter === 'all' ? entries : entries.filter((e) => e.category === filter)
+
+  const chips: Array<{ key: NoteCategory | 'all'; label: string; icon: React.ReactNode | null; color: string }> = [
+    { key: 'all', label: 'All', icon: null, color: '#64748b' },
+    ...NOTE_CATEGORIES.map((c) => ({
+      key: c,
+      label: NOTE_CATEGORY_META[c].label,
+      icon: NOTE_CATEGORY_META[c].icon,
+      color: NOTE_CATEGORY_META[c].color,
+    })),
+  ]
+
+  return (
+    <SectionCard
+      title="Notes"
+      subtitle="Capture meetings, questions, decisions, and follow-ups as separate entries."
+      action={
+        <div ref={addWrapperRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setAddOpen((o) => !o)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+          >
+            <Plus size={13} /> Add note
+            <ChevronDown size={12} className={`opacity-70 transition-transform ${addOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {addOpen && (
+            <div
+              className="absolute right-0 top-full mt-2 z-50 w-52 rounded-xl overflow-hidden"
+              style={{
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                background: 'var(--app-overlay)',
+                border: '1px solid var(--app-overlay-border)',
+                backdropFilter: 'blur(16px)',
+              }}
+            >
+              {NOTE_CATEGORIES.map((cat) => {
+                const meta = NOTE_CATEGORY_META[cat]
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onMouseDown={() => addEntry(cat)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors"
+                    style={{ color: 'var(--app-text)', borderBottom: '1px solid var(--app-glass-border)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-glass)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <span
+                      className="inline-flex items-center justify-center rounded-md flex-shrink-0"
+                      style={{ background: meta.bg, color: meta.color, width: 24, height: 24 }}
+                    >
+                      {meta.icon}
+                    </span>
+                    {meta.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      }
+    >
+      {entries.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {chips.map((chip) => {
+            const active = filter === chip.key
+            const count = counts[chip.key] ?? 0
+            return (
+              <button
+                key={chip.key}
+                onClick={() => setFilter(chip.key)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: active ? chip.color : 'var(--app-glass)',
+                  color: active ? '#fff' : 'var(--app-text-secondary)',
+                  border: `1px solid ${active ? chip.color : 'var(--app-glass-border)'}`,
+                }}
+              >
+                {chip.icon}
+                {chip.label}
+                <span
+                  className="px-1.5 rounded-full text-[10px] leading-[16px]"
+                  style={{
+                    background: active ? 'rgba(255,255,255,0.22)' : 'var(--app-bg)',
+                    color: active ? '#fff' : 'var(--app-text-secondary)',
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {visible.length === 0 ? (
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ background: 'var(--app-bg)', border: '1px dashed var(--app-glass-border)' }}
+        >
+          <StickyNote size={28} className="mx-auto mb-2 opacity-50" />
+          <p className="text-sm text-muted-foreground">
+            {entries.length === 0
+              ? 'No notes yet. Click "Add note" to capture a meeting, question, decision, or follow-up.'
+              : `No ${NOTE_CATEGORY_META[filter as NoteCategory].label.toLowerCase()} notes yet.`}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {visible.map((entry) => {
+            const meta = NOTE_CATEGORY_META[entry.category]
+            return (
+              <div
+                key={entry.id}
+                className="rounded-xl"
+                style={{
+                  background: 'var(--app-bg)',
+                  border: '1px solid var(--app-glass-border)',
+                  borderLeft: `3px solid ${meta.color}`,
+                }}
+              >
+                <div className="flex items-start gap-2 px-3 pt-3">
+                  <select
+                    value={entry.category}
+                    onChange={(e) => updateEntry(entry.id, { category: e.target.value as NoteCategory })}
+                    className="text-xs font-semibold px-2 py-1 rounded-md border-0 focus:outline-none cursor-pointer flex-shrink-0"
+                    style={{ background: meta.bg, color: meta.color }}
+                    title="Change category"
+                  >
+                    {NOTE_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{NOTE_CATEGORY_META[c].label}</option>
+                    ))}
+                  </select>
+
+                  <input
+                    className="flex-1 bg-transparent text-sm font-semibold border-0 focus:outline-none placeholder:text-muted-foreground px-1 py-1 min-w-0"
+                    placeholder="Title…"
+                    value={entry.title}
+                    onChange={(e) => updateEntry(entry.id, { title: e.target.value })}
+                    style={{ color: 'var(--app-text)' }}
+                  />
+
+                  <span className="text-[11px] text-muted-foreground flex-shrink-0 mt-1.5 whitespace-nowrap">
+                    {noteRelTime(entry.createdAt)}
+                  </span>
+
+                  <button
+                    onClick={() => removeEntry(entry.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-1.5"
+                    aria-label="Delete note"
+                    title="Delete note"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                <div className="px-3 pb-3 pt-2">
+                  {editingId === entry.id ? (
+                    <AutoGrowTextarea
+                      className={textareaClass}
+                      minHeight={90}
+                      focusMinHeight={180}
+                      placeholder="Write the details… Start lines with 1., 2.… to format as a numbered list."
+                      value={entry.content}
+                      autoFocus
+                      onFocus={(e) => {
+                        const el = e.currentTarget
+                        const len = el.value.length
+                        el.setSelectionRange(len, len)
+                      }}
+                      onChange={(e) => updateEntry(entry.id, { content: e.target.value })}
+                      onBlur={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(entry.id)}
+                      className="w-full text-left rounded-md px-3 py-2.5 transition-colors cursor-text"
+                      style={{
+                        background: 'var(--app-glass)',
+                        border: '1px solid var(--app-glass-border)',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-overlay)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--app-glass)' }}
+                      title="Click to edit"
+                    >
+                      {entry.content.trim() ? (
+                        <NoteBodyDisplay text={entry.content} />
+                      ) : (
+                        <span className="text-sm italic" style={{ color: 'var(--app-text-secondary)' }}>
+                          Click to add details…
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </SectionCard>
   )
 }
@@ -951,18 +1477,27 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
 function StoryDetail() {
   const { id } = Route.useParams()
   const { story, ready } = useStory(id)
+  const { projects } = useProjects()
   const [draft, setDraft] = useState<Story | null>(null)
   const [tab, setTab] = useState<TabKey>('overview')
   const [saved, setSaved] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [showErrors, setShowErrors] = useState(false)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const titleError   = !!draft && !draft.title.trim()
+  const summaryError = !!draft && !draft.summary.trim()
 
   useEffect(() => {
     if (story && !draft) setDraft(story)
   }, [story, draft])
 
-  const dirty = !!draft && !!story && JSON.stringify(draft) !== JSON.stringify(story)
+  const stripVolatile = (s: Story) => {
+    const { updatedAt: _u, ...rest } = s
+    return rest
+  }
+  const dirty = !!draft && !!story && JSON.stringify(stripVolatile(draft)) !== JSON.stringify(stripVolatile(story))
 
   const set = useCallback((patch: Partial<Story>) => {
     setDraft((d) => d ? { ...d, ...patch } : d)
@@ -970,6 +1505,11 @@ function StoryDetail() {
 
   const save = useCallback(() => {
     if (!draft) return
+    if (!draft.title.trim() || !draft.summary.trim()) {
+      setShowErrors(true)
+      return
+    }
+    setShowErrors(false)
     updateStory(draft)
     setSaved(true)
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -1122,21 +1662,42 @@ function StoryDetail() {
 
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center gap-2 mb-2 text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}>
-              <Sparkles size={11} /> BA Story
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}>
+                <Sparkles size={11} /> BA Story
+              </div>
+              <StoryProjectPicker
+                projects={projects}
+                projectId={draft.projectId ?? null}
+                onSelect={(id) => set({ projectId: id })}
+              />
             </div>
             <input
-              className="w-full text-3xl font-bold bg-transparent outline-none border-0 focus:ring-0 mb-2"
+              className="w-full text-4xl font-bold bg-transparent outline-none focus:ring-0 py-2 rounded-md transition-colors"
+              style={{
+                border: showErrors && titleError ? '1px solid var(--app-error, #ef4444)' : '1px solid transparent',
+                paddingLeft: showErrors && titleError ? '12px' : '0',
+              }}
               placeholder="Story title"
               value={draft.title}
               onChange={(e) => set({ title: e.target.value })}
             />
+            {showErrors && titleError && (
+              <p className="text-xs mb-2" style={{ color: 'var(--app-error, #ef4444)' }}>Title is required.</p>
+            )}
             <input
-              className="w-full text-base bg-transparent outline-none border-0 focus:ring-0 text-muted-foreground"
+              className="w-full text-lg bg-transparent outline-none focus:ring-0 text-muted-foreground py-2 rounded-md transition-colors"
+              style={{
+                border: showErrors && summaryError ? '1px solid var(--app-error, #ef4444)' : '1px solid transparent',
+                paddingLeft: showErrors && summaryError ? '12px' : '0',
+              }}
               placeholder="Short summary — one sentence about what this story delivers"
               value={draft.summary}
               onChange={(e) => set({ summary: e.target.value })}
             />
+            {showErrors && summaryError && (
+              <p className="text-xs mt-1" style={{ color: 'var(--app-error, #ef4444)' }}>Summary is required.</p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button

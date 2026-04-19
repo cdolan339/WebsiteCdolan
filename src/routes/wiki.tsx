@@ -24,14 +24,17 @@ const SECTIONS: Section[] = [
     id: 'pages',
     label: 'Pages',
     subsections: [
-      { id: 'page-login',          label: 'Login' },
-      { id: 'page-homepage',       label: 'Homepage (Test Cases)' },
-      { id: 'page-projects-list',  label: 'Projects List' },
-      { id: 'page-project-detail', label: 'Project Detail' },
-      { id: 'page-new-test-case',  label: 'New Test Case' },
-      { id: 'page-test-case-detail', label: 'Test Case Detail' },
-      { id: 'page-settings',       label: 'Settings' },
-      { id: 'page-wiki',           label: 'Wiki (this page)' },
+      { id: 'page-login',             label: 'Login' },
+      { id: 'page-homepage',          label: 'Dashboard (Homepage)' },
+      { id: 'page-test-suites',       label: 'Test Suites' },
+      { id: 'page-projects-list',     label: 'Projects List' },
+      { id: 'page-project-detail',    label: 'Project Detail' },
+      { id: 'page-stories-list',      label: 'Stories List' },
+      { id: 'page-story-detail',      label: 'Story Detail (BA)' },
+      { id: 'page-new-test-case',     label: 'New Test Case' },
+      { id: 'page-test-case-detail',  label: 'Test Case Detail' },
+      { id: 'page-settings',          label: 'Settings' },
+      { id: 'page-wiki',              label: 'Wiki (this page)' },
     ],
   },
   {
@@ -43,6 +46,7 @@ const SECTIONS: Section[] = [
       { id: 'lib-permissions',   label: 'permissions.ts' },
       { id: 'lib-custom-tc',     label: 'customTestCases.ts' },
       { id: 'lib-projects',      label: 'projects.ts' },
+      { id: 'lib-stories',       label: 'stories.ts' },
       { id: 'lib-test-status',   label: 'useTestStatus.ts' },
       { id: 'lib-test-order',    label: 'useTestOrder.ts' },
       { id: 'lib-websocket',     label: 'useWebSocket.ts' },
@@ -52,9 +56,10 @@ const SECTIONS: Section[] = [
     id: 'components',
     label: 'Components',
     subsections: [
-      { id: 'comp-websocket-sync',  label: 'WebSocketSync' },
-      { id: 'comp-loading-curtain', label: 'LoadingCurtain' },
-      { id: 'comp-ai-fill-panel',   label: 'AIFillPanel' },
+      { id: 'comp-websocket-sync',   label: 'WebSocketSync' },
+      { id: 'comp-loading-curtain',  label: 'LoadingCurtain' },
+      { id: 'comp-ai-fill-panel',    label: 'AIFillPanel' },
+      { id: 'comp-ai-fill-story',    label: 'AIFillStoryPanel' },
       { id: 'comp-precond-attach',   label: 'PreconditionAttachments' },
     ],
   },
@@ -65,10 +70,12 @@ const SECTIONS: Section[] = [
       { id: 'api-auth',       label: 'Auth' },
       { id: 'api-tc',         label: 'Custom Test Cases' },
       { id: 'api-projects',   label: 'Projects' },
+      { id: 'api-stories',    label: 'Stories (BA)' },
       { id: 'api-data',       label: 'Data (Statuses / Priorities / Order)' },
       { id: 'api-perms',      label: 'Permissions' },
       { id: 'api-websocket',  label: 'WebSocket' },
       { id: 'api-ai',         label: 'AI (Test Case Generator)' },
+      { id: 'api-ai-story',   label: 'AI (BA Story Generator)' },
       { id: 'api-attach',     label: 'Attachments' },
     ],
   },
@@ -235,9 +242,12 @@ function WikiContent({ active }: { active: string }) {
         {[
           { route: '/', desc: 'Redirect — sends authenticated users to /homepage, others to /login' },
           { route: '/login', desc: 'Public auth page' },
-          { route: '/homepage', desc: 'Main dashboard — lists all active/completed test cases with drag-and-drop ordering' },
+          { route: '/homepage', desc: 'Dashboard — overview of Projects, BA Stories, and Test Suites with clickable stat cards' },
           { route: '/projects', desc: 'Grid of all QA projects' },
           { route: '/projects/$id', desc: 'Individual project detail — shows all test cases in that project' },
+          { route: '/stories', desc: 'List of all BA Stories (business analyst story/requirement documents)' },
+          { route: '/stories/$id', desc: 'BA Story detail — tabbed editor (overview, stakeholders, user stories, requirements, flows, wireframes, RTM, RAID)' },
+          { route: '/test-suites', desc: 'Active/completed test cases list with drag-and-drop ordering (was /homepage prior to dashboard rework)' },
           { route: '/test-cases/custom/new', desc: 'Create a new custom test case' },
           { route: '/test-cases/custom/$id', desc: 'View/edit a specific test case (steps, status, expected results)' },
           { route: '/settings', desc: 'User settings (general & account tabs)' },
@@ -280,8 +290,35 @@ transitioning: boolean   // triggers the LoadingCurtain overlay`} />
 
   if (active === 'page-homepage') return (
     <div style={card}>
-      {sectionHeader('Homepage — /homepage')}
-      {prose('The main dashboard. Displays all custom test cases for the authenticated user, split into Active and Completed tabs. Each row is drag-and-droppable via @dnd-kit/sortable to set a custom order that is persisted to the database.')}
+      {sectionHeader('Dashboard — /homepage')}
+      {prose('The main dashboard landing page. Aggregates the three primary workspaces (Projects, BA Stories, Test Suites) into a single at-a-glance view. Users are redirected here from /login, / (root), and the 404 page.')}
+      <Divider />
+      {subHeader('Layout')}
+      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+        <li><b>Hero</b> — greeting with the active project name (or "All Projects" when the filter is cleared).</li>
+        <li><b>Stats strip</b> — three clickable <code>StatCard</code>s with gradient icon discs and hover lift: Projects → <code>/projects</code>, Stories → <code>/stories</code>, Test Suites → <code>/test-suites</code>. Each card links to the full list for that domain.</li>
+        <li><b>Projects section</b> — grid of up to <code>MAX_PROJECTS</code> (8) <code>ProjectCard</code>s, each linking to <code>/projects/$id</code>.</li>
+        <li><b>Stories section</b> — list of up to <code>MAX_STORIES</code> (6) <code>StoryRow</code>s, each linking to <code>/stories/$id</code>, with status color chips.</li>
+        <li><b>Test Suites section</b> — list of up to <code>MAX_SUITES</code> (6) <code>SuiteRow</code>s, each linking to <code>/test-cases/custom/$id</code>, with status icon from <code>useAllTestStatuses()</code>.</li>
+      </ul>
+      <Divider />
+      {subHeader('Project-Scoped Data')}
+      {prose('All three feeds (useProjects, useStories, useCustomTestCases) respect the active project chip in the navbar. Switching project triggers reloadForProject() on each lib and the dashboard updates live. When no project is active, the hooks return everything accessible to the user.')}
+      <Divider />
+      {subHeader('Sub-components')}
+      <CodeBlock code={`StatCard      // Link-wrapped stat tile with gradient disc, value, arrow
+ProjectCard   // Link to /projects/$id — name + description
+StoryRow      // Link to /stories/$id — title + status chip
+SuiteRow      // Link to /test-cases/custom/$id — title + status icon
+Section       // wrapper with header + "View all" link
+EmptyState    // shown when a feed has no items yet`} />
+    </div>
+  )
+
+  if (active === 'page-test-suites') return (
+    <div style={card}>
+      {sectionHeader('Test Suites — /test-suites')}
+      {prose('The legacy homepage, moved to /test-suites when the dashboard was introduced. Displays all custom test cases for the authenticated user, split into Active and Completed tabs. Each row is drag-and-droppable via @dnd-kit/sortable to set a custom order that is persisted to the database.')}
       <Divider />
       {subHeader('Key Features')}
       <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
@@ -302,6 +339,49 @@ StatusSummary       // 4-stat grid (pass/fail/pending/blocked)
 CompleteButton      // confirm popover — marks TC as completed
 ReactivateButton    // confirm popover — moves TC back to active
 SortableTestCaseRow // individual draggable row with dnd-kit useSortable`} />
+    </div>
+  )
+
+  if (active === 'page-stories-list') return (
+    <div style={card}>
+      {sectionHeader('Stories List — /stories')}
+      {prose('Lists all BA Stories (business analyst requirement/story documents) visible to the authenticated user, filtered by active project. Each row shows title, status, summary, and timestamps. Clicking a row navigates to the story detail editor.')}
+      <Divider />
+      {subHeader('Key Features')}
+      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+        <li><b>New Story</b> button — calls <code>addStory(createStory())</code> which optimistically inserts an empty story and navigates to <code>/stories/$id</code>.</li>
+        <li><b>Status chip</b> — one of <code>discovery / analysis / development / uat / done</code> with distinct colors.</li>
+        <li><b>Project scoping</b> — respects the active project chip; stories carry a nullable <code>projectId</code>.</li>
+      </ul>
+      <Divider />
+      {subHeader('Data Flow')}
+      {prose('Uses useStories() from lib/stories.ts. On mount, ensureLoaded() fetches /stories?projectId=... and caches the result. WS story:* events invalidate the cache and re-fetch.')}
+    </div>
+  )
+
+  if (active === 'page-story-detail') return (
+    <div style={card}>
+      {sectionHeader('Story Detail — /stories/$id')}
+      {prose('Full tabbed editor for a single BA Story. All edits are held in a local draft state and saved via the Save button. The draft is compared to the saved story to gate the Save button.')}
+      <Divider />
+      {subHeader('Tabs')}
+      <CodeBlock code={`Overview       // title, summary, businessCase, objectives, scopeIn/scopeOut, notes
+Stakeholders   // name + role + RACI (R/A/C/I) table
+User Stories   // As-a / I-want / So-that + acceptance criteria (Given/When/Then)
+Requirements   // functional/non-functional with MoSCoW priority (must/should/could/wont)
+Process Flows  // named flow with ordered actor/action steps
+Wireframes     // name + imageUrl + notes
+RTM            // Requirement Traceability Matrix — requirementCode × userStoryId × testCaseRef × status
+RAID           // Risks / Assumptions / Issues / Dependencies register`} />
+      <Divider />
+      {subHeader('Project Selector Chip')}
+      {prose('Next to the "BA Story" badge, an inline pill shows the assigned project (or "No project"). A transparent native <select> is layered over the pill — changing it updates draft.projectId, which is persisted on Save via PUT /api/stories/:id. This works for both newly-created and existing stories.')}
+      <Divider />
+      {subHeader('AI Generate')}
+      {prose('An "AI Generate" button opens the AIFillStoryPanel drawer. The user pastes requirements/context and Claude generates stakeholders, user stories, requirements, flows, RTM, and RAID entries. Merged into the existing draft rather than replacing it.')}
+      <Divider />
+      {subHeader('Delete / Status')}
+      {prose('Status dropdown in the header updates draft.status immediately. Delete button sits in the header with a confirm popover; calls deleteStory(id) then navigates back to /stories.')}
     </div>
   )
 
@@ -568,6 +648,63 @@ invalidateProjectCache(): void   // used by WebSocketSync`} />
     </div>
   )
 
+  if (active === 'lib-stories') return (
+    <div style={card}>
+      {sectionHeader('src/lib/stories.ts')}
+      {prose('API-backed BA Story persistence. Mirrors the customTestCases.ts pattern exactly: in-memory cache, optimistic writes, listener-based reactivity, project scoping via getActiveProjectId(), WebSocket invalidation.')}
+      <Divider />
+      {subHeader('Story shape')}
+      <CodeBlock code={`{
+  id:            string              // "story-<timestamp>"
+  userId?:       number
+  projectId?:    number | null       // null = unassigned; undefined = "fall back to active project"
+  title:         string
+  summary:       string
+  status:        "discovery" | "analysis" | "development" | "uat" | "done"
+  createdAt:     string              // ISO 8601
+  updatedAt:     string
+  businessCase:  string
+  objectives:    string[]
+  scopeIn:       string[]
+  scopeOut:      string[]
+  stakeholders:  Stakeholder[]       // {id, name, role, raci: R/A/C/I}
+  userStories:   UserStory[]         // as-a/i-want/so-that + criteria[] + priority + status
+  requirements:  Requirement[]       // code, type (functional/non-functional), MoSCoW priority
+  processFlows:  ProcessFlow[]       // name, description, steps[]
+  wireframes:    Wireframe[]         // name, imageUrl, notes
+  rtm:           RtmEntry[]          // requirementCode × userStoryId × testCaseRef × status
+  raid:          RaidEntry[]         // type/description/impact/owner/status
+  notes:         string
+}`} />
+      <Divider />
+      {subHeader('Key Exports')}
+      <CodeBlock code={`useStories(): { stories, loading }
+useStory(id): { story, ready }
+getStory(id): Promise<Story | undefined>
+addStory(story): Promise<void>
+updateStory(story): Promise<void>   // bumps updatedAt before PUT
+deleteStory(id): Promise<void>
+reloadStoriesForProject(projectId): void
+clearStoryCache(): void
+invalidateStoryCache(): void        // used by WebSocketSync
+
+// Factory helpers
+createStory()
+createStakeholder()
+createAcceptanceCriterion()
+createUserStory()
+createRequirement(type?)
+createProcessFlow()
+createProcessStep()
+createWireframe()
+createRtmEntry()
+createRaidEntry(type?)`} />
+      <Divider />
+      {subHeader('addStory — projectId resolution')}
+      {prose('addStory() respects a caller-provided story.projectId (including explicit null meaning "unassigned") and only falls back to getActiveProjectId() when the field is undefined. This lets the /stories/$id project chip assign null deliberately without being overridden by the active project filter.')}
+    </div>
+  )
+
   if (active === 'lib-test-status') return (
     <div style={card}>
       {sectionHeader('src/lib/useTestStatus.ts')}
@@ -646,6 +783,9 @@ expected key format: "<slug>__expected__<index>"`} />
 { type: "project:created",     id: number      }
 { type: "project:updated",     id: number      }
 { type: "project:deleted",     id: number      }
+{ type: "story:created",       id: string      }
+{ type: "story:updated",       id: string      }
+{ type: "story:deleted",       id: string      }
 { type: "order:updated"                        }
 { type: "status:updated";   slug: string; status: string   }
 { type: "priority:updated"; slug: string; priority: string }
@@ -667,6 +807,7 @@ PROD: wss://qa-assistant-api.onrender.com/ws?token=<jwt>`} />
       <CodeBlock code={`// Event routing:
 "test-case:*"     →  invalidateCustomCache()         →  re-fetch test cases
 "project:*"       →  invalidateProjectCache()         →  re-fetch projects
+"story:*"         →  invalidateStoryCache()           →  re-fetch stories
 "order:updated"   →  invalidateOrderCache()           →  re-fetch sort order
 
 // Direct cache patch — no re-fetch, instant local update:
@@ -773,6 +914,58 @@ Max files:     5 per generation`} />
       <Divider />
       {subHeader('What the AI fills')}
       {prose('Title, summary, objective, preconditions, tags, priority (per sub-case), and all test case sub-items (name, steps, expected result). Project selection is left for the user to set manually.')}
+    </div>
+  )
+
+  if (active === 'comp-ai-fill-story') return (
+    <div style={card}>
+      {sectionHeader('AIFillStoryPanel')}
+      {prose('The BA Story counterpart to AIFillPanel. A slide-in drawer opened from the /stories/$id editor that lets the user paste a product brief, meeting notes, or requirements doc and have Claude fill out the full BA Story structure in one shot.')}
+      <Divider />
+      {subHeader('Props')}
+      <CodeBlock code={`type Props = {
+  onFill: (result: AIStoryFillResult) => void   // merges result into story draft
+  onClose: () => void
+  onLoading?: (loading: boolean) => void        // drives LoadingCurtain
+}`} />
+      <Divider />
+      {subHeader('AIStoryFillResult shape')}
+      <CodeBlock code={`{
+  title, summary, businessCase:  string
+  objectives, scopeIn, scopeOut: string[]
+  stakeholders:  { name, role, raci }[]
+  userStories:   { asA, iWant, soThat, priority, status, criteria: [{given,when,then}] }[]
+  requirements:  { code, type, description, priority }[]
+  processFlows:  { name, description, steps: [{actor, action}] }[]
+  wireframes:    { name, notes }[]
+  rtm:           { requirementCode, userStoryIndex, testCaseRef, status }[]
+  raid:          { type, description, impact, owner, status }[]
+  notes:         string
+}`} />
+      <Divider />
+      {subHeader('Example prompts')}
+      {prose('The panel ships with three curated example prompts (self-service password reset, multi-tenant billing export, mobile onboarding redesign) that the user can drop in with one click. These are stored in the EXAMPLES array inside the component and chosen to showcase different stakeholder/scope shapes.')}
+      <Divider />
+      {subHeader('Input methods')}
+      <CodeBlock code={`Text area:       up to 20,000 characters (MAX_CHARS)
+Attachments:     .pdf, .docx, .txt, .md, .csv, .jpg, .jpeg, .png, .webp
+Max files:       5 per generation`} />
+      <Divider />
+      {subHeader('Merge behavior')}
+      {prose('The onFill callback in /stories/$id does a non-destructive merge — it appends to arrays (stakeholders, userStories, etc.) rather than replacing, and overwrites scalar fields (title, summary, businessCase, notes) when the AI returns non-empty values. rtm.userStoryIndex is converted to a userStoryId by looking up the corresponding newly-appended user story.')}
+      <Divider />
+      {subHeader('Flow')}
+      <CodeBlock code={`1. User clicks "AI Generate" on /stories/$id
+2. AIFillStoryPanel slides in from the right
+3. User pastes text and/or uploads files (or picks an example)
+4. Clicks "Generate Story" → onLoading(true) → LoadingCurtain
+5. POST /api/ai/fill-story via apiUpload (multipart)
+6. Claude returns AIStoryFillResult as JSON
+7. onFill merges into draft; panel closes
+8. User reviews each tab, then clicks Save to persist`} />
+      <Divider />
+      {subHeader('Error handling')}
+      {prose('Same pattern as AIFillPanel — on 422 with aiMessage, shows a curated "More Detail Needed" card instead of the raw response.')}
     </div>
   )
 
@@ -950,6 +1143,9 @@ wss://qa-assistant-api.onrender.com/ws?token=<jwt>  // prod`} />
 { type: "project:created",     id: number }        // after POST /projects
 { type: "project:updated",     id: number }        // after PUT /projects/:id
 { type: "project:deleted",     id: number }        // after DELETE /projects/:id
+{ type: "story:created",       id: string }        // after POST /stories
+{ type: "story:updated",       id: string }        // after PUT /stories/:id
+{ type: "story:deleted",       id: string }        // after DELETE /stories/:id
 { type: "order:updated"        }                   // after PUT /data/order
 { type: "status:updated",   slug, status   }       // after PUT /data/statuses
 { type: "priority:updated", slug, priority }       // after PUT /data/priorities
@@ -1034,6 +1230,81 @@ Priority:   Assigned per sub case (critical/high/medium/low)`} />
 500  { error: "AI service not configured — ANTHROPIC_API_KEY missing" }
 500  { error: "The AI response was too long and got cut off..." }
 502  { error: "AI response was incomplete. Please try again." }`} />
+    </div>
+  )
+
+  if (active === 'api-stories') return (
+    <div style={card}>
+      {sectionHeader('API — Stories')}
+      {prose('CRUD endpoints for BA Stories. Mirrors the /api/custom-test-cases surface: JSONB columns for nested arrays (stakeholders, userStories, requirements, processFlows, wireframes, rtm, raid), shared-project access via the ACCESSIBLE_PROJECTS subquery, and WebSocket broadcasts on every mutation.')}
+      <Divider />
+      <RouteRow method="GET"    path="/api/stories"             desc="List stories — own + any in projects the user is a member of. Optional ?projectId=<id>." />
+      <RouteRow method="GET"    path="/api/stories/:id"         desc="Fetch one story — own or accessible via shared project." />
+      <RouteRow method="POST"   path="/api/stories"             desc="Create story. Body is the full Story (with id generated client-side)." />
+      <RouteRow method="PUT"    path="/api/stories/:id"         desc="Replace/update story. Accepts any subset of fields including projectId." />
+      <RouteRow method="DELETE" path="/api/stories/:id"         desc="Delete by id. Composite PK (id, user_id) so you can only delete your own rows." />
+      <Divider />
+      {subHeader('Accessible-projects pattern')}
+      <CodeBlock code={`// Stories the user can see = own rows OR rows in a project they own/join:
+SELECT ... FROM stories
+WHERE user_id = $1
+   OR (project_id IS NOT NULL AND project_id IN (
+         SELECT project_id FROM project_members WHERE user_id = $1
+         UNION
+         SELECT id         FROM projects         WHERE user_id = $1
+   ))
+ORDER BY created_at DESC`} />
+      <Divider />
+      {subHeader('WebSocket broadcasts')}
+      <CodeBlock code={`POST   /api/stories     → broadcast({ type: "story:created", id })
+PUT    /api/stories/:id → broadcast({ type: "story:updated", id })
+DELETE /api/stories/:id → broadcast({ type: "story:deleted", id })`} />
+      <Divider />
+      {subHeader('Row → JSON mapper')}
+      {prose('Column names use snake_case (business_case, scope_in, user_stories, process_flows, created_at) and are re-keyed to camelCase (businessCase, scopeIn, userStories, processFlows, createdAt) before the response is returned.')}
+    </div>
+  )
+
+  if (active === 'api-ai-story') return (
+    <div style={card}>
+      {sectionHeader('API — AI (BA Story Generator)')}
+      {prose('The story counterpart to /api/ai/fill-test-case. Accepts a text prompt and/or uploaded documents and returns a structured AIStoryFillResult JSON generated by Claude. Same file-processing pipeline as fill-test-case (PDF natively, .docx via mammoth, text/markdown/csv inline, images as image blocks).')}
+      <Divider />
+      <RouteRow method="POST" path="/api/ai/fill-story" desc="Generate a full BA Story structure. Multipart FormData." />
+      <Divider />
+      {subHeader('Request')}
+      <CodeBlock code={`POST /api/ai/fill-story
+Authorization: Bearer <jwt>
+Content-Type: multipart/form-data
+
+Fields:
+  prompt  (text, optional)   — business brief / meeting notes / requirements
+  files   (file[], optional) — up to 5 files, same accepted types as fill-test-case
+
+At least one of prompt or files must be provided.`} />
+      <Divider />
+      {subHeader('Response')}
+      <CodeBlock code={`{
+  "title": string,
+  "summary": string,
+  "businessCase": string,
+  "objectives":  string[],
+  "scopeIn":     string[],
+  "scopeOut":    string[],
+  "stakeholders": [{ "name", "role", "raci": "R|A|C|I" }],
+  "userStories":  [{ "asA", "iWant", "soThat", "priority", "status",
+                     "criteria": [{ "given", "when", "then" }] }],
+  "requirements": [{ "code", "type", "description", "priority" }],
+  "processFlows": [{ "name", "description",
+                     "steps": [{ "actor", "action" }] }],
+  "wireframes":   [{ "name", "notes" }],
+  "rtm":          [{ "requirementCode", "userStoryIndex", "testCaseRef", "status" }],
+  "raid":         [{ "type", "description", "impact", "owner", "status" }],
+  "notes": string
+}`} />
+      <Divider />
+      {subHeader('Notes')}
+      {prose('userStoryIndex in rtm entries is an integer index into the userStories array — the frontend resolves it to a concrete user story id after merging into the draft. Error responses follow the same 400/422/500/502 pattern as fill-test-case.')}
     </div>
   )
 
@@ -1125,6 +1396,30 @@ Response: 200
         { col: 'completed_at',  type: 'TIMESTAMPTZ', note: 'Nullable' },
         { col: 'created_at',    type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
         { col: 'updated_at',    type: 'TIMESTAMPTZ', note: 'Updated by PUT handler via updated_at = NOW()' },
+      ]} />
+      <DBTable name="stories" columns={[
+        { col: 'id',             type: 'VARCHAR(100)', note: 'Client-generated "story-<timestamp>" — part of PK' },
+        { col: 'user_id',        type: 'INTEGER FK',  note: 'References users(id) CASCADE — part of PK' },
+        { col: 'project_id',     type: 'INTEGER FK',  note: 'References projects(id) CASCADE. Nullable.' },
+        { col: 'title',          type: 'VARCHAR(500)', note: 'DEFAULT empty string' },
+        { col: 'summary',        type: 'TEXT',        note: 'DEFAULT empty string' },
+        { col: 'status',         type: 'VARCHAR(20)', note: '"discovery" (default) | "analysis" | "development" | "uat" | "done"' },
+        { col: 'business_case',  type: 'TEXT',        note: 'DEFAULT empty string' },
+        { col: 'objectives',     type: 'JSONB',       note: 'string[] DEFAULT []' },
+        { col: 'scope_in',       type: 'JSONB',       note: 'string[] DEFAULT []' },
+        { col: 'scope_out',      type: 'JSONB',       note: 'string[] DEFAULT []' },
+        { col: 'stakeholders',   type: 'JSONB',       note: 'Stakeholder[] (name, role, raci)' },
+        { col: 'user_stories',   type: 'JSONB',       note: 'UserStory[] (asA/iWant/soThat + criteria[] + priority/status)' },
+        { col: 'requirements',   type: 'JSONB',       note: 'Requirement[] (code, type, description, MoSCoW priority)' },
+        { col: 'process_flows',  type: 'JSONB',       note: 'ProcessFlow[] (name, description, steps[])' },
+        { col: 'wireframes',     type: 'JSONB',       note: 'Wireframe[] (name, imageUrl, notes)' },
+        { col: 'rtm',            type: 'JSONB',       note: 'RtmEntry[] — requirement × user story × test case matrix' },
+        { col: 'raid',           type: 'JSONB',       note: 'RaidEntry[] — Risks/Assumptions/Issues/Dependencies' },
+        { col: 'notes',          type: 'TEXT',        note: 'DEFAULT empty string' },
+        { col: 'created_at',     type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
+        { col: 'updated_at',     type: 'TIMESTAMPTZ', note: 'DEFAULT NOW(); bumped on every PUT' },
+        { col: '',               type: 'PRIMARY KEY', note: '(id, user_id) — composite; supports shared-project access' },
+        { col: '',               type: 'INDEX',       note: 'idx_stories_user(user_id), idx_stories_project(project_id)' },
       ]} />
       <DBTable name="test_statuses" columns={[
         { col: 'id',      type: 'SERIAL PK',   note: '' },

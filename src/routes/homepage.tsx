@@ -1,744 +1,617 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useTestOrder } from '@/lib/useTestOrder'
-import { Badge } from '@/components/ui/badge'
-import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2, Sparkles } from 'lucide-react'
-import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
-import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject } from '@/lib/customTestCases'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
+import { useStories, type Story } from '@/lib/stories'
+import { useCustomTestCases, type CustomTestCase } from '@/lib/customTestCases'
+import { useAllTestStatuses, type TestStatus } from '@/lib/useTestStatus'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
-import { useState, useCallback, useRef, useEffect } from 'react'
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { restrictToWindowEdges } from '@dnd-kit/modifiers'
+  FolderOpen, FileText, ClipboardList, Plus, ArrowRight, Calendar,
+  CheckCircle2, XCircle, Clock, Ban, Sparkles, Target,
+} from 'lucide-react'
 
 export const Route = createFileRoute('/homepage')({
-  component: TestCaseIndex,
+  component: Dashboard,
 })
 
-type StatusConfig = {
-  label: string
-  icon: React.ReactNode
-  rowClass: string
-  dotClass: string
+// ── Shared styles / constants ─────────────────────────────────────────────
+
+const STORY_STATUS_COLORS: Record<Story['status'], { bg: string; color: string; border: string; label: string }> = {
+  discovery:   { bg: 'rgba(59,130,246,0.15)',  color: '#3b82f6', border: 'rgba(59,130,246,0.3)',  label: 'Discovery' },
+  analysis:    { bg: 'rgba(168,85,247,0.15)',  color: '#a855f7', border: 'rgba(168,85,247,0.3)',  label: 'Analysis' },
+  development: { bg: 'rgba(234,179,8,0.15)',   color: '#eab308', border: 'rgba(234,179,8,0.3)',   label: 'Development' },
+  uat:         { bg: 'rgba(249,115,22,0.15)',  color: '#f97316', border: 'rgba(249,115,22,0.3)',  label: 'UAT' },
+  done:        { bg: 'rgba(22,163,74,0.15)',   color: '#16a34a', border: 'rgba(22,163,74,0.3)',   label: 'Done' },
 }
 
-const STATUS_CONFIG: { [K in TestStatus]: StatusConfig } = {
-  pass: {
-    label: 'Pass',
-    icon: <CheckCircle2 size={16} className="text-green-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-green-500',
-  },
-  fail: {
-    label: 'Fail',
-    icon: <XCircle size={16} className="text-red-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-red-500',
-  },
-  pending: {
-    label: 'Pending',
-    icon: <Clock size={16} className="text-yellow-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-yellow-500',
-  },
-  blocked: {
-    label: 'Blocked',
-    icon: <Ban size={16} className="text-orange-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-orange-500',
-  },
+const TEST_STATUS_ICON: Record<TestStatus, { icon: React.ReactNode; color: string }> = {
+  pass:    { icon: <CheckCircle2 size={13} />, color: '#16a34a' },
+  fail:    { icon: <XCircle size={13} />,      color: '#dc2626' },
+  pending: { icon: <Clock size={13} />,        color: '#ca8a04' },
+  blocked: { icon: <Ban size={13} />,          color: '#ea580c' },
 }
 
-const PRIORITY_BADGE: { [key: string]: React.CSSProperties } = {
-  low:      { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  },
-  medium:   { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  },
-  high:     { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  },
-  critical: { background: 'rgba(220,38,38,0.15)',  color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'  },
-}
+const MAX_STORIES = 6
+const MAX_SUITES = 6
+const MAX_PROJECTS = 8
 
-// ── Project selector dropdown (switch only — create/edit on /projects page) ──
+// ── Stat card ─────────────────────────────────────────────────────────────
 
-function ProjectSelector({
-  projects,
-  activeProjectId,
-  onSelect,
+function StatCard({
+  icon,
+  label,
+  value,
+  gradient,
+  to,
 }: {
-  projects: Project[]
-  activeProjectId: number | null
-  onSelect: (id: number | null) => void
+  icon: React.ReactNode
+  label: string
+  value: number | string
+  gradient: string
+  to: string
 }) {
-  const [open, setOpen] = useState(false)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  const activeProject = projects.find((p) => p.id === activeProjectId)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
   return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
-        style={{
-          background: activeProject
-            ? 'var(--app-btn-primary)'
-            : 'var(--app-btn-outline-bg)',
-          border: '1px solid var(--app-btn-outline-border)',
-          color: activeProject ? 'var(--app-btn-text)' : 'var(--app-text)',
-          boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-        }}
-      >
-        <FolderOpen size={15} />
-        <span className="truncate max-w-[200px]">{activeProject?.name ?? 'All Projects'}</span>
-        <ChevronDown size={14} className={`opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div
-          className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl overflow-hidden"
-          style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            background: 'var(--app-overlay)',
-            border: '1px solid var(--app-overlay-border)',
-            backdropFilter: 'blur(16px)',
-          }}
-        >
-          {/* All Projects option */}
-          <button
-            onMouseDown={() => { onSelect(null); setOpen(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
-            style={{
-              background: activeProjectId === null ? 'var(--app-accent-bg)' : 'transparent',
-              color: activeProjectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
-              borderBottom: '1px solid var(--app-glass-border)',
-              fontWeight: activeProjectId === null ? 600 : 400,
-            }}
-            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
-            onMouseLeave={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'transparent' }}
-          >
-            <FolderOpen size={15} style={{ opacity: 0.7 }} />
-            All Projects
-          </button>
-
-          {/* Project list */}
-          <div className="max-h-60 overflow-y-auto">
-            {projects.map((project) => (
-              <button
-                key={project.id}
-                onMouseDown={() => { onSelect(project.id); setOpen(false) }}
-                className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
-                style={{
-                  background: activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent',
-                  color: 'var(--app-accent-color)',
-                  borderBottom: '1px solid var(--app-glass-border)',
-                  fontWeight: activeProjectId === project.id ? 600 : 400,
-                }}
-                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent' }}
-              >
-                <span className="truncate">{project.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-type Tab = 'active' | 'completed'
-
-// Unified display type for both content-collection and custom test cases
-type DisplayTC = {
-  slug: string
-  title: string
-  summary: string
-  priority: string
-  tags: string[]
-  createdAt: string
-  updatedAt: string
-  isCustom: boolean
-  customId?: string
-  completed?: boolean
-  completedAt?: string | null
-  projectName?: string | null
-}
-
-type StatusSummaryProps = {
-  statuses: { [key: string]: TestStatus }
-  total: number
-  slugs: string[]
-}
-
-function StatusSummary({ statuses, total, slugs }: StatusSummaryProps) {
-  // Only count statuses for slugs in the current filtered view
-  const relevantStatuses = Object.entries(statuses).filter(([key]) => slugs.includes(key))
-  const counts = relevantStatuses.reduce(
-    (acc, [, status]) => { acc[status] = (acc[status] ?? 0) + 1; return acc },
-    {} as Partial<Record<TestStatus, number>>,
-  )
-  const display: Record<TestStatus, number> = {
-    pass:    counts['pass']    ?? 0,
-    fail:    counts['fail']    ?? 0,
-    blocked: counts['blocked'] ?? 0,
-    pending: (counts['pending'] ?? 0) + (total - relevantStatuses.length),
-  }
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-      {(['pass', 'fail', 'pending', 'blocked'] as const).map((status) => {
-        const cfg = STATUS_CONFIG[status]
-        return (
-          <div key={status} className="flex items-center gap-3 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
-            <span className={`w-3 h-3 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
-            <div>
-              <p className="text-2xl font-bold">{display[status] ?? 0}</p>
-              <p className="text-xs text-muted-foreground capitalize">{cfg.label}</p>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Complete button with popover confirm ──────────────────────────────────
-
-function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: string) => void }) {
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <div className="relative">
-      {!confirming ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
-          style={{
-            background: 'var(--app-success-light)',
-            color: 'var(--app-success)',
-            border: '1px solid var(--app-success-border)',
-          }}
-        >
-          <CheckCheck size={13} />
-          Complete?
-        </button>
-      ) : (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Complete?</span>
-          <button
-            onClick={() => { onComplete(tc.customId!); setConfirming(false) }}
-            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-          >
-            No
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Reactivate button for completed tab ───────────────────────────────────
-
-function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (id: string) => void }) {
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <div className="relative">
-      {!confirming ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
-          style={{
-            background: 'rgba(245,158,11,0.1)',
-            color: '#f59e0b',
-            border: '1px solid rgba(245,158,11,0.25)',
-          }}
-        >
-          <Clock size={13} />
-          Reactivate?
-        </button>
-      ) : (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Move to Active?</span>
-          <button
-            onClick={() => { onReactivate(tc.customId!); setConfirming(false) }}
-            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-          >
-            No
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Delete button with popover confirm ──────────────────────────────────
-
-function DeleteButton({ tc, onDelete }: { tc: DisplayTC; onDelete: (id: string) => void }) {
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <div className="relative">
-      {!confirming ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center p-1.5 rounded-md transition-all hover:scale-110"
-          style={{ color: '#dc2626', opacity: 0.6 }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent' }}
-          title="Delete test case"
-        >
-          <Trash2 size={14} />
-        </button>
-      ) : (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Delete permanently?</span>
-          <button
-            onClick={() => { onDelete(tc.customId!); setConfirming(false) }}
-            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: '#dc2626', color: '#fff' }}
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-          >
-            No
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Test case row ──────────────────────────────────────────────────────────
-
-type TestCaseRowProps = {
-  tc: DisplayTC
-  resolvedStatus: TestStatus
-  resolvedPriority: string
-  passedCount: number
-  tab: Tab
-  onComplete: (id: string) => void
-  onReactivate: (id: string) => void
-  onDelete: (id: string) => void
-}
-
-function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount, tab, onComplete, onReactivate, onDelete }: TestCaseRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: tc.slug,
-  })
-
-  const cfg = STATUS_CONFIG[resolvedStatus]
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition ? 'transform 200ms ease' : undefined,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative',
-    zIndex: isDragging ? 10 : undefined,
-    willChange: isDragging ? 'transform' : undefined,
-  }
-
-  return (
-    <li ref={setNodeRef} style={style}>
+    <Link
+      to={to}
+      className="group stat-card rounded-2xl p-6 relative overflow-hidden block transition-all duration-300 hover:-translate-y-1"
+      style={{
+        background: 'var(--app-glass)',
+        border: '1px solid var(--app-glass-border)',
+        backdropFilter: 'blur(14px)',
+      }}
+    >
+      {/* Ambient glow (intensifies on hover) */}
       <div
-        {...attributes}
-        {...listeners}
-        className="px-5 py-4 cursor-grab active:cursor-grabbing rounded-xl homepage-card"
-      >
-        {/* ── Meta strip (top) ── */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          {/* Status */}
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>
-            {cfg.icon}
-            {cfg.label}
-          </span>
+        className="absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-25 group-hover:opacity-60 transition-opacity duration-500"
+        style={{ background: gradient, filter: 'blur(36px)' }}
+      />
+      {/* Subtle inner ring on hover */}
+      <div
+        className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+        style={{
+          boxShadow: 'inset 0 0 0 1px var(--app-accent-color)',
+        }}
+      />
 
-          <span style={{ width: 1, height: 12, background: 'var(--app-glass-border)', display: 'inline-block', flexShrink: 0 }} />
-
-          {/* Priority */}
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
-            {resolvedPriority}
-          </span>
-
-          {/* Project */}
-          {tc.projectName && (
-            <span
-              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}
-            >
-              <FolderOpen size={10} />
-              {tc.projectName}
-            </span>
-          )}
-
-          {/* Passed count */}
-          {passedCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}>
-              ✓ {passedCount} passed
-            </span>
-          )}
-
-          {/* Spacer + dates + action pushed to right */}
-          <div className="hidden sm:flex items-center gap-3 ml-auto flex-shrink-0">
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Created">
-              <CalendarPlus size={11} />
-              {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Updated">
-              <CalendarClock size={11} />
-              {new Date(tc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-            {tab === 'active' && (
-              <CompleteButton tc={tc} onComplete={onComplete} />
-            )}
-            {tab === 'completed' && (
-              <ReactivateButton tc={tc} onReactivate={onReactivate} />
-            )}
-          </div>
+      <div className="relative z-10 flex items-center gap-4">
+        {/* Icon disc with gradient */}
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
+          style={{
+            background: gradient,
+            color: '#fff',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
+          }}
+        >
+          {icon}
         </div>
 
-        {/* ── Title ── */}
-        <Link
-          to="/test-cases/custom/$id"
-          params={{ id: tc.customId! }}
-          className="block text-base font-semibold text-foreground hover:underline mb-1 leading-snug"
-          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {tc.title || 'Untitled Test Case'}
-        </Link>
+        {/* Label + value */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+            <span className="text-xs uppercase tracking-wider font-semibold">{label}</span>
+          </div>
+          <p className="text-3xl font-bold leading-none">{value}</p>
+        </div>
 
-        {/* ── Summary ── */}
-        {tc.summary && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.summary}</p>
+        {/* Arrow indicator */}
+        <ArrowRight
+          size={18}
+          className="flex-shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
+        />
+      </div>
+    </Link>
+  )
+}
+
+// ── Project card ──────────────────────────────────────────────────────────
+
+function ProjectCard({ project }: { project: Project }) {
+  const deadline = project.deadline ? new Date(project.deadline) : null
+  const daysLeft = deadline
+    ? Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null
+
+  const urgency: 'past' | 'soon' | 'normal' | null =
+    daysLeft === null ? null : daysLeft < 0 ? 'past' : daysLeft <= 7 ? 'soon' : 'normal'
+
+  const urgencyStyle =
+    urgency === 'past'
+      ? { color: '#dc2626', bg: 'rgba(220,38,38,0.12)', border: 'rgba(220,38,38,0.3)' }
+      : urgency === 'soon'
+      ? { color: '#ea580c', bg: 'rgba(234,88,12,0.12)', border: 'rgba(234,88,12,0.3)' }
+      : { color: 'var(--app-text-secondary)', bg: 'var(--app-glass)', border: 'var(--app-glass-border)' }
+
+  return (
+    <Link
+      to="/projects/$id"
+      params={{ id: String(project.id) }}
+      className="group rounded-xl p-5 block transition-all hover:-translate-y-0.5"
+      style={{
+        background: 'var(--app-glass)',
+        border: '1px solid var(--app-glass-border)',
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className="p-2 rounded-lg flex-shrink-0"
+            style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }}
+          >
+            <FolderOpen size={16} />
+          </div>
+          <h3 className="font-semibold text-base truncate">{project.name}</h3>
+        </div>
+        <ArrowRight
+          size={16}
+          className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-2"
+        />
+      </div>
+
+      {project.description && (
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+          {project.description}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {deadline && (
+          <span
+            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{
+              background: urgencyStyle.bg,
+              color: urgencyStyle.color,
+              border: `1px solid ${urgencyStyle.border}`,
+            }}
+          >
+            <Calendar size={10} />
+            {urgency === 'past'
+              ? `${Math.abs(daysLeft!)}d overdue`
+              : urgency === 'soon'
+              ? `${daysLeft}d left`
+              : deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
         )}
+        {project.tags.slice(0, 2).map((tag) => (
+          <span
+            key={tag}
+            className="text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+    </Link>
+  )
+}
 
-        {/* ── Tags + Delete ── */}
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {tc.tags.slice(0, 4).map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-            ))}
-            {tc.tags.length > 4 && (
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-default">
-                    +{tc.tags.length - 4} more
-                  </span>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-auto p-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {tc.tags.slice(4).map((tag: string) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                    ))}
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-            )}
+// ── Story row ─────────────────────────────────────────────────────────────
+
+function StoryRow({ story, projectName }: { story: Story; projectName: string | null }) {
+  const statusCfg = STORY_STATUS_COLORS[story.status]
+
+  return (
+    <Link
+      to="/stories/$id"
+      params={{ id: story.id }}
+      className="group flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-white/5 dashboard-row"
+    >
+      <div
+        className="p-2 rounded-lg flex-shrink-0"
+        style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }}
+      >
+        <FileText size={14} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{story.title || 'Untitled Story'}</p>
+        {story.summary && (
+          <p className="text-xs text-muted-foreground truncate">{story.summary}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {projectName && (
+          <span
+            className="hidden md:inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}
+          >
+            <FolderOpen size={10} />
+            {projectName}
+          </span>
+        )}
+        <span
+          className="text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{ background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}
+        >
+          {statusCfg.label}
+        </span>
+        <ArrowRight
+          size={14}
+          className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"
+        />
+      </div>
+    </Link>
+  )
+}
+
+// ── Test suite row ────────────────────────────────────────────────────────
+
+function SuiteRow({
+  suite,
+  projectName,
+  statuses,
+}: {
+  suite: CustomTestCase
+  projectName: string | null
+  statuses: Record<string, TestStatus>
+}) {
+  const slug = `custom:${suite.id}`
+  const status: TestStatus = statuses[slug] ?? 'pending'
+  const statusCfg = TEST_STATUS_ICON[status]
+  const caseCount = suite.testCases?.length ?? 0
+
+  return (
+    <Link
+      to="/test-cases/custom/$id"
+      params={{ id: suite.id }}
+      className="group flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-white/5 dashboard-row"
+    >
+      <div
+        className="p-2 rounded-lg flex-shrink-0"
+        style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }}
+      >
+        <ClipboardList size={14} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{suite.title || 'Untitled Suite'}</p>
+        {suite.summary && (
+          <p className="text-xs text-muted-foreground truncate">{suite.summary}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {projectName && (
+          <span
+            className="hidden md:inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}
+          >
+            <FolderOpen size={10} />
+            {projectName}
+          </span>
+        )}
+        <span
+          className="hidden sm:inline text-xs text-muted-foreground"
+        >
+          {caseCount} {caseCount === 1 ? 'case' : 'cases'}
+        </span>
+        <span
+          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium capitalize"
+          style={{ color: statusCfg.color, background: `${statusCfg.color}15`, border: `1px solid ${statusCfg.color}40` }}
+        >
+          {statusCfg.icon}
+          {status}
+        </span>
+        <ArrowRight
+          size={14}
+          className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"
+        />
+      </div>
+    </Link>
+  )
+}
+
+// ── Section wrapper ───────────────────────────────────────────────────────
+
+function Section({
+  title,
+  icon,
+  iconGradient,
+  viewAllTo,
+  viewAllLabel,
+  createTo,
+  createLabel,
+  children,
+}: {
+  title: string
+  icon: React.ReactNode
+  iconGradient?: string
+  viewAllTo?: string
+  viewAllLabel?: string
+  createTo?: string
+  createLabel?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div
+            className="p-2 rounded-lg"
+            style={
+              iconGradient
+                ? { background: iconGradient, color: '#fff' }
+                : { background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }
+            }
+          >
+            {icon}
           </div>
-          <div className="flex-shrink-0">
-            <DeleteButton tc={tc} onDelete={onDelete} />
-          </div>
+          <h2 className="text-xl font-bold">{title}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {createTo && (
+            <Link
+              to={createTo}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
+              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+            >
+              <Plus size={13} />
+              {createLabel ?? 'New'}
+            </Link>
+          )}
+          {viewAllTo && (
+            <Link
+              to={viewAllTo}
+              className="inline-flex items-center gap-1 text-xs font-medium transition-colors"
+              style={{ color: 'var(--app-accent-color)' }}
+            >
+              {viewAllLabel ?? 'View all'}
+              <ArrowRight size={12} />
+            </Link>
+          )}
         </div>
       </div>
-    </li>
+      {children}
+    </section>
   )
 }
 
-function TestCaseIndex() {
-  const navigate = useNavigate()
-  const statuses = useAllTestStatuses()
-  const priorities = useAllTestPriorities()
-  const expectedCounts = useAllExpectedCounts()
-  const { cases: customCases, loading } = useCustomTestCases()
-  const { projects } = useProjects()
-  const [activeProjectId, setActiveProjectId] = useActiveProjectId()
-  const [tab, setTab] = useState<Tab>('active')
+// ── Empty state ───────────────────────────────────────────────────────────
 
-  const handleProjectSwitch = useCallback((id: number | null) => {
-    setActiveProjectId(id)
-    reloadForProject(id)
-  }, [setActiveProjectId])
-
-  // Split cases into active vs completed
-  const activeCases = customCases.filter((tc) => !tc.completed)
-  const completedCases = customCases.filter((tc) => tc.completed)
-  const visibleCases = tab === 'active' ? activeCases : completedCases
-
-  // Build the canonical default slug list from visible cases only
-  const getDefaultSlugs = useCallback(() => {
-    return visibleCases
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((tc) => `custom:${tc.id}`)
-  }, [visibleCases])
-
-  const { order, setOrder } = useTestOrder(getDefaultSlugs())
-
-  // Build a lookup map from visible cases
-  const projectLookup = new Map(projects.map((p) => [p.id, p.name]))
-  const tcMap = new Map<string, DisplayTC>(
-    visibleCases.map((tc): [string, DisplayTC] => [
-      `custom:${tc.id}`,
-      { slug: `custom:${tc.id}`, title: tc.title, summary: tc.summary, priority: tc.priority, tags: tc.tags, createdAt: tc.createdAt, updatedAt: tc.updatedAt, isCustom: true, customId: tc.id, completed: tc.completed, completedAt: tc.completedAt, projectName: tc.projectId ? projectLookup.get(tc.projectId) ?? null : null },
-    ])
+function EmptyState({
+  message,
+  cta,
+  ctaTo,
+}: {
+  message: string
+  cta?: string
+  ctaTo?: string
+}) {
+  return (
+    <div
+      className="rounded-xl px-6 py-10 text-center"
+      style={{
+        background: 'var(--app-glass)',
+        border: '1px dashed var(--app-glass-border)',
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      <p className="text-sm text-muted-foreground mb-3">{message}</p>
+      {cta && ctaTo && (
+        <Link
+          to={ctaTo}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+          style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+        >
+          <Plus size={14} />
+          {cta}
+        </Link>
+      )}
+    </div>
   )
+}
 
-  const sorted = order.map((s) => tcMap.get(s)).filter(Boolean) as DisplayTC[]
-  const visibleSlugs = sorted.map((tc) => tc.slug)
+// ── Dashboard ─────────────────────────────────────────────────────────────
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+function Dashboard() {
+  const { projects, loading: projectsLoading } = useProjects()
+  const { stories, loading: storiesLoading } = useStories()
+  const { cases: suites, loading: suitesLoading } = useCustomTestCases()
+  const [activeProjectId] = useActiveProjectId()
+  const statuses = useAllTestStatuses()
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = order.indexOf(active.id as string)
-    const newIndex = order.indexOf(over.id as string)
-    setOrder(arrayMove(order, oldIndex, newIndex))
-  }, [order, setOrder])
-
-  const handleCreate = () => {
-    navigate({ to: '/test-cases/custom/new' })
-  }
-
-  const handleComplete = useCallback((id: string) => {
-    completeTestCase(id, true)
-  }, [])
-
-  const handleReactivate = useCallback((id: string) => {
-    completeTestCase(id, false)
-  }, [])
-
-  const handleDelete = useCallback((id: string) => {
-    deleteCustomTestCase(id)
-  }, [])
+  const loading = projectsLoading || storiesLoading || suitesLoading
 
   if (loading) {
-    return <LoadingCurtain visible={true} message="Loading Test Cases" />
+    return <LoadingCurtain visible={true} message="Loading Dashboard" />
   }
 
+  // Project name lookup for badges
+  const projectNameById = new Map<number, string>(projects.map((p) => [p.id, p.name]))
+
+  const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
+
+  // Recent items (cache is already project-scoped by hooks)
+  const recentStories = [...stories]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, MAX_STORIES)
+
+  const recentSuites = [...suites]
+    .filter((s) => !s.completed)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, MAX_SUITES)
+
+  const topProjects = [...projects]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, MAX_PROJECTS)
+
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div
+      className="min-h-screen text-foreground overflow-hidden relative"
+      style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}
+    >
       <style>{`
-        @keyframes movehp {
+        @keyframes movedash {
           from { transform: translate(-10%, -10%); }
           to   { transform: translate(20%, 20%); }
         }
-        .blob-hp {
+        .blob-dash {
           position: absolute;
           border-radius: 50%;
           background: var(--app-accent-gradient);
           filter: blur(80px);
           opacity: 0.18;
-          animation: movehp 20s infinite alternate;
+          animation: movedash 20s infinite alternate;
           pointer-events: none;
         }
-        .dark .homepage-card {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
+        .dark .dashboard-row {
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.06);
         }
-        :root:not(.dark) .homepage-card {
-          background: rgba(0,0,0,0.02);
-          border: 1px solid rgba(0,0,0,0.1);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        :root:not(.dark) .dashboard-row {
+          background: rgba(0,0,0,0.015);
+          border: 1px solid rgba(0,0,0,0.08);
         }
       `}</style>
-      <div className="blob-hp" style={{ width: 400, height: 400, top: -100, left: -100 }} />
-      <div className="blob-hp" style={{ width: 300, height: 300, bottom: -50, right: -50, animationDelay: '-5s' }} />
-      <div className="max-w-4xl mx-auto px-4 py-12 relative z-10">
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">QA & BA Assistant Tool</h1>
-            <p className="text-muted-foreground text-lg">
-              Track, manage, write, and review your test cases in one place.
-            </p>
+      <div className="blob-dash" style={{ width: 400, height: 400, top: -100, left: -100 }} />
+      <div className="blob-dash" style={{ width: 300, height: 300, bottom: -50, right: -50, animationDelay: '-5s' }} />
+
+      <div className="max-w-6xl mx-auto px-4 py-12 relative z-10">
+        {/* ── Hero ─────────────────────────────────────────── */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground text-sm">
+            <Sparkles size={14} />
+            <span>Dashboard</span>
           </div>
-          <div className="flex flex-col gap-2 flex-shrink-0 mt-1">
-            <button
-              onClick={handleCreate}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-            >
-              <Plus size={16} />
-              New Test Case
-            </button>
-            <Link
-              to="/stories"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
+          <h1 className="text-4xl font-bold mb-2">
+            {activeProject ? activeProject.name : 'All Projects'}
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            {activeProject
+              ? activeProject.description || 'Your project at a glance.'
+              : 'An overview of your projects, stories, and test suites.'}
+          </p>
+        </div>
+
+        {/* ── Stats strip ──────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          <StatCard
+            icon={<FolderOpen size={20} />}
+            label="Projects"
+            value={projects.length}
+            gradient="linear-gradient(135deg, #3b82f6, #8b5cf6)"
+            to="/projects"
+          />
+          <StatCard
+            icon={<FileText size={20} />}
+            label="Stories"
+            value={stories.length}
+            gradient="linear-gradient(135deg, #a855f7, #ec4899)"
+            to="/stories"
+          />
+          <StatCard
+            icon={<ClipboardList size={20} />}
+            label="Test Suites"
+            value={suites.length}
+            gradient="linear-gradient(135deg, #f59e0b, #ef4444)"
+            to="/test-suites"
+          />
+        </div>
+
+        {/* ── Projects ─────────────────────────────────────── */}
+        <Section
+          title="Projects"
+          icon={<Target size={16} />}
+          iconGradient="linear-gradient(135deg, #3b82f6, #8b5cf6)"
+          viewAllTo="/projects"
+          createTo="/projects"
+          createLabel="New Project"
+        >
+          {topProjects.length === 0 ? (
+            <EmptyState
+              message="No projects yet. Create one to organize your stories and test suites."
+              cta="Create Project"
+              ctaTo="/projects"
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {topProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* ── Stories ──────────────────────────────────────── */}
+        <Section
+          title="Stories"
+          icon={<FileText size={16} />}
+          iconGradient="linear-gradient(135deg, #a855f7, #ec4899)"
+          viewAllTo="/stories"
+          createTo="/stories"
+          createLabel="New Story"
+        >
+          {recentStories.length === 0 ? (
+            <EmptyState
+              message={
+                activeProject
+                  ? `No stories in ${activeProject.name} yet.`
+                  : 'No stories yet. Capture requirements with the BA tools.'
+              }
+              cta="Create Story"
+              ctaTo="/stories"
+            />
+          ) : (
+            <div
+              className="rounded-xl overflow-hidden"
               style={{
                 background: 'var(--app-glass)',
-                color: 'var(--app-accent-color)',
                 border: '1px solid var(--app-glass-border)',
                 backdropFilter: 'blur(10px)',
               }}
             >
-              <Sparkles size={15} />
-              Business Analyst
-            </Link>
-          </div>
-        </div>
-
-        {/* ── Project selector ────────────────────────────────── */}
-        <div className="mb-6">
-          <ProjectSelector
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSelect={handleProjectSwitch}
-          />
-        </div>
-
-        {/* ── Tabs ─────────────────────────────────────────────── */}
-        <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <button
-            onClick={() => setTab('active')}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
-            style={tab === 'active' ? {
-              background: 'var(--app-btn-primary)',
-              color: 'var(--app-btn-text)',
-              boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-            } : {
-              background: 'transparent',
-              color: 'var(--app-text-secondary)',
-            }}
-          >
-            <Clock size={15} />
-            Active
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={tab === 'active'
-                ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
-                : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
-              }
-            >
-              {activeCases.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setTab('completed')}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
-            style={tab === 'completed' ? {
-              background: 'var(--app-btn-primary)',
-              color: 'var(--app-btn-text)',
-              boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-            } : {
-              background: 'transparent',
-              color: 'var(--app-text-secondary)',
-            }}
-          >
-            <CheckCheck size={15} />
-            Completed
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={tab === 'completed'
-                ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
-                : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
-              }
-            >
-              {completedCases.length}
-            </span>
-          </button>
-        </div>
-
-        <StatusSummary statuses={statuses} total={visibleCases.length} slugs={visibleSlugs} />
-
-        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}>
-            <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-              {tab === 'active'
-                ? `${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : 'All '}Test Cases`
-                : `Completed ${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : ''}Test Cases`
-              } ({sorted.length})
-            </h2>
-          </div>
-
-          {sorted.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <p className="text-muted-foreground text-sm">
-                {tab === 'active'
-                  ? 'No active test cases. Create one to get started!'
-                  : 'No completed test cases yet.'}
-              </p>
+              <div className="flex flex-col gap-1 p-2">
+                {recentStories.map((story) => (
+                  <StoryRow
+                    key={story.id}
+                    story={story}
+                    projectName={story.projectId ? projectNameById.get(story.projectId) ?? null : null}
+                  />
+                ))}
+              </div>
             </div>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
-              <SortableContext items={order} strategy={verticalListSortingStrategy}>
-                <ul className="flex flex-col gap-3 p-3">
-                  {sorted.map((tc) => {
-                    const resolvedStatus: TestStatus = statuses[tc.slug] ?? 'pending'
-                    const resolvedPriority = tc.isCustom
-                      ? tc.priority
-                      : (priorities[tc.slug] ?? tc.priority)
-                    const passedCount = expectedCounts[tc.slug] ?? 0
-                    return (
-                      <SortableTestCaseRow
-                        key={tc.slug}
-                        tc={tc}
-                        resolvedStatus={resolvedStatus}
-                        resolvedPriority={resolvedPriority}
-                        passedCount={passedCount}
-                        tab={tab}
-                        onComplete={handleComplete}
-                        onReactivate={handleReactivate}
-                        onDelete={handleDelete}
-                      />
-                    )
-                  })}
-                </ul>
-              </SortableContext>
-            </DndContext>
           )}
-        </div>
+        </Section>
+
+        {/* ── Test Suites ──────────────────────────────────── */}
+        <Section
+          title="Test Suites"
+          icon={<ClipboardList size={16} />}
+          iconGradient="linear-gradient(135deg, #f59e0b, #ef4444)"
+          viewAllTo="/test-suites"
+          createTo="/test-cases/custom/new"
+          createLabel="New Suite"
+        >
+          {recentSuites.length === 0 ? (
+            <EmptyState
+              message={
+                activeProject
+                  ? `No active test suites in ${activeProject.name} yet.`
+                  : 'No active test suites yet. Build your first suite to start tracking QA coverage.'
+              }
+              cta="Create Test Suite"
+              ctaTo="/test-cases/custom/new"
+            />
+          ) : (
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{
+                background: 'var(--app-glass)',
+                border: '1px solid var(--app-glass-border)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <div className="flex flex-col gap-1 p-2">
+                {recentSuites.map((suite) => (
+                  <SuiteRow
+                    key={suite.id}
+                    suite={suite}
+                    projectName={suite.projectId ? projectNameById.get(suite.projectId) ?? null : null}
+                    statuses={statuses}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </Section>
       </div>
     </div>
   )

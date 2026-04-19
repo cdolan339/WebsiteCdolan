@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WikiRouteImport } from './routes/wiki'
+import { Route as TestSuitesRouteImport } from './routes/test-suites'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomepageRouteImport } from './routes/homepage'
@@ -27,6 +28,11 @@ import { Route as TestCasesCustomIdRouteImport } from './routes/test-cases/custo
 const WikiRoute = WikiRouteImport.update({
   id: '/wiki',
   path: '/wiki',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestSuitesRoute = TestSuitesRouteImport.update({
+  id: '/test-suites',
+  path: '/test-suites',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/test-suites': typeof TestSuitesRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/stories/$id': typeof StoriesIdRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/test-suites': typeof TestSuitesRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/stories/$id': typeof StoriesIdRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/test-suites': typeof TestSuitesRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/stories/$id': typeof StoriesIdRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/settings'
+    | '/test-suites'
     | '/wiki'
     | '/projects/$id'
     | '/stories/$id'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/settings'
+    | '/test-suites'
     | '/wiki'
     | '/projects/$id'
     | '/stories/$id'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/homepage'
     | '/login'
     | '/settings'
+    | '/test-suites'
     | '/wiki'
     | '/projects/$id'
     | '/stories/$id'
@@ -203,6 +215,7 @@ export interface RootRouteChildren {
   HomepageRoute: typeof HomepageRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
+  TestSuitesRoute: typeof TestSuitesRoute
   WikiRoute: typeof WikiRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   StoriesIdRoute: typeof StoriesIdRoute
@@ -219,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/wiki'
       fullPath: '/wiki'
       preLoaderRoute: typeof WikiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/test-suites': {
+      id: '/test-suites'
+      path: '/test-suites'
+      fullPath: '/test-suites'
+      preLoaderRoute: typeof TestSuitesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -323,6 +343,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomepageRoute: HomepageRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
+  TestSuitesRoute: TestSuitesRoute,
   WikiRoute: WikiRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   StoriesIdRoute: StoriesIdRoute,

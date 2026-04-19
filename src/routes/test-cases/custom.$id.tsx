@@ -22,6 +22,7 @@ import { uploadPreconditionImages, type PendingImage } from '@/components/Precon
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { Attachments } from '@/components/Attachments'
 import { PreconditionAttachments } from '@/components/PreconditionAttachments'
+import { AutoGrowTextarea } from '@/components/AutoGrowTextarea'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -376,12 +377,13 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
       {/* Notes */}
       <div className="mb-2">
         <p className="text-xs font-medium text-muted-foreground mb-1.5">Notes</p>
-        <textarea
+        <AutoGrowTextarea
           value={tc.notes ?? ''}
           onChange={(e) => patch({ notes: e.target.value })}
           placeholder="Add notes, observations, or comments..."
-          rows={2}
-          className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors resize-vertical"
+          minHeight={44}
+          focusMinHeight={140}
+          className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
           style={{ lineHeight: 1.7, fontFamily: "'Segoe UI', system-ui, sans-serif" }}
         />
       </div>
@@ -416,11 +418,12 @@ function SubTCNotes({ tc, subId, initialValue }: { tc: CustomTestCase; subId: st
           Notes
         </span>
       </div>
-      <textarea
+      <AutoGrowTextarea
         value={value}
         onChange={(e) => { setValue(e.target.value); saveNow(e.target.value) }}
         placeholder="Add notes, observations, or comments..."
-        rows={3}
+        minHeight={70}
+        focusMinHeight={180}
         style={{
           width: '100%',
           background: 'var(--app-glass)',
@@ -430,14 +433,13 @@ function SubTCNotes({ tc, subId, initialValue }: { tc: CustomTestCase; subId: st
           color: 'var(--app-text)',
           fontSize: '0.82rem',
           lineHeight: 1.7,
-          resize: 'vertical',
           outline: 'none',
           fontFamily: "'Segoe UI', system-ui, sans-serif",
           boxSizing: 'border-box',
           transition: 'border-color 0.15s',
         }}
-        onFocus={(e) => { e.target.style.borderColor = 'var(--app-input-focus-border)' }}
-        onBlur={(e) => { e.target.style.borderColor = 'var(--app-glass-border)' }}
+        onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'var(--app-input-focus-border)' }}
+        onBlur={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'var(--app-glass-border)' }}
       />
       <p style={{ margin: '4px 0 0', fontSize: '0.65rem', color: 'var(--app-text-secondary)' }}>
         Auto-saved as you type
@@ -475,11 +477,11 @@ function ViewMode({ tc, onEdit, isOwner }: { tc: CustomTestCase; onEdit: (target
 
         <div className="flex items-center justify-between mb-6">
           <Link
-            to="/homepage"
+            to="/test-suites"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
             style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
-            <ArrowLeft size={14} /> Back to Home
+            <ArrowLeft size={14} /> Back to Test Suites
           </Link>
           {isOwner && (
             <button
@@ -493,7 +495,7 @@ function ViewMode({ tc, onEdit, isOwner }: { tc: CustomTestCase; onEdit: (target
         </div>
 
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-3" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.title || 'Untitled Test Case'}</h1>
+          <h1 className="text-3xl font-bold mb-3" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.title || 'Untitled Test Plan'}</h1>
           {tc.summary && <p className="text-muted-foreground text-lg mb-4" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{tc.summary}</p>}
 
           <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -796,11 +798,11 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
 
         <div className="flex items-center justify-between mb-4">
           <Link
-            to="/homepage"
+            to="/test-suites"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
             style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
           >
-            <ArrowLeft size={14} /> Back to Home
+            <ArrowLeft size={14} /> Back to Test Suites
           </Link>
           <button
             onClick={() => setAiOpen(true)}
@@ -816,20 +818,19 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           type="text"
           value={draft.title}
           onChange={(e) => patch({ title: e.target.value })}
-          placeholder="Test case title…"
+          placeholder="Test plan title…"
           className="w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground mb-2 focus:underline decoration-muted-foreground/40"
           style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
         />
 
         {/* Summary */}
-        <textarea
+        <AutoGrowTextarea
           value={draft.summary}
-          onChange={(e) => { patch({ summary: e.target.value }); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
-          onInput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }}
+          onChange={(e) => patch({ summary: e.target.value })}
           placeholder="Add a description…"
-          rows={2}
-          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/50 mb-3 focus:underline decoration-muted-foreground/40"
-          style={{ overflow: 'hidden' }}
+          minHeight={52}
+          focusMinHeight={140}
+          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none placeholder:text-muted-foreground/50 mb-3 focus:underline decoration-muted-foreground/40"
         />
 
         {/* Meta */}
@@ -873,12 +874,13 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
         <section id="edit-objective" className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
           <h2 className="text-lg font-semibold mb-3">Objective</h2>
           <div className="rounded-lg border border-border bg-card p-4">
-            <textarea
+            <AutoGrowTextarea
               value={draft.objective}
               onChange={(e) => patch({ objective: e.target.value })}
-              placeholder="Describe the objective of this test case…"
-              rows={4}
-              className="w-full text-sm text-foreground bg-transparent outline-none resize-none placeholder:text-muted-foreground/60 transition-colors"
+              placeholder="Describe the objective of this test plan…"
+              minHeight={90}
+              focusMinHeight={200}
+              className="w-full text-sm text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors"
             />
           </div>
         </section>
@@ -969,7 +971,7 @@ function CustomTestCaseDetail() {
   const [scrollTarget, setScrollTarget] = useState<string | null>(null)
 
   useEffect(() => {
-    if (ready && tc === undefined) navigate({ to: '/homepage' })
+    if (ready && tc === undefined) navigate({ to: '/test-suites' })
   }, [ready, tc, navigate])
 
   if (!ready || !tc) return null

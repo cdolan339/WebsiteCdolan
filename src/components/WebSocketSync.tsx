@@ -33,6 +33,7 @@ export function WebSocketSync() {
       case "story:created":
       case "story:updated":
       case "story:deleted":
+      case "story:completed":
         invalidateStoryCache();
         break;
 
