@@ -17,7 +17,9 @@ import { Route as R404RouteImport } from './routes/404'
 import { Route as R403RouteImport } from './routes/403'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StoriesIndexRouteImport } from './routes/stories/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
+import { Route as StoriesIdRouteImport } from './routes/stories/$id'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 import { Route as TestCasesCustomNewRouteImport } from './routes/test-cases/custom.new'
 import { Route as TestCasesCustomIdRouteImport } from './routes/test-cases/custom.$id'
@@ -62,9 +64,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoriesIndexRoute = StoriesIndexRouteImport.update({
+  id: '/stories/',
+  path: '/stories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoriesIdRoute = StoriesIdRouteImport.update({
+  id: '/stories/$id',
+  path: '/stories/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
@@ -93,7 +105,9 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/stories/$id': typeof StoriesIdRoute
   '/projects/': typeof ProjectsIndexRoute
+  '/stories/': typeof StoriesIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -107,7 +121,9 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/stories/$id': typeof StoriesIdRoute
   '/projects': typeof ProjectsIndexRoute
+  '/stories': typeof StoriesIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -122,7 +138,9 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/stories/$id': typeof StoriesIdRoute
   '/projects/': typeof ProjectsIndexRoute
+  '/stories/': typeof StoriesIndexRoute
   '/test-cases/custom/$id': typeof TestCasesCustomIdRoute
   '/test-cases/custom/new': typeof TestCasesCustomNewRoute
 }
@@ -138,7 +156,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wiki'
     | '/projects/$id'
+    | '/stories/$id'
     | '/projects/'
+    | '/stories/'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   fileRoutesByTo: FileRoutesByTo
@@ -152,7 +172,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wiki'
     | '/projects/$id'
+    | '/stories/$id'
     | '/projects'
+    | '/stories'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   id:
@@ -166,7 +188,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wiki'
     | '/projects/$id'
+    | '/stories/$id'
     | '/projects/'
+    | '/stories/'
     | '/test-cases/custom/$id'
     | '/test-cases/custom/new'
   fileRoutesById: FileRoutesById
@@ -181,7 +205,9 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   WikiRoute: typeof WikiRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
+  StoriesIdRoute: typeof StoriesIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
+  StoriesIndexRoute: typeof StoriesIndexRoute
   TestCasesCustomIdRoute: typeof TestCasesCustomIdRoute
   TestCasesCustomNewRoute: typeof TestCasesCustomNewRoute
 }
@@ -244,11 +270,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stories/': {
+      id: '/stories/'
+      path: '/stories'
+      fullPath: '/stories/'
+      preLoaderRoute: typeof StoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/': {
       id: '/projects/'
       path: '/projects'
       fullPath: '/projects/'
       preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stories/$id': {
+      id: '/stories/$id'
+      path: '/stories/$id'
+      fullPath: '/stories/$id'
+      preLoaderRoute: typeof StoriesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/$id': {
@@ -285,7 +325,9 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   WikiRoute: WikiRoute,
   ProjectsIdRoute: ProjectsIdRoute,
+  StoriesIdRoute: StoriesIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
+  StoriesIndexRoute: StoriesIndexRoute,
   TestCasesCustomIdRoute: TestCasesCustomIdRoute,
   TestCasesCustomNewRoute: TestCasesCustomNewRoute,
 }

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTestOrder } from '@/lib/useTestOrder'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2 } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2, Sparkles } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
@@ -604,14 +604,29 @@ function TestCaseIndex() {
               Track, manage, write, and review your test cases in one place.
             </p>
           </div>
-          <button
-            onClick={handleCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            <Plus size={16} />
-            New Test Case
-          </button>
+          <div className="flex flex-col gap-2 flex-shrink-0 mt-1">
+            <button
+              onClick={handleCreate}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+            >
+              <Plus size={16} />
+              New Test Case
+            </button>
+            <Link
+              to="/stories"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
+              style={{
+                background: 'var(--app-glass)',
+                color: 'var(--app-accent-color)',
+                border: '1px solid var(--app-glass-border)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <Sparkles size={15} />
+              Business Analyst
+            </Link>
+          </div>
         </div>
 
         {/* ── Project selector ────────────────────────────────── */}

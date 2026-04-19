@@ -8,6 +8,7 @@
 
 import { useWebSocket, type WSEvent } from "@/lib/useWebSocket";
 import { invalidateCustomCache } from "@/lib/customTestCases";
+import { invalidateStoryCache } from "@/lib/stories";
 import { invalidateProjectCache } from "@/lib/projects";
 import { invalidateOrderCache } from "@/lib/useTestOrder";
 import {
@@ -27,6 +28,12 @@ export function WebSocketSync() {
       case "test-case:completed":
       case "test-case:deleted":
         invalidateCustomCache();
+        break;
+
+      case "story:created":
+      case "story:updated":
+      case "story:deleted":
+        invalidateStoryCache();
         break;
 
       case "project:created":

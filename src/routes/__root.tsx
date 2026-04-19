@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { isAuthenticated, logout, getCurrentUser } from '@/lib/auth'
 import { clearCustomCache } from '@/lib/customTestCases'
+import { clearStoryCache } from '@/lib/stories'
 import { WebSocketSync } from '@/components/WebSocketSync'
 import { clearCaches } from '@/lib/useTestStatus'
 import { clearProjectCache } from '@/lib/projects'
@@ -266,6 +267,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
   const links = [
     { to: '/homepage', label: 'Home' },
     { to: '/projects', label: 'Projects' },
+    { to: '/stories', label: 'Stories' },
     { to: '/wiki', label: 'Wiki' },
   ]
 
@@ -353,6 +355,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       logout()
       clearCustomCache()
+      clearStoryCache()
       clearCaches()
       clearProjectCache()
       clearPermissionCache()
