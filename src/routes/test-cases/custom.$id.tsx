@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Tag, Pencil, X, Plus, Check, FolderOpen, ChevronDown, ChevronUp, Sparkles, StickyNote } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, X, Plus, Check, FolderOpen, ChevronDown, ChevronUp, Sparkles, Save } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Badge } from '@/components/ui/badge'
 import {
   useCustomTestCase,
   updateCustomTestCase,
@@ -57,13 +56,8 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-function save(tc: CustomTestCase, patch: Partial<CustomTestCase>) {
-  updateCustomTestCase({ ...tc, ...patch, updatedAt: new Date().toISOString() })
-}
-
 // ── Shared small components ───────────────────────────────────────────────────
 
-// Dropdown used for status and priority in view mode
 type DropdownProps = {
   label: string
   options: { value: string; label: string; color: string }[]
@@ -195,7 +189,7 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
   )
 }
 
-// Expected checkbox row (view mode)
+// Expected checkbox row — local pass marker per sub-TC
 function ExpectedRow({ storageKey, text, onToggle }: { storageKey: string; text: string; onToggle: (v: boolean) => void }) {
   const { checked, setChecked } = useExpectedChecked(storageKey)
   const toggle = () => { const next = !checked; setChecked(next); onToggle(next) }
@@ -216,7 +210,7 @@ function ExpectedRow({ storageKey, text, onToggle }: { storageKey: string; text:
   )
 }
 
-// ── Tag input (edit mode) ─────────────────────────────────────────────────────
+// ── Tag input ─────────────────────────────────────────────────────────────────
 
 function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
   const [input, setInput] = useState('')
@@ -268,7 +262,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
   )
 }
 
-// ── Sub-test case editor (edit mode) ─────────────────────────────────────────
+// ── Sub-test case editor ─────────────────────────────────────────────────────
 
 function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, onMoveDown }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string; onMoveUp?: () => void; onMoveDown?: () => void }) {
   const patch = (fields: Partial<CustomTC>) => onChange({ ...tc, ...fields })
@@ -394,359 +388,98 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
   )
 }
 
-// ── Per-sub-TC notes (real-time save) ────────────────────────────────────────
+// ── Root component — unified inline-editable view ─────────────────────────────
 
-function SubTCNotes({ tc, subId, initialValue }: { tc: CustomTestCase; subId: string; initialValue: string }) {
-  const [value, setValue] = useState(initialValue)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const saveNow = useCallback((v: string) => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      const updatedSubs = tc.testCases.map((s) => s.id === subId ? { ...s, notes: v } : s)
-      updateCustomTestCase({ ...tc, testCases: updatedSubs, updatedAt: new Date().toISOString() })
-    }, 600)
-  }, [tc, subId])
-
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
-
-  return (
-    <div style={{ marginTop: '14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <StickyNote size={13} style={{ opacity: 0.6 }} />
-        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          Notes
-        </span>
-      </div>
-      <AutoGrowTextarea
-        value={value}
-        onChange={(e) => { setValue(e.target.value); saveNow(e.target.value) }}
-        placeholder="Add notes, observations, or comments..."
-        minHeight={70}
-        focusMinHeight={180}
-        style={{
-          width: '100%',
-          background: 'var(--app-glass)',
-          border: '1px solid var(--app-glass-border)',
-          borderRadius: '8px',
-          padding: '10px 12px',
-          color: 'var(--app-text)',
-          fontSize: '0.82rem',
-          lineHeight: 1.7,
-          outline: 'none',
-          fontFamily: "'Segoe UI', system-ui, sans-serif",
-          boxSizing: 'border-box',
-          transition: 'border-color 0.15s',
-        }}
-        onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'var(--app-input-focus-border)' }}
-        onBlur={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'var(--app-glass-border)' }}
-      />
-      <p style={{ margin: '4px 0 0', fontSize: '0.65rem', color: 'var(--app-text-secondary)' }}>
-        Auto-saved as you type
-      </p>
-    </div>
-  )
-}
-
-// ── View mode ─────────────────────────────────────────────────────────────────
-
-function ViewMode({ tc, onEdit, isOwner }: { tc: CustomTestCase; onEdit: (target?: string) => void; isOwner: boolean }) {
-  const slug = `custom:${tc.id}`
-  const { status, setStatus } = useTestStatus(slug)
-  const [passedCount, setPassedCount] = useState(0)
+function CustomTestCaseDetail() {
+  const { id } = Route.useParams()
+  const navigate = useNavigate()
+  const { tc, ready } = useCustomTestCase(id)
   const { projects } = useProjects()
 
+  const [draft, setDraft] = useState<CustomTestCase | null>(null)
+  const [saved, setSaved] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const slug = tc ? `custom:${tc.id}` : ''
+  const { status, setStatus } = useTestStatus(slug)
+  const [passedCount, setPassedCount] = useState(0)
+
   useEffect(() => {
+    if (tc && !draft) setDraft(tc)
+  }, [tc, draft])
+
+  useEffect(() => {
+    if (!tc) return
     const stored = loadExpectedMap()
     const initial = tc.testCases.filter((sub) => Boolean(stored[`${slug}__expected__${sub.id}`])).length
     setPassedCount(initial)
-  }, [slug, tc.testCases])
-
-  const priorityOpt = PRIORITY_OPTIONS.find((o) => o.value === tc.priority) ?? PRIORITY_OPTIONS[1]
-  const statusCurrent = STATUS_OPTIONS.find((o) => o.value === status) ?? STATUS_OPTIONS[2]
-
-  return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <style>{`
-        @keyframes movecid2 { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-cid2 { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movecid2 20s infinite alternate; pointer-events:none; }
-      `}</style>
-      <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
-      <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
-
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            to="/test-suites"
-            className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
-          >
-            <ArrowLeft size={14} /> Back to Test Suites
-          </Link>
-          {isOwner && (
-            <button
-              onClick={() => onEdit()}
-              className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
-            >
-              <Pencil size={14} /> Edit
-            </button>
-          )}
-        </div>
-
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-3" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.title || 'Untitled Test Plan'}</h1>
-          {tc.summary && <p className="text-muted-foreground text-lg mb-4" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{tc.summary}</p>}
-
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            {/* Status dropdown */}
-            <Dropdown
-              label={statusCurrent.label}
-              options={STATUS_OPTIONS}
-              current={status}
-              badgeClass={STATUS_STYLES[status]}
-              onSelect={(v) => setStatus(v as TestStatus)}
-            />
-            {/* Priority dropdown (owner) or read-only badge (shared) */}
-            {isOwner ? (
-              <Dropdown
-                label={`${priorityOpt.label} priority`}
-                options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-                current={tc.priority}
-                badgeClass="rounded-full font-medium capitalize text-sm px-3 py-1" badgeStyle={priorityOpt.style}
-                onSelect={(v) => updateCustomTestCase({ ...tc, priority: v as CustomTestCase['priority'], updatedAt: new Date().toISOString() })}
-              />
-            ) : (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide" style={priorityOpt.style}>
-                {priorityOpt.label} priority
-              </span>
-            )}
-            {passedCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                <Check size={13} /> {passedCount} passed
-              </span>
-            )}
-            {/* Project assignment (owner can change, shared users see read-only) */}
-            {isOwner ? (
-              <ProjectPicker
-                projectId={tc.projectId ?? null}
-                onChange={(id) => updateCustomTestCase({ ...tc, projectId: id, updatedAt: new Date().toISOString() })}
-                projects={projects}
-              />
-            ) : tc.projectId ? (
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium" style={{ background: 'var(--app-accent-bg)', border: '1px solid var(--app-glass-border)', color: 'var(--app-accent-color)' }}>
-                <FolderOpen size={13} style={{ opacity: 0.7 }} />
-                {projects.find((p) => p.id === tc.projectId)?.name ?? 'Project'}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-            <span className="flex items-center gap-1"><Calendar size={14} /> Created {formatDate(tc.createdAt)}</span>
-            <span className="flex items-center gap-1"><Calendar size={14} /> Updated {formatDate(tc.updatedAt)}</span>
-          </div>
-
-          {tc.tags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Tag size={14} className="text-muted-foreground" />
-              {tc.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-            </div>
-          )}
-        </div>
-
-        <hr className="border-border mb-6" />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-          {/* Objective */}
-          {tc.objective && (
-            <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--app-text)' }}>Objective</h2>
-                {isOwner && (
-                  <button onClick={() => onEdit('edit-objective')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                    <Pencil size={11} /> Edit
-                  </button>
-                )}
-              </div>
-              <p style={{ margin: 0, color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.7 }}>{tc.objective}</p>
-            </section>
-          )}
-
-          {/* Preconditions */}
-          <section style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--app-text)' }}>Preconditions</h2>
-              {isOwner && (
-                <button onClick={() => onEdit('edit-preconditions')} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                  <Pencil size={11} /> Edit
-                </button>
-              )}
-            </div>
-            {tc.preconditions.filter(Boolean).length > 0 && (
-              <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {tc.preconditions.filter(Boolean).map((item, i) => (
-                  <li key={i} style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item}</li>
-                ))}
-              </ul>
-            )}
-            <PreconditionAttachments testCaseId={`precond:${tc.id}`} />
-          </section>
-
-          {/* Sub test cases */}
-          {tc.testCases.map((sub, i) => (
-            <section key={sub.id} style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', borderRadius: '10px', padding: '20px' }}>
-              {/* Identifier row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                <span style={{
-                  fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  background: 'var(--app-accent-gradient)',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0,
-                }}>
-                  Test Case {String(i + 1).padStart(2, '0')}
-                </span>
-                <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
-                {isOwner && tc.testCases.length > 1 && (
-                  <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
-                    <button
-                      onClick={() => {
-                        if (i === 0) return
-                        const next = [...tc.testCases]
-                        ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
-                        save(tc, { testCases: next })
-                      }}
-                      disabled={i === 0}
-                      style={{ background: 'transparent', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? 'var(--app-glass-border)' : 'var(--app-text-secondary)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
-                      aria-label="Move up"
-                    >
-                      <ChevronUp size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (i === tc.testCases.length - 1) return
-                        const next = [...tc.testCases]
-                        ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
-                        save(tc, { testCases: next })
-                      }}
-                      disabled={i === tc.testCases.length - 1}
-                      style={{ background: 'transparent', border: 'none', cursor: i === tc.testCases.length - 1 ? 'default' : 'pointer', color: i === tc.testCases.length - 1 ? 'var(--app-glass-border)' : 'var(--app-text-secondary)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
-                      aria-label="Move down"
-                    >
-                      <ChevronDown size={16} />
-                    </button>
-                  </div>
-                )}
-                {isOwner && (
-                  <button onClick={() => onEdit(`edit-testcase-${i}`)} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-semibold transition-opacity hover:opacity-90 flex-shrink-0" style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 8px var(--app-btn-primary-shadow)` }}>
-                    <Pencil size={11} /> Edit
-                  </button>
-                )}
-              </div>
-
-              {/* Name */}
-              {sub.name && (
-                <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: 'var(--app-text)' }}>{sub.name}</h3>
-              )}
-
-              {/* Priority */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--app-text-secondary)' }}>Priority:</span>
-                {isOwner ? (
-                  <Dropdown
-                    label={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
-                    options={PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, color: o.color }))}
-                    current={sub.priority}
-                    badgeClass="rounded-full font-medium capitalize text-xs px-2 py-0.5"
-                    badgeStyle={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.style}
-                    onSelect={(v) => {
-                      const updatedSubs = tc.testCases.map((s) => s.id === sub.id ? { ...s, priority: v as CustomTC['priority'] } : s)
-                      updateCustomTestCase({ ...tc, testCases: updatedSubs, updatedAt: new Date().toISOString() })
-                    }}
-                  />
-                ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize" style={PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.style}>
-                    {PRIORITY_OPTIONS.find((o) => o.value === sub.priority)?.label ?? 'Medium'}
-                  </span>
-                )}
-              </div>
-
-              {/* Steps */}
-              {sub.steps.filter(Boolean).length > 0 && (
-                <div style={{ marginBottom: '14px' }}>
-                  <p style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Steps</p>
-                  <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {sub.steps.filter(Boolean).map((step, si) => (
-                      <li key={si} style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{step}</li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-
-              {/* Expected result */}
-              {sub.expected && (
-                <ExpectedRow
-                  storageKey={`${slug}__expected__${sub.id}`}
-                  text={sub.expected}
-                  onToggle={(v) => setPassedCount((c) => (v ? c + 1 : c - 1))}
-                />
-              )}
-
-              {/* Notes — per sub test case, real-time save (owner), read-only (shared) */}
-              {isOwner ? (
-                <SubTCNotes tc={tc} subId={sub.id} initialValue={sub.notes ?? ''} />
-              ) : sub.notes ? (
-                <div style={{ marginTop: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <StickyNote size={13} style={{ opacity: 0.6 }} />
-                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--app-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Notes
-                    </span>
-                  </div>
-                  <p style={{ margin: 0, color: 'var(--app-text-secondary)', fontSize: '0.82rem', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{sub.notes}</p>
-                </div>
-              ) : null}
-
-              {/* Attachments — per sub test case */}
-              <Attachments testCaseId={`${tc.id}__${sub.id}`} />
-            </section>
-          ))}
-        </div>
-
-      </div>
-    </div>
-  )
-}
-
-// ── Edit mode ─────────────────────────────────────────────────────────────────
-
-function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: () => void; scrollTarget?: string | null }) {
-  const { projects } = useProjects()
-  const [draft, setDraft] = useState<CustomTestCase>({ ...tc })
-
-  const patch = (fields: Partial<CustomTestCase>) => setDraft((prev) => ({ ...prev, ...fields }))
+  }, [slug, tc])
 
   useEffect(() => {
-    if (!scrollTarget) return
-    const el = document.getElementById(scrollTarget)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [scrollTarget])
+    if (ready && tc === undefined) navigate({ to: '/test-suites' })
+  }, [ready, tc, navigate])
 
-  const handleDone = () => {
-    save(tc, { ...draft, updatedAt: new Date().toISOString() })
-    onDone()
+  const session = getSession()
+  const isOwner = tc ? (!tc.userId || tc.userId === session?.id) : false
+  const canEdit = Boolean(isOwner || (tc && tc.projectId))
+
+  const stripVolatile = (t: CustomTestCase) => {
+    const { updatedAt: _u, ...rest } = t
+    return rest
+  }
+  const dirty = !!draft && !!tc && JSON.stringify(stripVolatile(draft)) !== JSON.stringify(stripVolatile(tc))
+
+  const patch = useCallback((fields: Partial<CustomTestCase>) => {
+    setDraft((d) => d ? { ...d, ...fields } : d)
+  }, [])
+
+  const saveDraft = useCallback(() => {
+    if (!draft || !canEdit) return
+    updateCustomTestCase({ ...draft, updatedAt: new Date().toISOString() })
+    setSaved(true)
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    savedTimerRef.current = setTimeout(() => setSaved(false), 1500)
+  }, [draft, canEdit])
+
+  useEffect(() => () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+  }, [])
+
+  const addPrecondition = () => {
+    if (!draft) return
+    patch({ preconditions: [...draft.preconditions, ''] })
+  }
+  const updatePrecondition = (i: number, v: string) => {
+    if (!draft) return
+    const next = [...draft.preconditions]
+    next[i] = v
+    patch({ preconditions: next })
+  }
+  const removePrecondition = (i: number) => {
+    if (!draft) return
+    patch({ preconditions: draft.preconditions.filter((_, idx) => idx !== i) })
   }
 
-  const addPrecondition = () => patch({ preconditions: [...draft.preconditions, ''] })
-  const updatePrecondition = (i: number, v: string) => { const next = [...draft.preconditions]; next[i] = v; patch({ preconditions: next }) }
-  const removePrecondition = (i: number) => patch({ preconditions: draft.preconditions.filter((_, idx) => idx !== i) })
-
-  const addSubTC = () => patch({ testCases: [...draft.testCases, createCustomTC()] })
-  const updateSubTC = (updated: CustomTC) => patch({ testCases: draft.testCases.map((s) => (s.id === updated.id ? updated : s)) })
-  const removeSubTC = (id: string) => patch({ testCases: draft.testCases.filter((s) => s.id !== id) })
-  const moveSubTC = (from: number, to: number) => { const next = [...draft.testCases]; [next[from], next[to]] = [next[to], next[from]]; patch({ testCases: next }) }
-
-  const [aiOpen, setAiOpen] = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
+  const addSubTC = () => {
+    if (!draft) return
+    patch({ testCases: [...draft.testCases, createCustomTC()] })
+  }
+  const updateSubTC = (updated: CustomTC) => {
+    if (!draft) return
+    patch({ testCases: draft.testCases.map((s) => (s.id === updated.id ? updated : s)) })
+  }
+  const removeSubTC = (subId: string) => {
+    if (!draft) return
+    patch({ testCases: draft.testCases.filter((s) => s.id !== subId) })
+  }
+  const moveSubTC = (from: number, to: number) => {
+    if (!draft) return
+    const next = [...draft.testCases]
+    ;[next[from], next[to]] = [next[to], next[from]]
+    patch({ testCases: next })
+  }
 
   const handleAiFill = (result: AIFillResult) => {
     patch({
@@ -764,8 +497,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
       })),
     })
 
-    // Upload extracted images as precondition attachments immediately (test case already exists)
-    if (result.extractedImages && result.extractedImages.length > 0) {
+    if (result.extractedImages && result.extractedImages.length > 0 && tc) {
       const pending: PendingImage[] = result.extractedImages.map((img) => {
         const byteChars = atob(img.data)
         const byteArray = new Uint8Array(byteChars.length)
@@ -780,11 +512,9 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
     }
   }
 
-  const doneButtonStyle: React.CSSProperties = {
-    background: 'var(--app-btn-primary)',
-    color: 'var(--app-text)',
-    boxShadow: '0 2px 12px var(--app-btn-primary-shadow)',
-  }
+  if (!ready || !tc || !draft) return null
+
+  const statusCurrent = STATUS_OPTIONS.find((o) => o.value === status) ?? STATUS_OPTIONS[2]
 
   return (
     <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
@@ -794,9 +524,10 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
       `}</style>
       <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
       <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 pt-2 pb-12 relative z-10">
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
 
-        <div className="flex items-center justify-between mb-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-6 gap-2">
           <Link
             to="/test-suites"
             className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
@@ -804,13 +535,35 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           >
             <ArrowLeft size={14} /> Back to Test Suites
           </Link>
-          <button
-            onClick={() => setAiOpen(true)}
-            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
-          >
-            <Sparkles size={14} /> AI Test Case Generator
-          </button>
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <button
+                onClick={() => setAiOpen(true)}
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
+                style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
+              >
+                <Sparkles size={14} /> AI Generate
+              </button>
+            )}
+            {canEdit && (
+              <button
+                onClick={saveDraft}
+                disabled={!dirty && !saved}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+                style={{
+                  background: dirty ? 'var(--app-btn-primary)' : 'var(--app-glass)',
+                  color: dirty ? 'var(--app-btn-text)' : 'var(--app-text-secondary)',
+                  border: dirty ? 'none' : '1px solid var(--app-glass-border)',
+                  opacity: !dirty && !saved ? 0.6 : 1,
+                  cursor: !dirty && !saved ? 'default' : 'pointer',
+                  boxShadow: dirty ? '0 2px 12px var(--app-btn-primary-shadow)' : 'none',
+                }}
+              >
+                <Save size={14} />
+                {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Title */}
@@ -819,6 +572,7 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           value={draft.title}
           onChange={(e) => patch({ title: e.target.value })}
           placeholder="Test plan title…"
+          readOnly={!canEdit}
           className="w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground mb-2 focus:underline decoration-muted-foreground/40"
           style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
         />
@@ -828,16 +582,44 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           value={draft.summary}
           onChange={(e) => patch({ summary: e.target.value })}
           placeholder="Add a description…"
+          readOnly={!canEdit}
           minHeight={52}
           focusMinHeight={140}
           className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none placeholder:text-muted-foreground/50 mb-3 focus:underline decoration-muted-foreground/40"
         />
 
-        {/* Meta */}
+        {/* Status + passed count + project */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <Dropdown
+            label={statusCurrent.label}
+            options={STATUS_OPTIONS}
+            current={status}
+            badgeClass={STATUS_STYLES[status]}
+            onSelect={(v) => setStatus(v as TestStatus)}
+          />
+          {passedCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+              <Check size={13} /> {passedCount} passed
+            </span>
+          )}
+          {canEdit ? (
+            <ProjectPicker
+              projectId={draft.projectId ?? null}
+              onChange={(pid) => patch({ projectId: pid })}
+              projects={projects}
+            />
+          ) : draft.projectId ? (
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium" style={{ background: 'var(--app-accent-bg)', border: '1px solid var(--app-glass-border)', color: 'var(--app-accent-color)' }}>
+              <FolderOpen size={13} style={{ opacity: 0.7 }} />
+              {projects.find((p) => p.id === draft.projectId)?.name ?? 'Project'}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Dates */}
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
-          <span>Created {formatDate(tc.createdAt)}</span>
-          <span>·</span>
-          <span>Updated {formatDate(tc.updatedAt)}</span>
+          <span className="flex items-center gap-1"><Calendar size={14} /> Created {formatDate(tc.createdAt)}</span>
+          <span className="flex items-center gap-1"><Calendar size={14} /> Updated {formatDate(tc.updatedAt)}</span>
         </div>
 
         {/* Priority */}
@@ -846,7 +628,8 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           {PRIORITY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
-              onClick={() => patch({ priority: opt.value })}
+              onClick={() => canEdit && patch({ priority: opt.value })}
+              disabled={!canEdit}
               className={`text-xs px-3 py-1 rounded-full font-medium capitalize transition-opacity ${draft.priority === opt.value ? 'opacity-100 ring-2 ring-offset-1 ring-current' : 'opacity-50 hover:opacity-80'}`} style={opt.style}
             >
               {opt.label}
@@ -854,100 +637,95 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           ))}
         </div>
 
-        {/* Project */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="text-sm text-muted-foreground">Project:</span>
-          <ProjectPicker
-            projectId={draft.projectId ?? null}
-            onChange={(id) => patch({ projectId: id })}
-            projects={projects}
-          />
+        {/* Tags */}
+        <div className="mb-6 flex items-start gap-2">
+          <Tag size={14} className="mt-3 text-muted-foreground flex-shrink-0" />
+          <div className="flex-1">
+            <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
+          </div>
         </div>
 
-        {/* Tags */}
-        <div className="mb-6">
-          <p className="text-sm font-medium text-foreground mb-2">Tags</p>
-          <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
-        </div>
+        <hr className="border-border mb-6" />
 
         {/* Objective */}
-        <section id="edit-objective" className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-lg font-semibold mb-3">Objective</h2>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <AutoGrowTextarea
-              value={draft.objective}
-              onChange={(e) => patch({ objective: e.target.value })}
-              placeholder="Describe the objective of this test plan…"
-              minHeight={90}
-              focusMinHeight={200}
-              className="w-full text-sm text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors"
-            />
-          </div>
+        <section className="mb-6 rounded-lg p-5" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
+          <h2 className="text-base font-semibold mb-3">Objective</h2>
+          <AutoGrowTextarea
+            value={draft.objective}
+            onChange={(e) => patch({ objective: e.target.value })}
+            placeholder="Describe the objective of this test plan…"
+            readOnly={!canEdit}
+            minHeight={80}
+            focusMinHeight={180}
+            className="w-full text-sm text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors"
+          />
         </section>
 
         {/* Preconditions */}
-        <section id="edit-preconditions" className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <ul className="space-y-2 mb-3">
-              {draft.preconditions.map((item, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="text-muted-foreground select-none">•</span>
-                  <input
-                    type="text"
-                    value={item}
-                    onChange={(e) => updatePrecondition(i, e.target.value)}
-                    placeholder="Add a precondition…"
-                    className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-                  />
+        <section className="mb-6 rounded-lg p-5" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
+          <h2 className="text-base font-semibold mb-3">Preconditions</h2>
+          <ul className="space-y-2 mb-3">
+            {draft.preconditions.map((item, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="text-muted-foreground select-none">•</span>
+                <input
+                  type="text"
+                  value={item}
+                  onChange={(e) => updatePrecondition(i, e.target.value)}
+                  placeholder="Add a precondition…"
+                  readOnly={!canEdit}
+                  className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
+                />
+                {canEdit && (
                   <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"><X size={14} /></button>
-                </li>
-              ))}
-            </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+          {canEdit && (
             <button onClick={addPrecondition} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <Plus size={14} /> Add Precondition
             </button>
-          </div>
+          )}
           <PreconditionAttachments testCaseId={`precond:${tc.id}`} />
         </section>
 
-        {/* Test cases */}
-        <section id="edit-testcases" className="rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
+        {/* Test Cases */}
+        <section className="rounded-lg p-5" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
+          <h2 className="text-base font-semibold mb-4">Test Cases</h2>
           {draft.testCases.map((sub, i) => (
-            <SubTCEditor
-              key={sub.id}
-              id={`edit-testcase-${i}`}
-              tc={sub}
-              index={i}
-              onChange={updateSubTC}
-              onRemove={() => removeSubTC(sub.id)}
-              parentTcId={tc.id}
-              onMoveUp={i > 0 ? () => moveSubTC(i, i - 1) : undefined}
-              onMoveDown={i < draft.testCases.length - 1 ? () => moveSubTC(i, i + 1) : undefined}
-            />
+            <div key={sub.id}>
+              <SubTCEditor
+                tc={sub}
+                index={i}
+                onChange={updateSubTC}
+                onRemove={() => removeSubTC(sub.id)}
+                parentTcId={tc.id}
+                onMoveUp={canEdit && i > 0 ? () => moveSubTC(i, i - 1) : undefined}
+                onMoveDown={canEdit && i < draft.testCases.length - 1 ? () => moveSubTC(i, i + 1) : undefined}
+              />
+              {sub.expected.trim() && (
+                <ExpectedRow
+                  storageKey={`${slug}__expected__${sub.id}`}
+                  text={sub.expected}
+                  onToggle={(v) => setPassedCount((c) => (v ? c + 1 : c - 1))}
+                />
+              )}
+            </div>
           ))}
-          <button
-            onClick={addSubTC}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors w-full justify-center"
-          >
-            <Plus size={14} /> Add Test Case
-          </button>
+          {canEdit && (
+            <button
+              onClick={addSubTC}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors w-full justify-center"
+            >
+              <Plus size={14} /> Add Test Case
+            </button>
+          )}
         </section>
-
-        {/* Bottom Done button */}
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={handleDone}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
-            style={doneButtonStyle}
-          >
-            <Check size={15} /> Done
-          </button>
-        </div>
 
       </div>
 
+      {/* AI fill panel */}
       {aiOpen && (
         <AIFillPanel
           onFill={handleAiFill}
@@ -955,32 +733,24 @@ function EditMode({ tc, onDone, scrollTarget }: { tc: CustomTestCase; onDone: ()
           onLoading={setAiLoading}
         />
       )}
-
       <LoadingCurtain visible={aiLoading} message="Generating test cases" transparent />
+
+      {/* Sticky footer save hint */}
+      {dirty && canEdit && (
+        <div
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium"
+          style={{ background: 'var(--app-overlay)', border: '1px solid var(--app-overlay-border)', backdropFilter: 'blur(12px)', color: 'var(--app-text)' }}
+        >
+          Unsaved changes
+          <button
+            onClick={saveDraft}
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-90"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+          >
+            <Save size={11} /> Save
+          </button>
+        </div>
+      )}
     </div>
   )
-}
-
-// ── Root component ────────────────────────────────────────────────────────────
-
-function CustomTestCaseDetail() {
-  const { id } = Route.useParams()
-  const navigate = useNavigate()
-  const { tc, ready } = useCustomTestCase(id)
-  const [editing, setEditing] = useState(false)
-  const [scrollTarget, setScrollTarget] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (ready && tc === undefined) navigate({ to: '/test-suites' })
-  }, [ready, tc, navigate])
-
-  if (!ready || !tc) return null
-
-  const session = getSession()
-  const isOwner = !tc.userId || tc.userId === session?.id
-  // Project test cases: all members can edit. Non-project: owner only.
-  const canEdit = isOwner || !!tc.projectId
-
-  if (editing) return <EditMode tc={tc} onDone={() => setEditing(false)} scrollTarget={scrollTarget} />
-  return <ViewMode tc={tc} isOwner={canEdit} onEdit={(target?: string) => { setScrollTarget(target ?? null); setEditing(true) }} />
 }

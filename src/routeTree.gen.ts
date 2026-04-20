@@ -10,8 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WikiRouteImport } from './routes/wiki'
+import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as TestSuitesRouteImport } from './routes/test-suites'
+import { Route as TeamRouteImport } from './routes/team'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomepageRouteImport } from './routes/homepage'
 import { Route as R404RouteImport } from './routes/404'
@@ -30,14 +33,29 @@ const WikiRoute = WikiRouteImport.update({
   path: '/wiki',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VerifyRoute = VerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TestSuitesRoute = TestSuitesRouteImport.update({
   id: '/test-suites',
   path: '/test-suites',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -108,8 +126,11 @@ export interface FileRoutesByFullPath {
   '/404': typeof R404Route
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
   '/test-suites': typeof TestSuitesRoute
+  '/verify': typeof VerifyRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/stories/$id': typeof StoriesIdRoute
@@ -125,8 +146,11 @@ export interface FileRoutesByTo {
   '/404': typeof R404Route
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
   '/test-suites': typeof TestSuitesRoute
+  '/verify': typeof VerifyRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/stories/$id': typeof StoriesIdRoute
@@ -143,8 +167,11 @@ export interface FileRoutesById {
   '/404': typeof R404Route
   '/homepage': typeof HomepageRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
   '/test-suites': typeof TestSuitesRoute
+  '/verify': typeof VerifyRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/stories/$id': typeof StoriesIdRoute
@@ -162,8 +189,11 @@ export interface FileRouteTypes {
     | '/404'
     | '/homepage'
     | '/login'
+    | '/register'
     | '/settings'
+    | '/team'
     | '/test-suites'
+    | '/verify'
     | '/wiki'
     | '/projects/$id'
     | '/stories/$id'
@@ -179,8 +209,11 @@ export interface FileRouteTypes {
     | '/404'
     | '/homepage'
     | '/login'
+    | '/register'
     | '/settings'
+    | '/team'
     | '/test-suites'
+    | '/verify'
     | '/wiki'
     | '/projects/$id'
     | '/stories/$id'
@@ -196,8 +229,11 @@ export interface FileRouteTypes {
     | '/404'
     | '/homepage'
     | '/login'
+    | '/register'
     | '/settings'
+    | '/team'
     | '/test-suites'
+    | '/verify'
     | '/wiki'
     | '/projects/$id'
     | '/stories/$id'
@@ -214,8 +250,11 @@ export interface RootRouteChildren {
   R404Route: typeof R404Route
   HomepageRoute: typeof HomepageRoute
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  TeamRoute: typeof TeamRoute
   TestSuitesRoute: typeof TestSuitesRoute
+  VerifyRoute: typeof VerifyRoute
   WikiRoute: typeof WikiRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   StoriesIdRoute: typeof StoriesIdRoute
@@ -234,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WikiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verify': {
+      id: '/verify'
+      path: '/verify'
+      fullPath: '/verify'
+      preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/test-suites': {
       id: '/test-suites'
       path: '/test-suites'
@@ -241,11 +287,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TestSuitesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -342,8 +402,11 @@ const rootRouteChildren: RootRouteChildren = {
   R404Route: R404Route,
   HomepageRoute: HomepageRoute,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  TeamRoute: TeamRoute,
   TestSuitesRoute: TestSuitesRoute,
+  VerifyRoute: VerifyRoute,
   WikiRoute: WikiRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   StoriesIdRoute: StoriesIdRoute,

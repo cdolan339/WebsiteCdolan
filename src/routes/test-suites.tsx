@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTestOrder } from '@/lib/useTestOrder'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2, Sparkles } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2, Sparkles, ArrowRight } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
@@ -691,13 +691,16 @@ function TestSuitesPage() {
         <StatusSummary statuses={statuses} total={visibleCases.length} slugs={visibleSlugs} />
 
         <div className="rounded-lg overflow-hidden" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}>
+          <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}>
             <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
               {tab === 'active'
                 ? `${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : 'All '}Test Plans`
                 : `Completed ${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : ''}Test Plans`
               } ({sorted.length})
             </h2>
+            <Link to="/homepage" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Back to Home <ArrowRight size={11} />
+            </Link>
           </div>
 
           {sorted.length === 0 ? (

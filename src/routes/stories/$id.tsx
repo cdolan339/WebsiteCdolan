@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   ArrowLeft, Save, Plus, X, Trash2, Sparkles, Target, FileText, ListTree,
   GitBranch, Image as ImageIcon, Network, AlertTriangle, StickyNote, ChevronRight,
-  FolderOpen, ChevronDown, Users, HelpCircle, CheckCircle2, Clock,
+  FolderOpen, ChevronDown, Users, HelpCircle, CheckCircle2, Clock, Paperclip, Upload, Download, Loader2,
 } from 'lucide-react'
 import {
   useStory, updateStory,
@@ -12,13 +12,19 @@ import {
   type Story, type StoryStatus, type Stakeholder, type UserStory, type AcceptanceCriterion,
   type Requirement, type ProcessFlow, type ProcessFlowStep, type Wireframe,
   type RtmEntry, type RaidEntry, type RaidType, type UserStoryPriority,
-  type UserStoryStatus, type RequirementType, type MoscowPriority, type RaciRole,
-  type RtmStatus, type RaidImpact, type RaidStatus,
+  type UserStoryStatus, type RequirementType, type MoscowPriority,
+  type RtmStatus, type RaidImpact, type RaidStatus, type Attachment,
 } from '@/lib/stories'
 import { useProjects } from '@/lib/projects'
 import { AIFillStoryPanel, type AIStoryFillResult } from '@/components/AIFillStoryPanel'
+import { type AIFillResult } from '@/components/AIFillPanel'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { AutoGrowTextarea } from '@/components/AutoGrowTextarea'
+import { apiUpload, ApiError } from '@/lib/api'
+import {
+  createCustomTestCase, createCustomTC, addCustomTestCase,
+  type CustomTestCase,
+} from '@/lib/customTestCases'
 
 export const Route = createFileRoute('/stories/$id')({
   component: StoryDetail,
@@ -231,16 +237,179 @@ function SectionCard({ title, subtitle, action, children }: {
   )
 }
 
+// ── Attachments helpers ────────────────────────────────────────────
+
+const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024 // 25 MB per file
+
+function bytesToSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+function AttachmentsSection({
+  attachments,
+  onChange,
+}: {
+  attachments: Attachment[]
+  onChange: (next: Attachment[]) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleFiles = async (files: FileList | File[]) => {
+    setError(null)
+    setUploading(true)
+    const added: Attachment[] = []
+    const rejected: string[] = []
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_ATTACHMENT_SIZE) {
+        rejected.push(file.name)
+        continue
+      }
+      try {
+        const dataUrl = await fileToDataUrl(file)
+        added.push({
+          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+          dataUrl,
+          uploadedAt: new Date().toISOString(),
+        })
+      } catch {
+        rejected.push(file.name)
+      }
+    }
+    if (added.length > 0) onChange([...attachments, ...added])
+    if (rejected.length > 0) {
+      setError(`Skipped: ${rejected.join(', ')} (over 25MB or unreadable)`)
+    }
+    setUploading(false)
+  }
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) handleFiles(e.target.files)
+    e.target.value = ''
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files) handleFiles(e.dataTransfer.files)
+  }
+
+  const removeAttachment = (id: string) => onChange(attachments.filter((a) => a.id !== id))
+
+  const downloadAttachment = (att: Attachment) => {
+    const a = document.createElement('a')
+    a.href = att.dataUrl
+    a.download = att.name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
+  return (
+    <SectionCard
+      title="Attachments"
+      subtitle="Upload documents (Word, PDF, etc.) or images. Max 25MB per file."
+      action={
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
+          style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+        >
+          <Upload size={13} /> Upload
+        </button>
+      }
+    >
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={onFileChange} />
+
+      <div
+        onDrop={onDrop}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onClick={() => inputRef.current?.click()}
+        className="rounded-xl p-6 text-center cursor-pointer transition-colors"
+        style={{
+          background: dragOver ? 'var(--app-accent-bg)' : 'var(--app-bg)',
+          border: `1px dashed ${dragOver ? 'var(--app-accent-color)' : 'var(--app-glass-border)'}`,
+        }}
+      >
+        <Paperclip size={22} className="mx-auto mb-2 opacity-60" />
+        <p className="text-sm text-muted-foreground">
+          {uploading ? 'Processing files…' : 'Drop files here or click to browse'}
+        </p>
+      </div>
+
+      {error && (
+        <p className="text-xs mt-2" style={{ color: 'var(--destructive, #dc2626)' }}>{error}</p>
+      )}
+
+      {attachments.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-2">
+          {attachments.map((att) => {
+            const isImage = att.mimeType.startsWith('image/')
+            return (
+              <li
+                key={att.id}
+                className="flex items-center gap-3 p-3 rounded-md"
+                style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
+              >
+                {isImage ? (
+                  <img src={att.dataUrl} alt={att.name} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                ) : (
+                  <span
+                    className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }}
+                  >
+                    <FileText size={18} />
+                  </span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--app-text)' }}>{att.name}</p>
+                  <p className="text-xs text-muted-foreground">{bytesToSize(att.size)}</p>
+                </div>
+                <button
+                  onClick={() => downloadAttachment(att)}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md"
+                  title="Download"
+                  style={{ background: 'var(--app-glass)' }}
+                >
+                  <Download size={14} />
+                </button>
+                <button
+                  onClick={() => removeAttachment(att.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded-md"
+                  title="Remove"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  )
+}
+
 // ── Overview tab ───────────────────────────────────────────────────
 
 function OverviewTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
-  const updateStakeholder = (id: string, patch: Partial<Stakeholder>) => {
-    set({ stakeholders: story.stakeholders.map((s) => s.id === id ? { ...s, ...patch } : s) })
-  }
-  const removeStakeholder = (id: string) => {
-    set({ stakeholders: story.stakeholders.filter((s) => s.id !== id) })
-  }
-  const addStakeholder = () => set({ stakeholders: [...story.stakeholders, createStakeholder()] })
 
   return (
     <>
@@ -281,67 +450,10 @@ function OverviewTab({ story, set }: { story: Story; set: (patch: Partial<Story>
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="Stakeholders (RACI)"
-        subtitle="Responsible, Accountable, Consulted, Informed"
-        action={
-          <button
-            onClick={addStakeholder}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            <Plus size={13} /> Add
-          </button>
-        }
-      >
-        {story.stakeholders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No stakeholders yet.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {story.stakeholders.map((sh) => (
-              <div
-                key={sh.id}
-                className="grid grid-cols-12 gap-2 items-start p-3 rounded-md"
-                style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
-              >
-                <AutoGrowTextarea
-                  className={inputClass + ' col-span-12 md:col-span-4'}
-                  minHeight={38}
-                  focusMinHeight={100}
-                  placeholder="Name"
-                  value={sh.name}
-                  onChange={(e) => updateStakeholder(sh.id, { name: e.target.value })}
-                />
-                <AutoGrowTextarea
-                  className={inputClass + ' col-span-8 md:col-span-5'}
-                  minHeight={38}
-                  focusMinHeight={100}
-                  placeholder="Role (e.g. Product Owner)"
-                  value={sh.role}
-                  onChange={(e) => updateStakeholder(sh.id, { role: e.target.value })}
-                />
-                <select
-                  className={inputClass + ' col-span-3 md:col-span-2'}
-                  value={sh.raci}
-                  onChange={(e) => updateStakeholder(sh.id, { raci: e.target.value as RaciRole })}
-                >
-                  <option value="R">R</option>
-                  <option value="A">A</option>
-                  <option value="C">C</option>
-                  <option value="I">I</option>
-                </select>
-                <button
-                  onClick={() => removeStakeholder(sh.id)}
-                  className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors"
-                  aria-label="Remove stakeholder"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionCard>
+      <AttachmentsSection
+        attachments={story.attachments ?? []}
+        onChange={(attachments) => set({ attachments })}
+      />
     </>
   )
 }
@@ -363,6 +475,10 @@ const US_STATUS: Array<{ value: UserStoryStatus; label: string }> = [
 ]
 
 function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
+  const navigate = useNavigate()
+  const [generatingId, setGeneratingId] = useState<string | null>(null)
+  const [genError, setGenError] = useState<string | null>(null)
+
   const updateUS = (id: string, patch: Partial<UserStory>) => {
     set({ userStories: story.userStories.map((u) => u.id === id ? { ...u, ...patch } : u) })
   }
@@ -370,6 +486,67 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
     set({ userStories: story.userStories.filter((u) => u.id !== id) })
   }
   const addUS = () => set({ userStories: [...story.userStories, createUserStory()] })
+
+  const generateTestCaseForUS = async (us: UserStory) => {
+    if (generatingId) return
+    setGeneratingId(us.id)
+    setGenError(null)
+    try {
+      const criteriaText = us.criteria
+        .map((c, i) => `AC-${i + 1}: Given ${c.given || '—'}; When ${c.when || '—'}; Then ${c.then || '—'}.`)
+        .join('\n')
+
+      const promptLines = [
+        `Business story: ${story.title || 'Untitled'}`,
+        story.summary ? `Story summary: ${story.summary}` : '',
+        '',
+        'Generate a test case for this specific user story:',
+        `As a ${us.asA || '—'}, I want ${us.iWant || '—'}, so that ${us.soThat || '—'}.`,
+        us.criteria.length > 0 ? `\nAcceptance criteria:\n${criteriaText}` : '',
+        '',
+        `Priority: ${us.priority}. Status: ${us.status}.`,
+      ].filter(Boolean)
+
+      const formData = new FormData()
+      formData.append('prompt', promptLines.join('\n'))
+
+      const result = await apiUpload<AIFillResult & { aiMessage?: string }>(
+        '/ai/fill-test-case',
+        formData,
+      )
+      if (result.aiMessage) throw new Error(result.aiMessage)
+
+      const fallbackTitle = (us.iWant || 'user story').slice(0, 90)
+      const tc: CustomTestCase = {
+        ...createCustomTestCase(),
+        title: result.title || `Test plan — ${fallbackTitle}`,
+        summary: result.summary || '',
+        objective: result.objective || '',
+        preconditions: result.preconditions ?? [],
+        tags: result.tags ?? [],
+        priority: us.priority,
+        testCases: (result.testCases ?? []).map((sub) => ({
+          ...createCustomTC(),
+          name: sub.name,
+          priority: sub.priority ?? us.priority,
+          steps: sub.steps,
+          expected: sub.expected,
+        })),
+        projectId: story.projectId ?? null,
+      }
+
+      await addCustomTestCase(tc)
+      navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.aiMessage ? err.aiMessage :
+        err instanceof Error ? err.message :
+        'Generation failed.'
+      setGenError(msg)
+    } finally {
+      setGeneratingId(null)
+    }
+  }
 
   const updateAC = (usId: string, acId: string, patch: Partial<AcceptanceCriterion>) => {
     const us = story.userStories.find((u) => u.id === usId)
@@ -402,12 +579,25 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
         </button>
       }
     >
+      {genError && (
+        <div
+          className="mb-3 p-3 rounded-md text-xs flex items-start gap-2"
+          style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#dc2626' }}
+        >
+          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1">{genError}</div>
+          <button onClick={() => setGenError(null)} className="hover:opacity-70" aria-label="Dismiss error">
+            <X size={12} />
+          </button>
+        </div>
+      )}
       {story.userStories.length === 0 ? (
         <p className="text-sm text-muted-foreground">No user stories yet. Click "Add Story" to create one.</p>
       ) : (
         <div className="flex flex-col gap-4">
           {story.userStories.map((us, idx) => {
             const pri = US_PRIORITY.find((p) => p.value === us.priority)!
+            const generating = generatingId === us.id
             return (
               <div
                 key={us.id}
@@ -427,6 +617,21 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => generateTestCaseForUS(us)}
+                      disabled={generatingId !== null}
+                      title="Generate a test case from this user story using AI"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-opacity hover:opacity-90 disabled:cursor-wait"
+                      style={{
+                        background: 'var(--app-btn-primary)',
+                        color: 'var(--app-btn-text)',
+                        boxShadow: '0 2px 10px var(--app-btn-primary-shadow)',
+                        opacity: generatingId !== null && !generating ? 0.5 : 1,
+                      }}
+                    >
+                      {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      {generating ? 'Generating…' : 'Generate Test Plan'}
+                    </button>
                     <select
                       className="text-xs px-2 py-1 rounded-md border border-border bg-background"
                       value={us.priority}

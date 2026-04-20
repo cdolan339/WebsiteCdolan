@@ -16,7 +16,7 @@ import '../styles.css'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
-    const publicPaths = ['/', '/login', '/403', '/404']
+    const publicPaths = ['/', '/login', '/register', '/verify', '/403', '/404']
     if (publicPaths.includes(location.pathname)) return
     if (typeof window !== 'undefined' && !isAuthenticated()) {
       throw redirect({ to: '/403' })
@@ -92,7 +92,7 @@ function SearchBar() {
             if (e.key === 'Enter' && results.length > 0) go(results[0])
             if (e.key === 'Escape') { setQuery(''); setResults([]); setOpen(false); inputRef.current?.blur() }
           }}
-          placeholder="Search test cases…"
+          placeholder="Search…"
           className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground flex-1 min-w-0"
         />
       </div>
@@ -269,6 +269,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
     { to: '/projects', label: 'Projects' },
     { to: '/stories', label: 'Stories' },
     { to: '/test-suites', label: 'Test Suites' },
+    { to: '/team', label: 'Team' },
     { to: '/wiki', label: 'Wiki' },
   ]
 
@@ -347,7 +348,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
 function AppShell({ children }: { children: React.ReactNode }) {
   const { location } = useRouterState()
   const navigate = useNavigate()
-  const hideNav = ['/', '/login', '/403', '/404'].includes(location.pathname)
+  const hideNav = ['/', '/login', '/register', '/verify', '/403', '/404'].includes(location.pathname)
   const [mounted, setMounted] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 

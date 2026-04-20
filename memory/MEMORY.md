@@ -1,0 +1,1 @@
+- [Production migrations via pgAdmin](feedback_production_migrations.md) — always provide raw SQL for prod schema changes, not `node` commands

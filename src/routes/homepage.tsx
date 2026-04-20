@@ -6,7 +6,7 @@ import { useAllTestStatuses, type TestStatus } from '@/lib/useTestStatus'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import {
   FolderOpen, FileText, ClipboardList, Plus, ArrowRight, Calendar,
-  CheckCircle2, XCircle, Clock, Ban, Sparkles, Target,
+  CheckCircle2, XCircle, Clock, Ban, Sparkles,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/homepage')({
@@ -320,22 +320,36 @@ function Section({
   createLabel?: string
   children: React.ReactNode
 }) {
+  const heading = (
+    <div className="flex items-center gap-2 group">
+      <div
+        className="p-2 rounded-lg"
+        style={
+          iconGradient
+            ? { background: iconGradient, color: '#fff' }
+            : { background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }
+        }
+      >
+        {icon}
+      </div>
+      <h2 className="text-xl font-bold">{title}</h2>
+    </div>
+  )
+
   return (
     <section className="mb-8">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div
-            className="p-2 rounded-lg"
-            style={
-              iconGradient
-                ? { background: iconGradient, color: '#fff' }
-                : { background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }
-            }
+        {viewAllTo ? (
+          <Link
+            to={viewAllTo}
+            className="transition-opacity hover:opacity-80"
+            style={{ color: 'var(--app-text)', textDecoration: 'none' }}
           >
-            {icon}
-          </div>
-          <h2 className="text-xl font-bold">{title}</h2>
-        </div>
+            {heading}
+          </Link>
+        ) : (
+          heading
+        )}
         <div className="flex items-center gap-2">
           {createTo && (
             <Link
@@ -509,7 +523,7 @@ function Dashboard() {
         {/* ── Projects ─────────────────────────────────────── */}
         <Section
           title="Projects"
-          icon={<Target size={16} />}
+          icon={<FolderOpen size={16} />}
           iconGradient="linear-gradient(135deg, #3b82f6, #8b5cf6)"
           viewAllTo="/projects"
           createTo="/projects"

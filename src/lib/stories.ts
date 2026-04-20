@@ -94,6 +94,15 @@ export type RaidEntry = {
   status: RaidStatus;
 };
 
+export type Attachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+  uploadedAt: string;
+};
+
 export type StoryStatus = "discovery" | "analysis" | "development" | "uat" | "done";
 
 export type Story = {
@@ -116,6 +125,7 @@ export type Story = {
   wireframes: Wireframe[];
   rtm: RtmEntry[];
   raid: RaidEntry[];
+  attachments: Attachment[];
   notes: string;
   completed?: boolean;
   completedAt?: string | null;
@@ -207,6 +217,7 @@ export function createStory(): Story {
     wireframes: [],
     rtm: [],
     raid: [],
+    attachments: [],
     notes: "",
     completed: false,
     completedAt: null,

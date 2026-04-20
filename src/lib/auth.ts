@@ -1,13 +1,8 @@
 /**
- * src/lib/auth.ts  (DROP-IN REPLACEMENT)
+ * src/lib/auth.ts
  *
- * Same exported functions as before — getSession, isAuthenticated,
- * getCurrentUser, login, logout — but now backed by the Express API
- * and JWT instead of a hardcoded user array.
- *
- * The JWT is stored in localStorage under "qa-token" and decoded
- * client-side for the session info. The server validates it on
- * every API call.
+ * JWT is stored in localStorage under "qa-token" and decoded client-side
+ * for the session info. The server validates it on every API call.
  */
 
 import { api, setToken, getToken } from "./api";
@@ -35,7 +30,6 @@ export function getSession(): Session | null {
     return null;
   }
 
-  // Check expiry (JWT exp is in seconds)
   if (Date.now() / 1000 > payload.exp) {
     setToken(null);
     return null;
@@ -52,50 +46,93 @@ export function getCurrentUser(): string | null {
   return getSession()?.username ?? null;
 }
 
-/**
- * Login — calls the API, stores the JWT on success.
- * Returns true on success, false on invalid credentials.
- */
-export async function login(
-  username: string,
-  password: string
-): Promise<boolean> {
+export type LoginResult =
+  | { ok: true }
+  | { ok: false; error: string; needsVerification?: boolean; needsApproval?: boolean };
+
+export async function login(username: string, password: string): Promise<LoginResult> {
   try {
     const data = await api<{ user: { id: number; username: string }; token: string }>(
       "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify({ username, password }),
-      }
+      { method: "POST", body: JSON.stringify({ username, password }) }
     );
     setToken(data.token);
-    return true;
-  } catch {
-    return false;
+    return { ok: true };
+  } catch (err) {
+    const e = err as { status?: number; message?: string; body?: Record<string, unknown> };
+    // The api() helper strips the body — fall back to a fresh fetch so we can read flags.
+    const detail = await readLoginError(username, password);
+    return {
+      ok: false,
+      error: detail?.error || e.message || "Login failed",
+      needsVerification: !!detail?.needsVerification,
+      needsApproval:     !!detail?.needsApproval,
+    };
   }
 }
 
-/**
- * Register — calls the API, stores the JWT on success.
- * Throws with an error message on failure.
- */
-export async function register(
-  username: string,
-  password: string
-): Promise<boolean> {
+async function readLoginError(username: string, password: string) {
   try {
-    const data = await api<{ user: { id: number; username: string }; token: string }>(
-      "/auth/register",
+    const res = await fetch(
+      (import.meta.env.DEV ? "/api" : "https://qa-assistant-api.onrender.com/api") + "/auth/login",
       {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       }
     );
-    setToken(data.token);
-    return true;
-  } catch (err) {
-    throw err;
+    if (res.ok) return null;
+    return await res.json().catch(() => null) as
+      | { error?: string; needsVerification?: boolean; needsApproval?: boolean }
+      | null;
+  } catch {
+    return null;
   }
+}
+
+export type RegisterInput = {
+  username: string;
+  email:    string;
+  password: string;
+  teamName: string;
+};
+
+export type RegisterResult = {
+  user: { id: number; username: string; email: string; role: "owner" | "manager" | "associate" };
+  teamName: string;
+  joiningExisting: boolean;
+  requiresApproval: boolean;
+};
+
+export async function register(input: RegisterInput): Promise<RegisterResult> {
+  return api<RegisterResult>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function checkTeamName(name: string): Promise<{
+  exists: boolean;
+  displayName?: string;
+  memberCount?: number;
+}> {
+  const q = encodeURIComponent(name);
+  return api(`/teams/check?name=${q}`, { method: "GET" });
+}
+
+export async function verifyEmail(token: string): Promise<{ ok: true; username: string }> {
+  return api("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function getRegistrationStatus(username: string): Promise<{
+  email_verified: boolean;
+  pending_approval: boolean;
+}> {
+  const q = encodeURIComponent(username);
+  return api(`/auth/status?username=${q}`, { method: "GET" });
 }
 
 export function logout(): void {

@@ -424,12 +424,16 @@ function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const success = await login(username, password)
-      if (success) {
+      const result = await login(username, password)
+      if (result.ok) {
         setTransitioning(true)
         setTimeout(() => navigate({ to: '/homepage' }), 600)
+      } else if (result.needsVerification) {
+        setError('Please verify your email before signing in. Check your inbox for the verification link.')
+      } else if (result.needsApproval) {
+        setError('Your team join request is still pending approval by the team owner.')
       } else {
-        setError('Invalid credentials.')
+        setError(result.error || 'Invalid credentials.')
       }
     } catch {
       setError('Connection error. Is the API server running?')
@@ -520,6 +524,21 @@ function LoginPage() {
               <button type="submit" className="btn-submit" disabled={loading}>
                 {loading ? 'Connecting…' : 'Initialize Session'}
               </button>
+              <p style={{
+                marginTop: 16,
+                fontSize: '0.8rem',
+                color: 'var(--app-text-secondary)',
+                textAlign: 'center',
+              }}>
+                No account yet?{' '}
+                <a
+                  href="/register"
+                  onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }) }}
+                  style={{ color: 'var(--app-text)', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  Create one
+                </a>
+              </p>
             </form>
           </div>
         </div>
