@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
+import { PageShell, EyebrowChip } from '@/components/design/primitives'
 
 export const Route = createFileRoute('/wiki')({
   component: WikiPage,
@@ -100,24 +101,24 @@ const SECTIONS: Section[] = [
 // ── Shared style helpers ──────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'var(--app-glass)',
-  border: '1px solid var(--app-glass-border)',
-  backdropFilter: 'blur(10px)',
-  borderRadius: '12px',
-  padding: '24px',
-  marginBottom: '24px',
+  background: 'var(--panel)',
+  border: '1px solid var(--border)',
+  borderRadius: '14px',
+  padding: '22px 24px',
+  marginBottom: '18px',
+  boxShadow: 'var(--shadow-xs)',
 }
 
 const sectionHeader = (label: string) => (
-  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '16px', color: 'var(--app-text)' }}>{label}</h2>
+  <h2 style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '14px', color: 'var(--ink)' }}>{label}</h2>
 )
 
 const subHeader = (label: string) => (
-  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '10px', color: 'var(--app-text)' }}>{label}</h3>
+  <h3 style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '-0.01em', marginBottom: '10px', color: 'var(--ink)' }}>{label}</h3>
 )
 
 const prose = (text: string) => (
-  <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '12px' }}>{text}</p>
+  <p style={{ color: 'var(--mute)', fontSize: '14px', lineHeight: 1.65, marginBottom: '10px' }}>{text}</p>
 )
 
 const Chip = ({ label, color = '#0891b2' }: { label: string; color?: string }) => (
@@ -1612,127 +1613,119 @@ ON CONFLICT (user_id, slug) DO UPDATE SET status = $3`} />
 
 function WikiPage() {
   const [active, setActive] = useState('overview')
-  const [mobileOpen, setMobileOpen] = useState(false)
 
   const currentSection = SECTIONS.find(
     (s) => s.id === active || s.subsections?.some((sub) => sub.id === active)
   )
 
   return (
-    <div style={{ background: 'var(--app-bg)', minHeight: '100vh', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'var(--app-text)', position: 'relative', overflow: 'hidden' }}>
+    <PageShell>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
-        @keyframes movewiki { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-wiki { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.15; animation:movewiki 20s infinite alternate; pointer-events:none; }
-        .wiki-sidebar-item { cursor:pointer; padding:6px 12px; border-radius:8px; font-size:0.83rem; transition:background 0.15s, color 0.15s; border:none; background:transparent; text-align:left; width:100%; color:var(--app-text-secondary); }
-        .wiki-sidebar-item:hover { background:var(--app-glass); }
-        .wiki-sidebar-sub { cursor:pointer; padding:5px 12px 5px 22px; border-radius:8px; font-size:0.78rem; transition:background 0.15s, color 0.15s; border:none; background:transparent; text-align:left; width:100%; color:var(--app-text-secondary); }
-        .wiki-sidebar-sub:hover { background:var(--app-glass); }
-        .wiki-scroll::-webkit-scrollbar { width:5px; }
-        .wiki-scroll::-webkit-scrollbar-track { background:transparent; }
-        .wiki-scroll::-webkit-scrollbar-thumb { background:var(--app-glass-border); border-radius:4px; }
+        .wiki-sidebar-item {
+          cursor: pointer;
+          padding: 7px 12px;
+          border-radius: 9px;
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: -0.005em;
+          transition: background .15s, color .15s;
+          border: none;
+          background: transparent;
+          text-align: left;
+          width: 100%;
+          color: var(--ink);
+        }
+        .wiki-sidebar-item:hover { background: var(--chip); }
+        .wiki-sidebar-item.active {
+          background: linear-gradient(105deg, color-mix(in oklab, var(--purple) 14%, transparent), color-mix(in oklab, var(--pink) 12%, transparent));
+          color: var(--ink);
+        }
+        .wiki-sidebar-sub {
+          cursor: pointer;
+          padding: 5px 10px 5px 22px;
+          border-radius: 8px;
+          font-size: 12.5px;
+          transition: background .15s, color .15s;
+          border: none;
+          background: transparent;
+          text-align: left;
+          width: 100%;
+          color: var(--mute);
+        }
+        .wiki-sidebar-sub:hover { background: var(--chip); color: var(--ink); }
+        .wiki-sidebar-sub.active { color: var(--ink); font-weight: 600; background: var(--chip); }
+        .wiki-scroll::-webkit-scrollbar { width: 5px; }
+        .wiki-scroll::-webkit-scrollbar-track { background: transparent; }
+        .wiki-scroll::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--mute) 30%, transparent); border-radius: 4px; }
       `}</style>
 
-      {/* Background blobs */}
-      <div className="blob-wiki" style={{ width: 500, height: 500, top: -150, left: -150 }} />
-      <div className="blob-wiki" style={{ width: 400, height: 400, bottom: -100, right: -100, animationDelay: '-7s' }} />
+      <div style={{ paddingTop: 32, marginBottom: 28 }}>
+        <EyebrowChip icon="book" tone="blue">Knowledge base</EyebrowChip>
+        <h1 className="display" style={{ marginTop: 10 }}>Application Wiki</h1>
+        <p className="subhead">Full reference for the QA &amp; BA assistant — pages, libraries, API routes, and database schema.</p>
+      </div>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 16px', position: 'relative', zIndex: 10 }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h1 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: '6px', background: 'var(--app-accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Application Wiki
-              </h1>
-              <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.9rem' }}>
-                Complete reference for QA &amp; BA Assistant — pages, libraries, API, and database.
-              </p>
-            </div>
-            {/* Mobile menu toggle */}
-            <button
-              onClick={() => setMobileOpen((o) => !o)}
-              style={{ display: 'none', padding: '8px 12px', borderRadius: '8px', background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)', cursor: 'pointer', fontSize: '0.82rem' }}
-              className="wiki-mobile-btn"
-            >
-              Menu
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-
-          {/* ── Sidebar ─────────────────────────────────────────────────── */}
-          <nav style={{
-            width: '220px',
-            flexShrink: 0,
+      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 28, alignItems: 'flex-start' }}>
+        {/* ── Sidebar ─────────────────────────────────────────────── */}
+        <nav
+          className="panel wiki-scroll"
+          style={{
             position: 'sticky',
-            top: '20px',
-            maxHeight: 'calc(100vh - 80px)',
+            top: 84,
+            maxHeight: 'calc(100vh - 120px)',
             overflowY: 'auto',
-            background: 'var(--app-glass)',
-            border: '1px solid var(--app-glass-border)',
-            borderRadius: '14px',
-            padding: '12px 8px',
-          }} className="wiki-scroll">
-            {SECTIONS.map((section) => (
-              <div key={section.id} style={{ marginBottom: '2px' }}>
+            padding: '10px 8px',
+          }}
+        >
+          {SECTIONS.map((section) => {
+            const sectionActive = active === section.id || !!section.subsections?.some((s) => s.id === active)
+            return (
+              <div key={section.id} style={{ marginBottom: 2 }}>
                 <button
-                  className="wiki-sidebar-item"
-                  style={{
-                    fontWeight: 600,
-                    color: (active === section.id || section.subsections?.some((s) => s.id === active)) ? 'var(--app-text)' : 'var(--app-text-secondary)',
-                    background: (active === section.id || section.subsections?.some((s) => s.id === active)) ? 'var(--app-glass)' : 'transparent',
-                  }}
-                  onClick={() => { setActive(section.subsections ? section.subsections[0].id : section.id); setMobileOpen(false) }}
+                  className={`wiki-sidebar-item ${sectionActive ? 'active' : ''}`}
+                  onClick={() => setActive(section.subsections ? section.subsections[0].id : section.id)}
                 >
                   {section.label}
                 </button>
                 {section.subsections?.map((sub) => (
                   <button
                     key={sub.id}
-                    className="wiki-sidebar-sub"
-                    style={{
-                      color: active === sub.id ? 'var(--app-text)' : 'var(--app-text-secondary)',
-                      background: active === sub.id ? 'var(--app-glass)' : 'transparent',
-                      fontWeight: active === sub.id ? 600 : 400,
-                    }}
-                    onClick={() => { setActive(sub.id); setMobileOpen(false) }}
+                    className={`wiki-sidebar-sub ${active === sub.id ? 'active' : ''}`}
+                    onClick={() => setActive(sub.id)}
                   >
                     {sub.label}
                   </button>
                 ))}
               </div>
-            ))}
-          </nav>
+            )
+          })}
+        </nav>
 
-          {/* ── Content ─────────────────────────────────────────────────── */}
-          <main style={{ flex: 1, minWidth: 0 }}>
-            {/* Breadcrumb */}
-            <div style={{ marginBottom: '16px', fontSize: '0.78rem', color: 'var(--app-text-secondary)' }}>
-              Wiki
-              {currentSection && (
+        {/* ── Content ─────────────────────────────────────────────── */}
+        <main style={{ minWidth: 0 }}>
+          <div style={{ marginBottom: 18, fontSize: 12, color: 'var(--mute)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontFamily: "'JetBrains Mono', monospace" }}>
+            <span>Wiki</span>
+            {currentSection && (
+              <>
+                <span style={{ opacity: 0.5 }}>/</span>
+                <span>{currentSection.label}</span>
+              </>
+            )}
+            {currentSection && (() => {
+              const sub = currentSection.subsections?.find((s) => s.id === active)
+              return sub ? (
                 <>
-                  <span style={{ margin: '0 6px' }}>›</span>
-                  <span style={{ color: 'var(--app-text-secondary)' }}>{currentSection.label}</span>
+                  <span style={{ opacity: 0.5 }}>/</span>
+                  <span style={{ color: 'var(--ink)' }}>{sub.label}</span>
                 </>
-              )}
-              {currentSection && (() => {
-                const sub = currentSection.subsections?.find((s) => s.id === active)
-                return sub ? (
-                  <>
-                    <span style={{ margin: '0 6px' }}>›</span>
-                    <span style={{ color: 'var(--app-text)' }}>{sub.label}</span>
-                  </>
-                ) : null
-              })()}
-            </div>
+              ) : null
+            })()}
+          </div>
 
-            <WikiContent active={active} />
-          </main>
-        </div>
+          <WikiContent active={active} />
+        </main>
       </div>
-    </div>
+    </PageShell>
   )
 }

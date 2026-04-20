@@ -25,6 +25,10 @@ import {
   createCustomTestCase, createCustomTC, addCustomTestCase,
   type CustomTestCase,
 } from '@/lib/customTestCases'
+import {
+  PageShell, EyebrowChip, Pill, Button, Ring, Segmented,
+  type IconName,
+} from '@/components/design/primitives'
 
 export const Route = createFileRoute('/stories/$id')({
   component: StoryDetail,
@@ -1834,176 +1838,346 @@ function StoryDetail() {
 
   if (!story || !draft) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">Story not found.</p>
-          <Link
-            to="/stories"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            <ArrowLeft size={14} /> Back to Stories
-          </Link>
+      <PageShell>
+        <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'var(--mute)', marginBottom: 16 }}>Story not found.</p>
+            <Link to="/stories" style={{ textDecoration: 'none' }}>
+              <Button variant="gradient">
+                <ArrowLeft size={14} /> Back to Stories
+              </Button>
+            </Link>
+          </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
+  const progressPct = computeStoryProgress(draft)
+  const counts = {
+    stakeholders: draft.stakeholders.length,
+    userStories: draft.userStories.length,
+    requirements: draft.requirements.length,
+    flows: draft.processFlows.length,
+    rtm: draft.rtm.length,
+    raid: draft.raid.length,
+  }
+
   return (
-    <div className="min-h-screen text-foreground relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-2 text-sm mb-4 flex-wrap">
-          <Link
-            to="/stories"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
-          >
-            <ArrowLeft size={12} /> Back to Stories
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-muted-foreground truncate">{draft.title || 'Untitled Story'}</span>
-        </div>
-
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}>
-                <Sparkles size={11} /> BA Story
-              </div>
-              <StoryProjectPicker
-                projects={projects}
-                projectId={draft.projectId ?? null}
-                onSelect={(id) => set({ projectId: id })}
-              />
-            </div>
-            <input
-              className="w-full text-4xl font-bold bg-transparent outline-none focus:ring-0 py-2 rounded-md transition-colors"
-              style={{
-                border: showErrors && titleError ? '1px solid var(--app-error, #ef4444)' : '1px solid transparent',
-                paddingLeft: showErrors && titleError ? '12px' : '0',
-              }}
-              placeholder="Story title"
-              value={draft.title}
-              onChange={(e) => set({ title: e.target.value })}
-            />
-            {showErrors && titleError && (
-              <p className="text-xs mb-2" style={{ color: 'var(--app-error, #ef4444)' }}>Title is required.</p>
-            )}
-            <input
-              className="w-full text-lg bg-transparent outline-none focus:ring-0 text-muted-foreground py-2 rounded-md transition-colors"
-              style={{
-                border: showErrors && summaryError ? '1px solid var(--app-error, #ef4444)' : '1px solid transparent',
-                paddingLeft: showErrors && summaryError ? '12px' : '0',
-              }}
-              placeholder="Short summary — one sentence about what this story delivers"
-              value={draft.summary}
-              onChange={(e) => set({ summary: e.target.value })}
-            />
-            {showErrors && summaryError && (
-              <p className="text-xs mt-1" style={{ color: 'var(--app-error, #ef4444)' }}>Summary is required.</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setAiOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-sm font-semibold whitespace-nowrap transition-opacity hover:opacity-90"
-              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
-            >
-              <Sparkles size={14} /> AI Generate
-            </button>
-            <select
-              className={inputClass + ' text-xs'}
-              value={draft.status}
-              onChange={(e) => set({ status: e.target.value as StoryStatus })}
-            >
-              {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-            <button
-              onClick={save}
-              disabled={!dirty && !saved}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-all"
-              style={{
-                background: dirty ? 'var(--app-btn-primary)' : 'var(--app-glass)',
-                color: dirty ? 'var(--app-btn-text)' : 'var(--app-text-secondary)',
-                border: dirty ? 'none' : '1px solid var(--app-glass-border)',
-                opacity: !dirty && !saved ? 0.6 : 1,
-                cursor: !dirty && !saved ? 'default' : 'pointer',
-              }}
-            >
-              <Save size={14} />
-              {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div
-          className="flex gap-1 mb-6 p-1 rounded-lg overflow-x-auto"
-          style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
+    <PageShell>
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, marginBottom: 14, flexWrap: 'wrap', fontSize: 13, color: 'var(--mute)' }}>
+        <Link
+          to="/stories"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--mute)', textDecoration: 'none' }}
         >
-          {TABS.map((t) => {
-            const active = tab === t.key
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold transition-all whitespace-nowrap"
-                style={active ? {
-                  background: 'var(--app-btn-primary)',
-                  color: 'var(--app-btn-text)',
-                  boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-                } : {
-                  background: 'transparent',
-                  color: 'var(--app-text-secondary)',
-                }}
-              >
-                {t.icon}
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
+          <ArrowLeft size={13} /> Stories
+        </Link>
+        <span style={{ opacity: 0.5 }}>/</span>
+        <span style={{ color: 'var(--ink)', fontWeight: 500, maxWidth: 520, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {draft.title || 'Untitled Story'}
+        </span>
+      </div>
 
-        {/* Tab content */}
-        {tab === 'overview'      && <OverviewTab      story={draft} set={set} />}
-        {tab === 'user-stories'  && <UserStoriesTab   story={draft} set={set} />}
-        {tab === 'requirements'  && <RequirementsTab  story={draft} set={set} />}
-        {tab === 'process-flows' && <ProcessFlowsTab  story={draft} set={set} />}
-        {tab === 'wireframes'    && <WireframesTab    story={draft} set={set} />}
-        {tab === 'rtm'           && <RtmTab           story={draft} set={set} />}
-        {tab === 'raid'          && <RaidTab          story={draft} set={set} />}
-        {tab === 'notes'         && <NotesTab         story={draft} set={set} />}
-
-        {/* AI fill panel */}
-        {aiOpen && (
-          <AIFillStoryPanel
-            onFill={handleAiFill}
-            onClose={() => setAiOpen(false)}
-            onLoading={setAiLoading}
-          />
-        )}
-
-        <LoadingCurtain visible={aiLoading} message="Generating BA story" transparent />
-
-        {/* Sticky footer save hint */}
-        {dirty && (
-          <div
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium"
-            style={{ background: 'var(--app-overlay)', border: '1px solid var(--app-overlay-border)', backdropFilter: 'blur(12px)', color: 'var(--app-text)' }}
-          >
-            Unsaved changes
-            <button
-              onClick={save}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-90"
-              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-            >
-              <Save size={11} /> Save
-              <ChevronRight size={11} />
-            </button>
+      {/* Header strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'start', marginBottom: 22 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <EyebrowChip icon="sparkles" tone="purple">BA Story</EyebrowChip>
+            <Pill tone={STATUS_TONE[draft.status]} icon={STATUS_ICON[draft.status]}>
+              {STATUS_OPTIONS.find((s) => s.value === draft.status)?.label ?? draft.status}
+            </Pill>
+            <StoryProjectPicker
+              projects={projects}
+              projectId={draft.projectId ?? null}
+              onSelect={(id) => set({ projectId: id })}
+            />
           </div>
-        )}
+          <input
+            className="tz-title-input"
+            style={{
+              width: '100%',
+              fontFamily: 'inherit',
+              fontSize: 36,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              color: 'var(--ink)',
+              background: 'transparent',
+              border: showErrors && titleError ? '1px solid var(--red)' : '1px solid transparent',
+              borderRadius: 10,
+              padding: showErrors && titleError ? '6px 10px' : '6px 0',
+              outline: 'none',
+            }}
+            placeholder="Story title"
+            value={draft.title}
+            onChange={(e) => set({ title: e.target.value })}
+          />
+          {showErrors && titleError && (
+            <p style={{ fontSize: 12, color: 'var(--red)', margin: '6px 0 0' }}>Title is required.</p>
+          )}
+          <input
+            style={{
+              width: '100%',
+              fontFamily: 'inherit',
+              fontSize: 16,
+              color: 'var(--mute)',
+              background: 'transparent',
+              border: showErrors && summaryError ? '1px solid var(--red)' : '1px solid transparent',
+              borderRadius: 10,
+              padding: showErrors && summaryError ? '6px 10px' : '6px 0',
+              marginTop: 6,
+              outline: 'none',
+            }}
+            placeholder="Short summary — one sentence about what this story delivers"
+            value={draft.summary}
+            onChange={(e) => set({ summary: e.target.value })}
+          />
+          {showErrors && summaryError && (
+            <p style={{ fontSize: 12, color: 'var(--red)', margin: '6px 0 0' }}>Summary is required.</p>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, paddingTop: 4 }}>
+          <Button variant="gradient" onClick={() => setAiOpen(true)}>
+            <Sparkles size={14} /> AI Generate
+          </Button>
+          <select
+            value={draft.status}
+            onChange={(e) => set({ status: e.target.value as StoryStatus })}
+            style={{
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--ink)',
+              background: 'var(--panel)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              padding: '8px 12px',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <Button
+            variant={dirty ? 'gradient' : 'default'}
+            onClick={save}
+            disabled={!dirty && !saved}
+            style={!dirty && !saved ? { opacity: 0.55, cursor: 'default' } : undefined}
+          >
+            <Save size={14} />
+            {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Count tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 12, marginBottom: 22 }}>
+        <CountTile icon="users" gradient="grad-purple" label="Stakeholders" value={counts.stakeholders} />
+        <CountTile icon="file-text" gradient="grad-pink" label="User stories" value={counts.userStories} />
+        <CountTile icon="layers" gradient="grad-blue" label="Requirements" value={counts.requirements} />
+        <CountTile icon="branch" gradient="grad-green" label="Flows" value={counts.flows} />
+        <CountTile icon="target" gradient="grad-orange" label="RTM" value={counts.rtm} />
+        <CountTile icon="alert" gradient="grad-red" label="RAID" value={counts.raid} />
+      </div>
+
+      {/* Progress strip */}
+      <div className="panel" style={{ padding: '14px 18px', marginBottom: 22, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Ring value={progressPct} size={42} stroke={4} color="var(--purple)" />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 4 }}>
+            Progress
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace" }}>
+            {progressPct}% <span style={{ fontSize: 13, color: 'var(--mute)', fontWeight: 500 }}>complete</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Pill tone="neutral" icon="calendar">Updated {formatUpdated(draft.updatedAt)}</Pill>
+          {draft.attachments && draft.attachments.length > 0 && (
+            <Pill tone="blue" icon="clipboard">{draft.attachments.length} file{draft.attachments.length === 1 ? '' : 's'}</Pill>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ marginBottom: 22, overflowX: 'auto', paddingBottom: 4 }}>
+        <Segmented
+          variant="gradient"
+          value={tab}
+          onChange={(v) => setTab(v as TabKey)}
+          options={TABS.map((t) => ({ value: t.key, label: t.label, icon: TAB_ICON[t.key] }))}
+        />
+      </div>
+
+      {/* Tab content */}
+      {tab === 'overview'      && <OverviewTab      story={draft} set={set} />}
+      {tab === 'user-stories'  && <UserStoriesTab   story={draft} set={set} />}
+      {tab === 'requirements'  && <RequirementsTab  story={draft} set={set} />}
+      {tab === 'process-flows' && <ProcessFlowsTab  story={draft} set={set} />}
+      {tab === 'wireframes'    && <WireframesTab    story={draft} set={set} />}
+      {tab === 'rtm'           && <RtmTab           story={draft} set={set} />}
+      {tab === 'raid'          && <RaidTab          story={draft} set={set} />}
+      {tab === 'notes'         && <NotesTab         story={draft} set={set} />}
+
+      {/* AI fill panel */}
+      {aiOpen && (
+        <AIFillStoryPanel
+          onFill={handleAiFill}
+          onClose={() => setAiOpen(false)}
+          onLoading={setAiLoading}
+        />
+      )}
+
+      <LoadingCurtain visible={aiLoading} message="Generating BA story" transparent />
+
+      {/* Sticky unsaved changes pill */}
+      {dirty && (
+        <div
+          style={{
+            position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 50, display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 10px 8px 16px', borderRadius: 999,
+            background: 'color-mix(in oklab, var(--panel) 92%, transparent)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 10px 30px rgba(20,20,40,0.12)',
+            backdropFilter: 'blur(12px)',
+            color: 'var(--ink)', fontSize: 13, fontWeight: 500,
+          }}
+        >
+          Unsaved changes
+          <Button variant="gradient" onClick={save}>
+            <Save size={12} /> Save
+          </Button>
+        </div>
+      )}
+    </PageShell>
+  )
+}
+
+/* ── Canvas helpers for the detail chrome ──────────────────────────── */
+
+const STATUS_TONE: Record<StoryStatus, 'neutral' | 'blue' | 'purple' | 'amber' | 'green'> = {
+  discovery: 'neutral',
+  analysis: 'blue',
+  development: 'purple',
+  uat: 'amber',
+  done: 'green',
+}
+
+const STATUS_ICON: Record<StoryStatus, IconName> = {
+  discovery: 'search',
+  analysis: 'eye',
+  development: 'edit',
+  uat: 'play',
+  done: 'check-circle',
+}
+
+const TAB_ICON: Record<TabKey, IconName> = {
+  overview: 'target',
+  'user-stories': 'file-text',
+  requirements: 'layers',
+  'process-flows': 'branch',
+  wireframes: 'grid',
+  rtm: 'link',
+  raid: 'alert',
+  notes: 'edit',
+}
+
+function CountTile({
+  icon, gradient, label, value,
+}: {
+  icon: IconName
+  gradient: 'grad-purple' | 'grad-pink' | 'grad-blue' | 'grad-green' | 'grad-orange' | 'grad-red'
+  label: string
+  value: number
+}) {
+  // grad-red falls back to grad-orange if the theme doesn't define it
+  const gradClass = gradient === 'grad-red' ? 'grad-orange' : gradient
+  return (
+    <div
+      className="panel"
+      style={{
+        position: 'relative', overflow: 'hidden',
+        padding: '14px 16px',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span
+          className={`section-icon ${gradClass}`}
+          style={{ width: 28, height: 28, borderRadius: 8, display: 'inline-grid', placeItems: 'center', color: 'white' }}
+        >
+          <StoryTileIcon name={icon} />
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 28, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+        {value}
       </div>
     </div>
   )
+}
+
+function StoryTileIcon({ name }: { name: IconName }) {
+  const map: Record<IconName, React.ReactNode> = {
+    users: <Users size={14} />,
+    'file-text': <FileText size={14} />,
+    layers: <ListTree size={14} />,
+    branch: <GitBranch size={14} />,
+    target: <Target size={14} />,
+    alert: <AlertTriangle size={14} />,
+    check: <CheckCircle2 size={14} />,
+    x: <X size={14} />,
+    clock: <Clock size={14} />,
+    calendar: <Clock size={14} />,
+    flag: <Clock size={14} />,
+    clipboard: <FileText size={14} />,
+    tag: <FileText size={14} />,
+    search: <HelpCircle size={14} />,
+    filter: <HelpCircle size={14} />,
+    sort: <HelpCircle size={14} />,
+    more: <HelpCircle size={14} />,
+    plus: <Plus size={14} />,
+    'arrow-right': <ChevronRight size={14} />,
+    'chevron-down': <ChevronDown size={14} />,
+    'chevron-right': <ChevronRight size={14} />,
+    folder: <FolderOpen size={14} />,
+    book: <FileText size={14} />,
+    'trend-up': <Target size={14} />,
+    bell: <HelpCircle size={14} />,
+    moon: <HelpCircle size={14} />,
+    sun: <HelpCircle size={14} />,
+    edit: <StickyNote size={14} />,
+    link: <Network size={14} />,
+    play: <Sparkles size={14} />,
+    'check-circle': <CheckCircle2 size={14} />,
+    'x-circle': <X size={14} />,
+    sparkles: <Sparkles size={14} />,
+    home: <HelpCircle size={14} />,
+    grid: <ImageIcon size={14} />,
+    list: <ListTree size={14} />,
+    split: <HelpCircle size={14} />,
+    user: <Users size={14} />,
+    eye: <HelpCircle size={14} />,
+  }
+  return <>{map[name] ?? <HelpCircle size={14} />}</>
+}
+
+function computeStoryProgress(s: Story): number {
+  const done = s.userStories.filter((u) => u.status === 'done').length
+  const verified = s.rtm.filter((r) => r.status === 'verified').length
+  const totalItems = s.userStories.length + s.rtm.length
+  if (totalItems === 0) return 0
+  return Math.round(((done + verified) / totalItems) * 100)
+}
+
+function formatUpdated(iso: string | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[d.getMonth()]} ${d.getDate()}`
 }

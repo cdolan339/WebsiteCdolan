@@ -9,7 +9,7 @@ import { clearCaches } from '@/lib/useTestStatus'
 import { clearProjectCache } from '@/lib/projects'
 import { clearPermissionCache } from '@/lib/permissions'
 import { api } from '@/lib/api'
-import { Search, Settings, LogOut, Sun, Moon } from 'lucide-react'
+import { Search, Settings, LogOut, Sun, Moon, ChevronDown, Bell } from 'lucide-react'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import '../styles.css'
@@ -79,8 +79,17 @@ function SearchBar() {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-background text-sm focus-within:ring-1 focus-within:ring-ring transition-colors w-64">
-        <Search size={13} className="text-muted-foreground flex-shrink-0" />
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '6px 12px',
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
+          borderRadius: 10, width: 280,
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
+        <Search size={14} style={{ color: 'var(--mute)', flexShrink: 0 }} />
         <input
           ref={inputRef}
           type="text"
@@ -92,9 +101,20 @@ function SearchBar() {
             if (e.key === 'Enter' && results.length > 0) go(results[0])
             if (e.key === 'Escape') { setQuery(''); setResults([]); setOpen(false); inputRef.current?.blur() }
           }}
-          placeholder="Search…"
-          className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground flex-1 min-w-0"
+          placeholder="Search stories, tests, people…"
+          style={{
+            border: 0, background: 'transparent', outline: 'none',
+            fontSize: 13, flex: 1, color: 'var(--ink)',
+            fontFamily: 'inherit', minWidth: 0,
+          }}
         />
+        <span
+          className="tz-mono"
+          style={{
+            fontSize: 10, color: 'var(--mute)',
+            padding: '1px 5px', border: '1px solid var(--border)', borderRadius: 4,
+          }}
+        >⌘K</span>
       </div>
 
       {open && results.length > 0 && createPortal(
@@ -105,31 +125,40 @@ function SearchBar() {
             right: dropdownPos.right,
             zIndex: 9999,
             width: '340px',
-            borderRadius: '12px',
+            borderRadius: 'var(--tz-radius)',
             overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            background: 'var(--app-overlay)',
-            border: '1px solid var(--app-overlay-border)',
-            backdropFilter: 'blur(16px)',
+            boxShadow: 'var(--shadow-md)',
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
           }}
         >
-          {results.map((result) => (
+          {results.map((result, idx) => (
             <button
               key={result.id}
               onMouseDown={() => go(result)}
-              className="w-full text-left px-4 py-2.5 transition-colors"
-              style={{ background: 'transparent', borderBottom: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--app-glass)')}
+              className="w-full text-left"
+              style={{
+                background: 'transparent',
+                borderTop: idx > 0 ? '1px solid var(--border)' : 'none',
+                color: 'var(--ink)',
+                padding: '10px 14px', fontFamily: 'inherit',
+                transition: 'background .15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--panel-2)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium truncate flex-1 min-w-0">{result.title || 'Untitled Test Case'}</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span className="tz-truncate" style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0 }}>
+                  {result.title || 'Untitled Test Case'}
+                </span>
                 {result.projectName && (
-                  <span className="text-xs flex-shrink-0 truncate max-w-[100px]" style={{ color: 'var(--app-text-secondary)' }}>{result.projectName}</span>
+                  <span className="tz-mono tz-truncate" style={{ fontSize: 11, color: 'var(--mute)', maxWidth: 110 }}>
+                    {result.projectName}
+                  </span>
                 )}
               </div>
               {result.tags.length > 0 && (
-                <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--app-text-secondary)' }}>
+                <p className="tz-truncate" style={{ fontSize: 11.5, marginTop: 2, color: 'var(--mute)' }}>
                   {result.tags.slice(0, 4).join(', ')}
                   {result.tags.length > 4 && ` +${result.tags.length - 4} more`}
                 </p>
@@ -183,14 +212,31 @@ function ProfileButton({ onLogout }: { onLogout: () => void }) {
       <button
         ref={buttonRef}
         onClick={handleOpen}
-        className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full transition-colors focus:outline-none"
-        style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '4px 11px 4px 4px',
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
+          borderRadius: 999,
+          boxShadow: 'var(--shadow-xs)',
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
         aria-label="User menu"
       >
-        <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}>
-          {initial}
+        <span
+          style={{
+            width: 22, height: 22, borderRadius: 999,
+            background: 'linear-gradient(135deg, var(--purple), var(--pink))',
+            color: 'white', fontSize: 11, fontWeight: 600,
+            display: 'grid', placeItems: 'center',
+          }}
+        >
+          {initial || '?'}
         </span>
-        <span className="text-sm font-medium" style={{ color: 'var(--app-text)' }}>{username}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+          {username || 'Guest'}
+        </span>
+        <ChevronDown size={12} style={{ color: 'var(--mute)' }} />
       </button>
 
       {open && createPortal(
@@ -201,41 +247,45 @@ function ProfileButton({ onLogout }: { onLogout: () => void }) {
             top: dropdownPos.top,
             left: dropdownPos.left,
             zIndex: 9999,
-            width: '208px',
-            borderRadius: '12px',
+            width: 208,
+            borderRadius: 'var(--tz-radius)',
             overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            background: 'var(--app-overlay)',
-            border: '1px solid var(--app-overlay-border)',
-            backdropFilter: 'blur(16px)',
+            boxShadow: 'var(--shadow-md)',
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
           }}
         >
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}>
-            <p className="text-sm font-semibold">{username}</p>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{username}</p>
           </div>
 
-          <div className="py-1">
+          <div style={{ padding: 4 }}>
             <button
               onClick={() => { setOpen(false); navigate({ to: '/settings' }) }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-              style={{ background: 'transparent', color: 'var(--app-text-secondary)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-glass)'; e.currentTarget.style.color = 'var(--app-text)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--app-text-secondary)' }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 10px', borderRadius: 8, border: 0,
+                background: 'transparent', color: 'var(--ink-2)', fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--chip)'; e.currentTarget.style.color = 'var(--ink)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ink-2)' }}
             >
-              <Settings size={15} className="opacity-60" />
+              <Settings size={14} style={{ opacity: 0.7 }} />
               Settings
             </button>
-          </div>
-
-          <div className="py-1" style={{ borderTop: '1px solid var(--app-glass-border)' }}>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-              style={{ background: 'transparent', color: 'var(--app-text-secondary)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-glass)'; e.currentTarget.style.color = 'var(--app-text)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--app-text-secondary)' }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 10px', borderRadius: 8, border: 0,
+                background: 'transparent', color: 'var(--ink-2)', fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--chip)'; e.currentTarget.style.color = 'var(--ink)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ink-2)' }}
             >
-              <LogOut size={15} className="opacity-60" />
+              <LogOut size={14} style={{ opacity: 0.7 }} />
               Log out
             </button>
           </div>
@@ -252,9 +302,10 @@ function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-1.5 rounded-lg transition-colors"
-      style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}
+      className="tz-btn tz-btn-ghost"
+      style={{ padding: 7 }}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Light mode' : 'Dark mode'}
     >
       {isDark ? <Sun size={16} /> : <Moon size={16} />}
     </button>
@@ -273,43 +324,80 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
     { to: '/wiki', label: 'Wiki' },
   ]
 
+  const linkBase: React.CSSProperties = {
+    padding: '6px 12px', borderRadius: 8,
+    fontSize: 13.5, fontWeight: 500,
+    color: 'var(--mute)', textDecoration: 'none',
+    letterSpacing: '-0.005em', transition: 'all .15s',
+    display: 'inline-flex', alignItems: 'center',
+  }
+
   return (
-    <nav className="w-full py-3" style={{ background: 'var(--app-nav-bg)', borderBottom: '1px solid var(--app-nav-border)', backdropFilter: 'blur(12px)' }}>
+    <nav
+      style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        background: 'color-mix(in oklab, var(--bg) 82%, transparent)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderBottom: '1px solid var(--border)',
+      }}
+    >
       {/* ── Desktop ────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-4 hidden md:flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <ProfileButton onLogout={onLogout} />
-          <ul className="flex items-center gap-5">
-            {links.map((link) => (
-              <li key={link.to}>
-                <Link
-                  to={link.to}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  activeProps={{ className: 'text-sm font-semibold text-foreground' }}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+      <div
+        className="tz-nav-desktop"
+        style={{
+          maxWidth: 1200, margin: '0 auto',
+          padding: '11px 48px',
+          alignItems: 'center', gap: 20,
+        }}
+      >
+        <ProfileButton onLogout={onLogout} />
+
+        <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
+          {links.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              style={linkBase}
+              activeProps={{ style: { ...linkBase, background: 'var(--chip)', color: 'var(--ink)', fontWeight: 600 } }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--ink)' }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLAnchorElement
+                // Respect active styles — only reset if not active
+                if (!el.dataset.status || el.dataset.status !== 'active') el.style.color = 'var(--mute)'
+              }}
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
-        <div className="flex items-center gap-3">
-          <SearchBar />
-          <ThemeToggle />
-        </div>
+
+        <div style={{ flex: 1 }} />
+
+        <SearchBar />
+
+        <button className="tz-btn tz-btn-ghost" style={{ padding: 7 }} title="Notifications" aria-label="Notifications">
+          <Bell size={16} />
+        </button>
+
+        <ThemeToggle />
       </div>
 
       {/* ── Mobile ─────────────────────────────────── */}
-      <div className="md:hidden px-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div
+        className="tz-nav-mobile"
+        style={{ padding: '10px 16px', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
-            className="flex flex-col gap-1.5 p-2"
             onClick={() => setMenuOpen((o) => !o)}
             aria-label="Toggle menu"
+            className="tz-btn tz-btn-ghost"
+            style={{ padding: 7, flexDirection: 'column', alignItems: 'stretch', gap: 3 }}
           >
-            <span className="block w-5 h-0.5 bg-foreground" />
-            <span className="block w-5 h-0.5 bg-foreground" />
-            <span className="block w-5 h-0.5 bg-foreground" />
+            <span style={{ width: 18, height: 2, background: 'var(--ink)', display: 'block' }} />
+            <span style={{ width: 18, height: 2, background: 'var(--ink)', display: 'block' }} />
+            <span style={{ width: 18, height: 2, background: 'var(--ink)', display: 'block' }} />
           </button>
           <ThemeToggle />
         </div>
@@ -317,28 +405,21 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden pt-3 pb-4" style={{ borderTop: '1px solid var(--app-nav-border)' }}>
-          <ul className="flex flex-col gap-1 px-4 mb-4">
+        <div className="tz-nav-mobile" style={{ padding: '12px 16px 16px', borderTop: '1px solid var(--border)', flexDirection: 'column', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
             {links.map((link) => (
-              <li key={link.to}>
-                <Link
-                  to={link.to}
-                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2.5 rounded-lg"
-                  activeProps={{ className: 'block text-sm font-semibold text-foreground px-3 py-2.5 rounded-lg' }}
-                  activeOptions={{ exact: true }}
-                  onClick={() => setMenuOpen(false)}
-                  style={{ background: 'transparent' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--app-glass)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  {link.label}
-                </Link>
-              </li>
+              <Link
+                key={link.to}
+                to={link.to}
+                style={{ ...linkBase, padding: '9px 12px' }}
+                activeProps={{ style: { ...linkBase, padding: '9px 12px', background: 'var(--chip)', color: 'var(--ink)', fontWeight: 600 } }}
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
             ))}
-          </ul>
-          <div className="px-4">
-            <SearchBar />
           </div>
+          <SearchBar />
         </div>
       )}
     </nav>
@@ -380,7 +461,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (!mounted) {
     // Show public pages immediately, hide protected pages until auth is confirmed
     if (hideNav) return <>{children}</>
-    return <div style={{ background: 'var(--app-bg)', minHeight: '100vh' }} />
+    return <div style={{ background: 'var(--bg)', minHeight: '100vh' }} />
   }
 
   if (!hideNav && !isAuthenticated() && !loggingOut) {
@@ -409,7 +490,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           })();
         `}} />
       </head>
-      <body style={{ background: 'var(--app-bg)', margin: 0 }}>
+      <body style={{ background: 'var(--bg)', margin: 0 }}>
         <ThemeProvider>
           <AppShell>{children}</AppShell>
         </ThemeProvider>

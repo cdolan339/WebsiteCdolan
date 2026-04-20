@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss" source("../");
 
 @plugin "tailwindcss-animate";
@@ -225,3 +226,330 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Tazar — Canvas light-mode design system
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Canvas palette */
+  --bg: #F1F1F7;
+  --bg-veil: #E7E7F0;
+  --panel: #FFFFFF;
+  --panel-2: #FAFAFE;
+  --border: #E2E2EC;
+  --border-strong: #CFCFDC;
+  --ink: #15151E;
+  --ink-2: #2C2C3A;
+  --mute: #6E6E82;
+  --mute-2: #9C9CB0;
+  --chip: #ECECF3;
+
+  /* Accents */
+  --purple: #7C5CFF;
+  --purple-2: #9B7CFF;
+  --pink: #E85AA8;
+  --pink-2: #F37EC0;
+  --orange: #F28B3B;
+  --orange-2: #F9A96A;
+  --green: #1E9F6E;
+  --green-soft: #D8F0E5;
+  --red: #D8433B;
+  --red-soft: #FBE1DE;
+  --amber: #D68A1A;
+  --amber-soft: #FBEBC8;
+  --blue: #3A6DF0;
+  --blue-soft: #DDE7FD;
+
+  --tz-radius: 14px;
+  --tz-radius-sm: 10px;
+  --tz-radius-lg: 20px;
+  --shadow-xs: 0 1px 2px rgba(30, 25, 15, 0.04), 0 0 0 1px rgba(30, 25, 15, 0.04);
+  --shadow-sm: 0 1px 2px rgba(30, 25, 15, 0.05), 0 2px 6px rgba(30, 25, 15, 0.04);
+  --shadow-md: 0 2px 8px rgba(30, 25, 15, 0.06), 0 8px 24px rgba(30, 25, 15, 0.05);
+}
+
+.dark {
+  /* Canvas "night" — tune the tokens but keep the component DSL portable */
+  --bg: #0F0F17;
+  --bg-veil: #13131D;
+  --panel: #191925;
+  --panel-2: #1E1E2B;
+  --border: #2A2A38;
+  --border-strong: #3A3A4C;
+  --ink: #F2F2F7;
+  --ink-2: #CFCFDC;
+  --mute: #9C9CB0;
+  --mute-2: #6E6E82;
+  --chip: #26263A;
+
+  --green-soft: rgba(30, 159, 110, 0.18);
+  --red-soft: rgba(216, 67, 59, 0.18);
+  --amber-soft: rgba(214, 138, 26, 0.18);
+  --blue-soft: rgba(58, 109, 240, 0.18);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+body {
+  font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  background: var(--bg);
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  min-height: 100vh;
+}
+
+.tz-mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* Page atmosphere blobs — fixed, behind content */
+.page-atmos {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.page-atmos::before {
+  content: "";
+  position: absolute;
+  top: -200px; left: -200px;
+  width: 720px; height: 720px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.08), transparent 60%);
+  filter: blur(40px);
+}
+.page-atmos::after {
+  content: "";
+  position: absolute;
+  top: 40%; right: -200px;
+  width: 540px; height: 540px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 90, 168, 0.05), transparent 60%);
+  filter: blur(60px);
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 48px 120px;
+}
+
+/* Typography */
+.eyebrow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  background: color-mix(in oklab, var(--purple) 12%, transparent);
+  color: color-mix(in oklab, var(--purple) 90%, var(--ink));
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.eyebrow-chip .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+
+h1.display {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin: 14px 0 10px;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.subhead {
+  color: var(--mute);
+  font-size: 16px;
+  max-width: 560px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Buttons (Tazar) */
+.tz-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  font-size: 13.5px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: var(--shadow-xs);
+  white-space: nowrap;
+}
+.tz-btn:hover { border-color: var(--border-strong); transform: translateY(-0.5px); }
+.tz-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.tz-btn-gradient {
+  background: linear-gradient(105deg, var(--purple) 0%, var(--pink) 55%, var(--orange) 100%);
+  color: white;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(124, 92, 255, 0.3), 0 4px 14px -2px rgba(124, 92, 255, 0.35);
+}
+.tz-btn-gradient:hover { filter: brightness(1.05); }
+
+.tz-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--mute);
+}
+.tz-btn-ghost:hover { background: var(--chip); color: var(--ink); }
+
+/* Pills */
+.tz-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.tz-pill.green { background: var(--green-soft); color: #0B6F49; }
+.tz-pill.red { background: var(--red-soft); color: #9A261F; }
+.tz-pill.amber { background: var(--amber-soft); color: #7A5409; }
+.tz-pill.blue { background: var(--blue-soft); color: #1C44B5; }
+.tz-pill.purple { background: color-mix(in oklab, var(--purple) 15%, transparent); color: color-mix(in oklab, var(--purple) 70%, var(--ink)); }
+.tz-pill.neutral { background: var(--chip); color: var(--ink-2); }
+
+.dark .tz-pill.green { color: #5FD6A7; }
+.dark .tz-pill.red { color: #F58A82; }
+.dark .tz-pill.amber { color: #EFC36B; }
+.dark .tz-pill.blue { color: #7FA3F5; }
+
+.priority-dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; }
+.priority-dot.high, .priority-dot.critical { background: var(--red); }
+.priority-dot.med, .priority-dot.medium { background: var(--amber); }
+.priority-dot.low { background: var(--green); }
+
+/* Panels */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--tz-radius);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Section head */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 44px 0 14px;
+}
+.section-head .section-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  color: white;
+  flex-shrink: 0;
+}
+.section-head h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.section-head .spacer { flex: 1; }
+.section-head .actions { display: flex; gap: 8px; align-items: center; }
+
+/* Gradient icons */
+.grad-purple { background: linear-gradient(135deg, var(--purple), #5E3FE6); }
+.grad-pink { background: linear-gradient(135deg, var(--pink-2), var(--pink)); }
+.grad-orange { background: linear-gradient(135deg, var(--orange-2), var(--orange)); }
+.grad-blue { background: linear-gradient(135deg, #5C8CFF, var(--blue)); }
+.grad-green { background: linear-gradient(135deg, #3DC08D, var(--green)); }
+
+/* Aurora (multi-hue) gradients for hero section headers */
+.grad-aurora-projects { background: linear-gradient(135deg, #3DC08D 0%, #5C8CFF 55%, var(--purple) 100%); }
+.grad-aurora-stories  { background: linear-gradient(135deg, var(--pink-2) 0%, var(--pink) 50%, var(--purple) 100%); }
+.grad-aurora-suites   { background: linear-gradient(135deg, #F5B547 0%, var(--orange) 55%, #E8643D 100%); }
+
+/* Utilities */
+.tz-row { display: flex; align-items: center; gap: 10px; }
+.tz-col { display: flex; flex-direction: column; gap: 10px; }
+.tz-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hairline { height: 1px; background: var(--border); width: 100%; }
+
+/* Avatars */
+.tz-avatar {
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  border: 2px solid var(--panel);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.tz-avatar-stack { display: inline-flex; }
+.tz-avatar-stack .tz-avatar + .tz-avatar { margin-left: -8px; }
+
+/* Progress bar */
+.pbar {
+  display: flex;
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--chip);
+}
+.pbar > span { display: block; height: 100%; }
+
+.metric-stat { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Page transitions */
+.page-enter { animation: tzFadeUp .4s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes tzFadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Inputs */
+.tz-input {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  outline: none;
+  box-shadow: var(--shadow-xs);
+  width: 100%;
+  transition: border-color .15s, box-shadow .15s;
+}
+.tz-input:focus { border-color: color-mix(in oklab, var(--purple) 55%, var(--border)); box-shadow: 0 0 0 3px color-mix(in oklab, var(--purple) 18%, transparent); }
+.tz-input::placeholder { color: var(--mute); }
+.tz-textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+
+/* Scrollbars — subtle */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Responsive nav helpers (explicit — do not rely on Tailwind breakpoints) ── */
+.tz-nav-desktop { display: flex; }
+.tz-nav-mobile  { display: none; }
+@media (max-width: 767px) {
+  .tz-nav-desktop { display: none !important; }
+  .tz-nav-mobile  { display: flex !important; }
+}
+

@@ -1,81 +1,42 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTestOrder } from '@/lib/useTestOrder'
-import { Badge } from '@/components/ui/badge'
-import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, CalendarPlus, CalendarClock, Trash2, Sparkles, ArrowRight } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, Trash2, RotateCcw, ChevronRight, ArrowRight } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
-import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject } from '@/lib/customTestCases'
+import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject, type CustomTestCase } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
-import { useState, useCallback, useRef, useEffect } from 'react'
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { restrictToWindowEdges } from '@dnd-kit/modifiers'
+import {
+  PageShell, Pill, PriorityPill, CaseBar, Segmented, EyebrowChip, type PriorityLevel,
+} from '@/components/design/primitives'
 
 export const Route = createFileRoute('/test-suites')({
   component: TestSuitesPage,
 })
 
-type StatusConfig = {
-  label: string
-  icon: React.ReactNode
-  rowClass: string
-  dotClass: string
+type Tab = 'active' | 'completed'
+
+const GRID_COLS = '28px minmax(240px, 2fr) 110px 120px 160px 110px 80px 36px'
+
+const STATUS_META: Record<TestStatus, { color: string; Icon: React.ComponentType<{ size?: number }> }> = {
+  pass: { color: 'var(--green)', Icon: CheckCircle2 },
+  fail: { color: 'var(--red)', Icon: XCircle },
+  pending: { color: 'var(--amber)', Icon: Clock },
+  blocked: { color: 'var(--mute-2)', Icon: Ban },
 }
 
-const STATUS_CONFIG: { [K in TestStatus]: StatusConfig } = {
-  pass: {
-    label: 'Pass',
-    icon: <CheckCircle2 size={16} className="text-green-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-green-500',
-  },
-  fail: {
-    label: 'Fail',
-    icon: <XCircle size={16} className="text-red-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-red-500',
-  },
-  pending: {
-    label: 'Pending',
-    icon: <Clock size={16} className="text-yellow-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-yellow-500',
-  },
-  blocked: {
-    label: 'Blocked',
-    icon: <Ban size={16} className="text-orange-500" />,
-    rowClass: 'hover:bg-white/5',
-    dotClass: 'bg-orange-500',
-  },
-}
+/* ─── Project picker ─────────────────────────────── */
 
-const PRIORITY_BADGE: { [key: string]: React.CSSProperties } = {
-  low:      { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  },
-  medium:   { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  },
-  high:     { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  },
-  critical: { background: 'rgba(220,38,38,0.15)',  color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'  },
-}
-
-// ── Project selector dropdown (switch only — create/edit on /projects page) ──
-
-function ProjectSelector({
-  projects,
-  activeProjectId,
-  onSelect,
+function ProjectPicker({
+  projects, activeProjectId, onSelect,
 }: {
   projects: Project[]
   activeProjectId: number | null
@@ -83,83 +44,62 @@ function ProjectSelector({
 }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
-
-  const activeProject = projects.find((p) => p.id === activeProjectId)
+  const active = projects.find((p) => p.id === activeProjectId)
 
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
   return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
-        style={{
-          background: activeProject
-            ? 'var(--app-btn-primary)'
-            : 'var(--app-btn-outline-bg)',
-          border: '1px solid var(--app-btn-outline-border)',
-          color: activeProject ? 'var(--app-btn-text)' : 'var(--app-text)',
-          boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-        }}
-      >
-        <FolderOpen size={15} />
-        <span className="truncate max-w-[200px]">{activeProject?.name ?? 'All Projects'}</span>
-        <ChevronDown size={14} className={`opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} />
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <button className="tz-btn" onClick={() => setOpen((o) => !o)}>
+        <FolderOpen size={13} />
+        <span className="tz-truncate" style={{ maxWidth: 180 }}>{active?.name ?? 'All Projects'}</span>
+        <ChevronDown size={12} style={{ color: 'var(--mute)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
       </button>
-
       {open && (
         <div
-          className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl overflow-hidden"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            background: 'var(--app-overlay)',
-            border: '1px solid var(--app-overlay-border)',
-            backdropFilter: 'blur(16px)',
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+            width: 260, background: 'var(--panel)',
+            border: '1px solid var(--border)', borderRadius: 'var(--tz-radius)',
+            boxShadow: 'var(--shadow-md)', overflow: 'hidden',
           }}
         >
-          {/* All Projects option */}
           <button
             onMouseDown={() => { onSelect(null); setOpen(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
             style={{
-              background: activeProjectId === null ? 'var(--app-accent-bg)' : 'transparent',
-              color: activeProjectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
-              borderBottom: '1px solid var(--app-glass-border)',
-              fontWeight: activeProjectId === null ? 600 : 400,
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', border: 0,
+              background: activeProjectId === null ? 'var(--chip)' : 'transparent',
+              color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+              textAlign: 'left', borderBottom: '1px solid var(--border)',
+              fontWeight: activeProjectId === null ? 600 : 500,
             }}
-            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
-            onMouseLeave={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'transparent' }}
           >
-            <FolderOpen size={15} style={{ opacity: 0.7 }} />
-            All Projects
+            <FolderOpen size={14} style={{ opacity: 0.7 }} /> All Projects
           </button>
-
-          {/* Project list */}
-          <div className="max-h-60 overflow-y-auto">
-            {projects.map((project) => (
+          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {projects.map((p) => (
               <button
-                key={project.id}
-                onMouseDown={() => { onSelect(project.id); setOpen(false) }}
-                className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
+                key={p.id}
+                onMouseDown={() => { onSelect(p.id); setOpen(false) }}
                 style={{
-                  background: activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent',
-                  color: 'var(--app-accent-color)',
-                  borderBottom: '1px solid var(--app-glass-border)',
-                  fontWeight: activeProjectId === project.id ? 600 : 400,
+                  width: '100%', padding: '9px 12px', border: 0,
+                  background: activeProjectId === p.id ? 'var(--chip)' : 'transparent',
+                  color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: 13, textAlign: 'left',
+                  fontWeight: activeProjectId === p.id ? 600 : 500,
                 }}
-                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent' }}
+                onMouseEnter={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'var(--panel-2)' }}
+                onMouseLeave={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'transparent' }}
               >
-                <span className="truncate">{project.name}</span>
+                <span className="tz-truncate">{p.name}</span>
               </button>
             ))}
           </div>
@@ -169,204 +109,29 @@ function ProjectSelector({
   )
 }
 
-type Tab = 'active' | 'completed'
+/* ─── Status metric card ─────────────────────────── */
 
-// Unified display type for both content-collection and custom test cases
-type DisplayTC = {
-  slug: string
-  title: string
-  summary: string
-  priority: string
-  tags: string[]
-  createdAt: string
-  updatedAt: string
-  isCustom: boolean
-  customId?: string
-  completed?: boolean
-  completedAt?: string | null
-  projectName?: string | null
-}
-
-type StatusSummaryProps = {
-  statuses: { [key: string]: TestStatus }
-  total: number
-  slugs: string[]
-}
-
-function StatusSummary({ statuses, total, slugs }: StatusSummaryProps) {
-  // Only count statuses for slugs in the current filtered view
-  const relevantStatuses = Object.entries(statuses).filter(([key]) => slugs.includes(key))
-  const counts = relevantStatuses.reduce(
-    (acc, [, status]) => { acc[status] = (acc[status] ?? 0) + 1; return acc },
-    {} as Partial<Record<TestStatus, number>>,
-  )
-  const display: Record<TestStatus, number> = {
-    pass:    counts['pass']    ?? 0,
-    fail:    counts['fail']    ?? 0,
-    blocked: counts['blocked'] ?? 0,
-    pending: (counts['pending'] ?? 0) + (total - relevantStatuses.length),
-  }
-
+function StatusMetric({ label, value, color, dotColor }: { label: string; value: number; color: string; dotColor: string }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-      {(['pass', 'fail', 'pending', 'blocked'] as const).map((status) => {
-        const cfg = STATUS_CONFIG[status]
-        return (
-          <div key={status} className="flex items-center gap-3 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
-            <span className={`w-3 h-3 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
-            <div>
-              <p className="text-2xl font-bold">{display[status] ?? 0}</p>
-              <p className="text-xs text-muted-foreground capitalize">{cfg.label}</p>
-            </div>
-          </div>
-        )
-      })}
+    <div className="panel" style={{ padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--mute)', fontSize: 11.5 }}>
+        <span style={{ width: 6, height: 6, borderRadius: 999, background: dotColor, display: 'inline-block' }} />
+        {label}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', color, marginTop: 4, lineHeight: 1 }}>
+        {value}
+      </div>
     </div>
   )
 }
 
-// ── Complete button with popover confirm ──────────────────────────────────
+/* ─── Dense table row ─────────────────────────────── */
 
-function CompleteButton({ tc, onComplete }: { tc: DisplayTC; onComplete: (id: string) => void }) {
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <div className="relative">
-      {!confirming ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
-          style={{
-            background: 'var(--app-success-light)',
-            color: 'var(--app-success)',
-            border: '1px solid var(--app-success-border)',
-          }}
-        >
-          <CheckCheck size={13} />
-          Complete?
-        </button>
-      ) : (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Complete?</span>
-          <button
-            onClick={() => { onComplete(tc.customId!); setConfirming(false) }}
-            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-          >
-            No
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Reactivate button for completed tab ───────────────────────────────────
-
-function ReactivateButton({ tc, onReactivate }: { tc: DisplayTC; onReactivate: (id: string) => void }) {
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <div className="relative">
-      {!confirming ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all hover:scale-105"
-          style={{
-            background: 'rgba(245,158,11,0.1)',
-            color: '#f59e0b',
-            border: '1px solid rgba(245,158,11,0.25)',
-          }}
-        >
-          <Clock size={13} />
-          Reactivate?
-        </button>
-      ) : (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Move to Active?</span>
-          <button
-            onClick={() => { onReactivate(tc.customId!); setConfirming(false) }}
-            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-          >
-            No
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Delete button with popover confirm ──────────────────────────────────
-
-function DeleteButton({ tc, onDelete }: { tc: DisplayTC; onDelete: (id: string) => void }) {
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <div className="relative">
-      {!confirming ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
-          className="inline-flex items-center p-1.5 rounded-md transition-all hover:scale-110"
-          style={{ color: '#dc2626', opacity: 0.6 }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent' }}
-          title="Delete test plan"
-        >
-          <Trash2 size={14} />
-        </button>
-      ) : (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Delete permanently?</span>
-          <button
-            onClick={() => { onDelete(tc.customId!); setConfirming(false) }}
-            className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-            style={{ background: '#dc2626', color: '#fff' }}
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-            style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-          >
-            No
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Test case row ──────────────────────────────────────────────────────────
-
-type TestCaseRowProps = {
-  tc: DisplayTC
-  resolvedStatus: TestStatus
-  resolvedPriority: string
+type RowProps = {
+  tc: CustomTestCase
+  projectName: string | null
+  status: TestStatus
+  priority: PriorityLevel
   passedCount: number
   tab: Tab
   onComplete: (id: string) => void
@@ -374,128 +139,87 @@ type TestCaseRowProps = {
   onDelete: (id: string) => void
 }
 
-function SortableTestCaseRow({ tc, resolvedStatus, resolvedPriority, passedCount, tab, onComplete, onReactivate, onDelete }: TestCaseRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: tc.slug,
-  })
-
-  const cfg = STATUS_CONFIG[resolvedStatus]
+function DenseRow({ tc, projectName, status, priority, passedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `custom:${tc.id}` })
+  const navigate = useNavigate()
+  const meta = STATUS_META[status]
+  const StatusIcon = meta.Icon
+  const total = tc.testCases?.length ?? 0
+  const cases = {
+    pass: passedCount,
+    fail: status === 'fail' ? 1 : 0,
+    pending: Math.max(total - passedCount - (status === 'fail' ? 1 : 0), 0),
+    blocked: status === 'blocked' ? 1 : 0,
+  }
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition: transition ? 'transform 200ms ease' : undefined,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative',
-    zIndex: isDragging ? 10 : undefined,
-    willChange: isDragging ? 'transform' : undefined,
+    opacity: isDragging ? 0.55 : 1,
+    background: 'transparent',
+    display: 'grid',
+    gridTemplateColumns: GRID_COLS,
+    gap: 10,
+    padding: '12px 14px',
+    cursor: 'pointer',
+    borderTop: '1px solid var(--border)',
+    alignItems: 'center',
   }
 
   return (
-    <li ref={setNodeRef} style={style}>
-      <div
-        {...attributes}
-        {...listeners}
-        className="px-5 py-4 cursor-grab active:cursor-grabbing rounded-xl homepage-card"
-      >
-        {/* ── Meta strip (top) ── */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          {/* Status */}
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>
-            {cfg.icon}
-            {cfg.label}
-          </span>
-
-          <span style={{ width: 1, height: 12, background: 'var(--app-glass-border)', display: 'inline-block', flexShrink: 0 }} />
-
-          {/* Priority */}
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={PRIORITY_BADGE[resolvedPriority] ?? PRIORITY_BADGE['medium']}>
-            {resolvedPriority}
-          </span>
-
-          {/* Project */}
-          {tc.projectName && (
-            <span
-              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}
-            >
-              <FolderOpen size={10} />
-              {tc.projectName}
-            </span>
-          )}
-
-          {/* Passed count */}
-          {passedCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}>
-              ✓ {passedCount} passed
-            </span>
-          )}
-
-          {/* Spacer + dates + action pushed to right */}
-          <div className="hidden sm:flex items-center gap-3 ml-auto flex-shrink-0">
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Created">
-              <CalendarPlus size={11} />
-              {new Date(tc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Updated">
-              <CalendarClock size={11} />
-              {new Date(tc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-            {tab === 'active' && (
-              <CompleteButton tc={tc} onComplete={onComplete} />
-            )}
-            {tab === 'completed' && (
-              <ReactivateButton tc={tc} onReactivate={onReactivate} />
-            )}
-          </div>
-        </div>
-
-        {/* ── Title ── */}
-        <Link
-          to="/test-cases/custom/$id"
-          params={{ id: tc.customId! }}
-          className="block text-base font-semibold text-foreground hover:underline mb-1 leading-snug"
-          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
-          onClick={(e) => e.stopPropagation()}
-        >
+    <div
+      ref={setNodeRef}
+      style={style}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--panel-2)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      onClick={() => navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })}
+    >
+      <span {...attributes} {...listeners} style={{ color: meta.color, display: 'inline-flex', cursor: 'grab' }} title={status}>
+        <StatusIcon size={16} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div className="tz-truncate" style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2, color: 'var(--ink)' }}>
           {tc.title || 'Untitled Test Plan'}
-        </Link>
-
-        {/* ── Summary ── */}
-        {tc.summary && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{tc.summary}</p>
-        )}
-
-        {/* ── Tags + Delete ── */}
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {tc.tags.slice(0, 4).map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-            ))}
-            {tc.tags.length > 4 && (
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-default">
-                    +{tc.tags.length - 4} more
-                  </span>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-auto p-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {tc.tags.slice(4).map((tag: string) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                    ))}
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-            )}
-          </div>
-          <div className="flex-shrink-0">
-            <DeleteButton tc={tc} onDelete={onDelete} />
-          </div>
+        </div>
+        <div className="tz-truncate" style={{ fontSize: 11.5, color: 'var(--mute)' }}>
+          {tc.summary || (projectName ? `In ${projectName}` : 'No summary')}
         </div>
       </div>
-    </li>
+      <PriorityPill level={priority} />
+      {projectName ? <Pill tone="purple" icon="folder">{projectName}</Pill> : <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute-2)' }}>—</span>}
+      <div>
+        <CaseBar cases={cases} total={Math.max(total, 1)} height={4} />
+        <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginTop: 3 }}>
+          {passedCount}/{total} pass{cases.fail ? ` · ${cases.fail}F` : ''}
+        </div>
+      </div>
+      <span className="tz-mono" style={{ fontSize: 11.5, color: 'var(--mute)' }}>
+        {formatShort(tc.updatedAt)}
+      </span>
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+        {tab === 'active' ? (
+          <button className="tz-btn tz-btn-ghost" style={{ padding: 6 }} title="Complete" onClick={() => onComplete(tc.id)}>
+            <CheckCheck size={13} />
+          </button>
+        ) : (
+          <button className="tz-btn tz-btn-ghost" style={{ padding: 6 }} title="Reactivate" onClick={() => onReactivate(tc.id)}>
+            <RotateCcw size={13} />
+          </button>
+        )}
+        <button
+          className="tz-btn tz-btn-ghost" style={{ padding: 6, color: 'var(--red)' }}
+          title="Delete"
+          onClick={() => { if (confirm('Delete this test plan?')) onDelete(tc.id) }}
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+      <ChevronRight size={14} style={{ color: 'var(--mute-2)' }} />
+    </div>
   )
 }
+
+/* ─── Main ────────────────────────────────────────── */
 
 function TestSuitesPage() {
   const navigate = useNavigate()
@@ -512,34 +236,42 @@ function TestSuitesPage() {
     reloadForProject(id)
   }, [setActiveProjectId])
 
-  // Split cases into active vs completed
   const activeCases = customCases.filter((tc) => !tc.completed)
   const completedCases = customCases.filter((tc) => tc.completed)
   const visibleCases = tab === 'active' ? activeCases : completedCases
 
-  // Build the canonical default slug list from visible cases only
   const getDefaultSlugs = useCallback(() => {
-    return visibleCases
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    return [...visibleCases]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .map((tc) => `custom:${tc.id}`)
   }, [visibleCases])
 
   const { order, setOrder } = useTestOrder(getDefaultSlugs())
 
-  // Build a lookup map from visible cases
-  const projectLookup = new Map(projects.map((p) => [p.id, p.name]))
-  const tcMap = new Map<string, DisplayTC>(
-    visibleCases.map((tc): [string, DisplayTC] => [
-      `custom:${tc.id}`,
-      { slug: `custom:${tc.id}`, title: tc.title, summary: tc.summary, priority: tc.priority, tags: tc.tags, createdAt: tc.createdAt, updatedAt: tc.updatedAt, isCustom: true, customId: tc.id, completed: tc.completed, completedAt: tc.completedAt, projectName: tc.projectId ? projectLookup.get(tc.projectId) ?? null : null },
-    ])
+  const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
+  const caseMap = useMemo(
+    () => new Map<string, CustomTestCase>(visibleCases.map((tc) => [`custom:${tc.id}`, tc])),
+    [visibleCases],
+  )
+  const sortedCases = order.map((s) => caseMap.get(s)).filter((v): v is CustomTestCase => !!v)
+
+  // Aggregate totals across visible cases
+  const totals = sortedCases.reduce(
+    (acc, tc) => {
+      const slug = `custom:${tc.id}`
+      const status = statuses[slug] ?? 'pending'
+      const total = tc.testCases?.length ?? 0
+      const passed = expectedCounts[slug] ?? 0
+      acc.pass += passed
+      if (status === 'fail') acc.fail += Math.max(total - passed, 1)
+      else if (status === 'blocked') acc.blocked += Math.max(total - passed, 1)
+      else acc.pending += Math.max(total - passed, 0)
+      return acc
+    },
+    { pass: 0, fail: 0, pending: 0, blocked: 0 },
   )
 
-  const sorted = order.map((s) => tcMap.get(s)).filter(Boolean) as DisplayTC[]
-  const visibleSlugs = sorted.map((tc) => tc.slug)
-
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -548,199 +280,109 @@ function TestSuitesPage() {
     setOrder(arrayMove(order, oldIndex, newIndex))
   }, [order, setOrder])
 
-  const handleCreate = () => {
-    navigate({ to: '/test-cases/custom/new' })
-  }
+  if (loading) return <LoadingCurtain visible message="Loading Test Suites" />
 
-  const handleComplete = useCallback((id: string) => {
-    completeTestCase(id, true)
-  }, [])
-
-  const handleReactivate = useCallback((id: string) => {
-    completeTestCase(id, false)
-  }, [])
-
-  const handleDelete = useCallback((id: string) => {
-    deleteCustomTestCase(id)
-  }, [])
-
-  if (loading) {
-    return <LoadingCurtain visible={true} message="Loading Test Suites" />
-  }
+  const headerLabels = ['', 'TEST PLAN', 'PRIORITY', 'PROJECT', 'CASES', 'UPDATED', 'ACTIONS', '']
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <style>{`
-        @keyframes movehp {
-          from { transform: translate(-10%, -10%); }
-          to   { transform: translate(20%, 20%); }
-        }
-        .blob-hp {
-          position: absolute;
-          border-radius: 50%;
-          background: var(--app-accent-gradient);
-          filter: blur(80px);
-          opacity: 0.18;
-          animation: movehp 20s infinite alternate;
-          pointer-events: none;
-        }
-        .dark .homepage-card {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-        :root:not(.dark) .homepage-card {
-          background: rgba(0,0,0,0.02);
-          border: 1px solid rgba(0,0,0,0.1);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-        }
-      `}</style>
-      <div className="blob-hp" style={{ width: 400, height: 400, top: -100, left: -100 }} />
-      <div className="blob-hp" style={{ width: 300, height: 300, bottom: -50, right: -50, animationDelay: '-5s' }} />
-      <div className="max-w-4xl mx-auto px-4 py-12 relative z-10">
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <div
-              className="inline-flex items-center gap-2 mb-2 text-sm font-semibold px-3 py-1 rounded-full"
-              style={{
-                background: 'var(--app-accent-bg)',
-                color: 'var(--app-accent-color)',
-                border: '1px solid var(--app-glass-border)',
-              }}
-            >
-              <Sparkles size={13} />
-              Quality Assurance Workspace
-            </div>
-            <h1 className="text-4xl font-bold mb-2">Test Suites</h1>
-            <p className="text-muted-foreground text-lg">
-              Track, manage, write, and review your test plans in one place.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 flex-shrink-0 mt-1">
-            <button
-              onClick={handleCreate}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-              style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-            >
-              <Plus size={16} />
-              New Test Plan
-            </button>
-          </div>
+    <PageShell>
+      <div style={{ paddingTop: 56, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <EyebrowChip icon="target" tone="orange">Quality Assurance Workspace</EyebrowChip>
+          <h1 className="display">Test Suites</h1>
+          <p className="subhead">Track, manage, write, and review your test plans in one place.</p>
         </div>
-
-        {/* ── Project selector ────────────────────────────────── */}
-        <div className="mb-6">
-          <ProjectSelector
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSelect={handleProjectSwitch}
-          />
-        </div>
-
-        {/* ── Tabs ─────────────────────────────────────────────── */}
-        <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <button
-            onClick={() => setTab('active')}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
-            style={tab === 'active' ? {
-              background: 'var(--app-btn-primary)',
-              color: 'var(--app-btn-text)',
-              boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-            } : {
-              background: 'transparent',
-              color: 'var(--app-text-secondary)',
-            }}
-          >
-            <Clock size={15} />
-            Active
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={tab === 'active'
-                ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
-                : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
-              }
-            >
-              {activeCases.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setTab('completed')}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
-            style={tab === 'completed' ? {
-              background: 'var(--app-btn-primary)',
-              color: 'var(--app-btn-text)',
-              boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-            } : {
-              background: 'transparent',
-              color: 'var(--app-text-secondary)',
-            }}
-          >
-            <CheckCheck size={15} />
-            Completed
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-bold"
-              style={tab === 'completed'
-                ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
-                : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }
-              }
-            >
-              {completedCases.length}
-            </span>
-          </button>
-        </div>
-
-        <StatusSummary statuses={statuses} total={visibleCases.length} slugs={visibleSlugs} />
-
-        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
-          <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}>
-            <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-              {tab === 'active'
-                ? `${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : 'All '}Test Plans`
-                : `Completed ${activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? '') + ' ' : ''}Test Plans`
-              } ({sorted.length})
-            </h2>
-            <Link to="/homepage" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Back to Home <ArrowRight size={11} />
-            </Link>
-          </div>
-
-          {sorted.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <p className="text-muted-foreground text-sm">
-                {tab === 'active'
-                  ? 'No active test plans. Create one to get started!'
-                  : 'No completed test plans yet.'}
-              </p>
-            </div>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
-              <SortableContext items={order} strategy={verticalListSortingStrategy}>
-                <ul className="flex flex-col gap-3 p-3">
-                  {sorted.map((tc) => {
-                    const resolvedStatus: TestStatus = statuses[tc.slug] ?? 'pending'
-                    const resolvedPriority = tc.isCustom
-                      ? tc.priority
-                      : (priorities[tc.slug] ?? tc.priority)
-                    const passedCount = expectedCounts[tc.slug] ?? 0
-                    return (
-                      <SortableTestCaseRow
-                        key={tc.slug}
-                        tc={tc}
-                        resolvedStatus={resolvedStatus}
-                        resolvedPriority={resolvedPriority}
-                        passedCount={passedCount}
-                        tab={tab}
-                        onComplete={handleComplete}
-                        onReactivate={handleReactivate}
-                        onDelete={handleDelete}
-                      />
-                    )
-                  })}
-                </ul>
-              </SortableContext>
-            </DndContext>
-          )}
-        </div>
+        <button
+          className="tz-btn tz-btn-gradient" style={{ marginTop: 30 }}
+          onClick={() => navigate({ to: '/test-cases/custom/new' })}
+        >
+          <Plus size={13} /> New Test Plan
+        </button>
       </div>
-    </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28, flexWrap: 'wrap' }}>
+        <ProjectPicker projects={projects} activeProjectId={activeProjectId} onSelect={handleProjectSwitch} />
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <Segmented
+          variant="gradient"
+          options={[
+            { value: 'active', label: 'Active', icon: 'clock', count: activeCases.length },
+            { value: 'completed', label: 'Completed', icon: 'check-circle', count: completedCases.length },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as Tab)}
+        />
+      </div>
+
+      {/* Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginTop: 20 }}>
+        <StatusMetric label="Passing" value={totals.pass} color="var(--green)" dotColor="var(--green)" />
+        <StatusMetric label="Failing" value={totals.fail} color="var(--red)" dotColor="var(--red)" />
+        <StatusMetric label="Pending" value={totals.pending} color="var(--amber)" dotColor="var(--amber)" />
+        <StatusMetric label="Blocked" value={totals.blocked} color="var(--mute)" dotColor="var(--mute-2)" />
+      </div>
+
+      {/* Dense table */}
+      <div className="panel" style={{ padding: 0, overflow: 'hidden', marginTop: 20 }}>
+        <div
+          style={{
+            display: 'grid', gridTemplateColumns: GRID_COLS, gap: 10,
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--panel-2)',
+            fontSize: 10.5, letterSpacing: '0.08em', color: 'var(--mute)', fontWeight: 600,
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {headerLabels.map((h, i) => <span key={i}>{h}</span>)}
+        </div>
+
+        {sortedCases.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--mute)' }}>
+            {tab === 'active' ? 'No active test plans. Create one to get started.' : 'No completed test plans yet.'}
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
+            <SortableContext items={order} strategy={verticalListSortingStrategy}>
+              {sortedCases.map((tc) => {
+                const slug = `custom:${tc.id}`
+                const status: TestStatus = statuses[slug] ?? 'pending'
+                const priority = (priorities[slug] ?? tc.priority) as PriorityLevel
+                const passedCount = expectedCounts[slug] ?? 0
+                const projectName = tc.projectId ? projectLookup.get(tc.projectId) ?? null : null
+                return (
+                  <DenseRow
+                    key={tc.id}
+                    tc={tc}
+                    projectName={projectName}
+                    status={status}
+                    priority={priority}
+                    passedCount={passedCount}
+                    tab={tab}
+                    onComplete={(id) => completeTestCase(id, true)}
+                    onReactivate={(id) => completeTestCase(id, false)}
+                    onDelete={(id) => deleteCustomTestCase(id)}
+                  />
+                )
+              })}
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end' }}>
+        <Link to="/homepage" className="tz-btn tz-btn-ghost" style={{ textDecoration: 'none' }}>
+          Back to Dashboard <ArrowRight size={12} />
+        </Link>
+      </div>
+    </PageShell>
   )
+}
+
+function formatShort(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  } catch { return '' }
 }

@@ -1,41 +1,34 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Plus, ChevronDown, FolderOpen, ArrowRight, Trash2, RotateCcw, CheckCheck } from 'lucide-react'
 import {
-  Plus, Sparkles, FileText, Users, Target, ListTree, GitBranch, Image as ImageIcon,
-  Network, AlertTriangle, CalendarPlus, CalendarClock, Trash2, ArrowRight,
-  FolderOpen, ChevronDown, Clock, CheckCheck, CheckCircle2, RotateCcw,
-} from 'lucide-react'
-import {
-  useStories,
-  createStory,
-  addStory,
-  deleteStory,
-  completeStory,
-  reloadStoriesForProject,
-  type Story,
-  type StoryStatus,
+  useStories, createStory, addStory, deleteStory, completeStory,
+  reloadStoriesForProject, type Story, type StoryStatus,
 } from '@/lib/stories'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
+import {
+  PageShell, Pill, CaseBar, Segmented, EyebrowChip, Icon,
+} from '@/components/design/primitives'
 
 export const Route = createFileRoute('/stories/')({
   component: StoriesPage,
 })
 
-const STATUS_META: Record<StoryStatus, { label: string; style: React.CSSProperties }> = {
-  discovery:   { label: 'Discovery',   style: { background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' } },
-  analysis:    { label: 'Analysis',    style: { background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' } },
-  development: { label: 'Development', style: { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  } },
-  uat:         { label: 'UAT',         style: { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  } },
-  done:        { label: 'Done',        style: { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  } },
+type Tab = 'active' | 'completed'
+
+const STATUS_META: Record<StoryStatus, { tone: 'blue' | 'purple' | 'amber' | 'green' | 'neutral'; label: string }> = {
+  discovery: { tone: 'blue', label: 'Discovery' },
+  analysis: { tone: 'purple', label: 'Analysis' },
+  development: { tone: 'amber', label: 'Development' },
+  uat: { tone: 'amber', label: 'UAT' },
+  done: { tone: 'green', label: 'Done' },
 }
 
-// ── Project selector dropdown (same pattern as test-suites) ──────────────────
+/* ─── Project dropdown ─────────────────────────────── */
 
-function ProjectSelector({
-  projects,
-  activeProjectId,
-  onSelect,
+function ProjectPicker({
+  projects, activeProjectId, onSelect,
 }: {
   projects: Project[]
   activeProjectId: number | null
@@ -43,7 +36,7 @@ function ProjectSelector({
 }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const activeProject = projects.find((p) => p.id === activeProjectId)
+  const active = projects.find((p) => p.id === activeProjectId)
 
   useEffect(() => {
     if (!open) return
@@ -55,63 +48,48 @@ function ProjectSelector({
   }, [open])
 
   return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
-        style={{
-          background: activeProject ? 'var(--app-btn-primary)' : 'var(--app-btn-outline-bg)',
-          border: '1px solid var(--app-btn-outline-border)',
-          color: activeProject ? 'var(--app-btn-text)' : 'var(--app-text)',
-          boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-        }}
-      >
-        <FolderOpen size={15} />
-        <span className="truncate max-w-[200px]">{activeProject?.name ?? 'All Projects'}</span>
-        <ChevronDown size={14} className={`opacity-70 transition-transform ${open ? 'rotate-180' : ''}`} />
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <button className="tz-btn" onClick={() => setOpen((o) => !o)}>
+        <FolderOpen size={13} />
+        <span className="tz-truncate" style={{ maxWidth: 180 }}>{active?.name ?? 'All Projects'}</span>
+        <ChevronDown size={12} style={{ color: 'var(--mute)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
       </button>
-
       {open && (
         <div
-          className="absolute left-0 top-full mt-2 z-50 w-72 rounded-xl overflow-hidden"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            background: 'var(--app-overlay)',
-            border: '1px solid var(--app-overlay-border)',
-            backdropFilter: 'blur(16px)',
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+            width: 260, background: 'var(--panel)',
+            border: '1px solid var(--border)', borderRadius: 'var(--tz-radius)',
+            boxShadow: 'var(--shadow-md)', overflow: 'hidden',
           }}
         >
           <button
             onMouseDown={() => { onSelect(null); setOpen(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
             style={{
-              background: activeProjectId === null ? 'var(--app-accent-bg)' : 'transparent',
-              color: activeProjectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
-              borderBottom: '1px solid var(--app-glass-border)',
-              fontWeight: activeProjectId === null ? 600 : 400,
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', border: 0, background: activeProjectId === null ? 'var(--chip)' : 'transparent',
+              color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left',
+              borderBottom: '1px solid var(--border)',
+              fontWeight: activeProjectId === null ? 600 : 500,
             }}
-            onMouseEnter={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
-            onMouseLeave={(e) => { if (activeProjectId !== null) e.currentTarget.style.background = 'transparent' }}
           >
-            <FolderOpen size={15} style={{ opacity: 0.7 }} />
-            All Projects
+            <FolderOpen size={14} style={{ opacity: 0.7 }} /> All Projects
           </button>
-          <div className="max-h-60 overflow-y-auto">
-            {projects.map((project) => (
+          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {projects.map((p) => (
               <button
-                key={project.id}
-                onMouseDown={() => { onSelect(project.id); setOpen(false) }}
-                className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
+                key={p.id}
+                onMouseDown={() => { onSelect(p.id); setOpen(false) }}
                 style={{
-                  background: activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent',
-                  color: 'var(--app-accent-color)',
-                  borderBottom: '1px solid var(--app-glass-border)',
-                  fontWeight: activeProjectId === project.id ? 600 : 400,
+                  width: '100%', padding: '9px 12px', border: 0,
+                  background: activeProjectId === p.id ? 'var(--chip)' : 'transparent',
+                  color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left',
+                  fontWeight: activeProjectId === p.id ? 600 : 500,
                 }}
-                onMouseEnter={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (activeProjectId !== project.id) e.currentTarget.style.background = activeProjectId === project.id ? 'var(--app-accent-bg)' : 'transparent' }}
+                onMouseEnter={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'var(--panel-2)' }}
+                onMouseLeave={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'transparent' }}
               >
-                <span className="truncate">{project.name}</span>
+                <span className="tz-truncate">{p.name}</span>
               </button>
             ))}
           </div>
@@ -121,43 +99,52 @@ function ProjectSelector({
   )
 }
 
-type Tab = 'active' | 'completed'
+/* ─── Story list row (left pane) ─────────────────────── */
 
-function DeleteConfirm({ onConfirm }: { onConfirm: () => void }) {
-  const [confirming, setConfirming] = useState(false)
-  if (!confirming) {
-    return (
-      <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirming(true) }}
-        className="inline-flex items-center p-1.5 rounded-md transition-all hover:scale-110"
-        style={{ color: '#dc2626', opacity: 0.6 }}
-        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent' }}
-        title="Delete story"
-      >
-        <Trash2 size={14} />
-      </button>
-    )
-  }
+function StoryListItem({ story, active, onClick }: { story: Story; active: boolean; onClick: () => void }) {
+  const meta = STATUS_META[story.status]
+  const progress = computeProgress(story)
+  const updated = formatShort(story.updatedAt)
   return (
-    <div className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>
-      <span className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>Delete?</span>
-      <button
-        onClick={(e) => { e.preventDefault(); onConfirm(); setConfirming(false) }}
-        className="text-xs px-3 py-1 rounded-md font-semibold transition-all hover:scale-105"
-        style={{ background: '#dc2626', color: '#fff' }}
-      >Yes</button>
-      <button
-        onClick={(e) => { e.preventDefault(); setConfirming(false) }}
-        className="text-xs px-3 py-1 rounded-md font-medium transition-colors"
-        style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-      >No</button>
+    <div
+      onClick={onClick}
+      style={{
+        padding: '12px 14px', cursor: 'pointer',
+        borderTop: '1px solid var(--border)',
+        background: active ? 'var(--panel-2)' : 'transparent',
+        borderLeft: active ? '3px solid var(--purple)' : '3px solid transparent',
+        transition: 'background .15s',
+      }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--panel-2)' }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <Pill tone={meta.tone}>{meta.label}</Pill>
+        <span style={{ flex: 1 }} />
+        <span className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)' }}>{updated}</span>
+      </div>
+      <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 3, letterSpacing: '-0.005em' }} className="tz-truncate">
+        {story.title || 'Untitled Story'}
+      </div>
+      <div className="tz-truncate" style={{ fontSize: 12, color: 'var(--mute)', marginBottom: 8 }}>
+        {story.summary || 'No summary yet'}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <CaseBar cases={{ pass: progress.done, pending: progress.total - progress.done }} height={3} />
+        </div>
+        <span className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)' }}>
+          {progress.total === 0 ? '0%' : Math.round((progress.done / progress.total) * 100) + '%'}
+        </span>
+      </div>
     </div>
   )
 }
 
-function StoryCard({
-  story, projectName, tab, onDelete, onComplete, onReactivate,
+/* ─── Right pane detail panel ─────────────────────── */
+
+function SplitDetailPanel({
+  story, projectName, tab, onDelete, onComplete, onReactivate, onOpen,
 }: {
   story: Story
   projectName: string | null
@@ -165,128 +152,108 @@ function StoryCard({
   onDelete: (id: string) => void
   onComplete: (id: string) => void
   onReactivate: (id: string) => void
+  onOpen: (id: string) => void
 }) {
   const meta = STATUS_META[story.status]
-  const counts = [
-    { icon: <Users size={11} />, label: story.stakeholders.length, title: 'Stakeholders' },
-    { icon: <FileText size={11} />, label: story.userStories.length, title: 'User stories' },
-    { icon: <ListTree size={11} />, label: story.requirements.length, title: 'Requirements' },
-    { icon: <GitBranch size={11} />, label: story.processFlows.length, title: 'Process flows' },
-    { icon: <ImageIcon size={11} />, label: story.wireframes.length, title: 'Wireframes' },
-    { icon: <Network size={11} />, label: story.rtm.length, title: 'RTM entries' },
-    { icon: <AlertTriangle size={11} />, label: story.raid.length, title: 'RAID entries' },
+  const progress = computeProgress(story)
+  const pct = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100)
+
+  const counts: Array<{ icon: Parameters<typeof Icon>[0]['name']; label: string; value: number }> = [
+    { icon: 'users', label: 'Stakeholders', value: story.stakeholders.length },
+    { icon: 'file-text', label: 'User stories', value: story.userStories.length },
+    { icon: 'layers', label: 'Requirements', value: story.requirements.length },
+    { icon: 'branch', label: 'Flows', value: story.processFlows.length },
+    { icon: 'clipboard', label: 'RTM', value: story.rtm.length },
+    { icon: 'alert', label: 'RAID', value: story.raid.length },
   ]
 
   return (
-    <Link
-      to="/stories/$id"
-      params={{ id: story.id }}
-      className="block px-5 py-4 rounded-xl homepage-card transition-all hover:scale-[1.005]"
-    >
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={meta.style}>{meta.label}</span>
-        {projectName && (
-          <span
-            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-            style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}
-            title="Project"
-          >
-            <FolderOpen size={11} />
-            {projectName}
-          </span>
+    <div className="panel" style={{ padding: 24, alignSelf: 'start' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <Pill tone={meta.tone}>{meta.label}</Pill>
+        {projectName && <Pill tone="blue" icon="folder">{projectName}</Pill>}
+        {story.completed && <Pill tone="green" icon="check">Completed</Pill>}
+        <span style={{ flex: 1 }} />
+        {tab === 'active' ? (
+          <button className="tz-btn" onClick={() => onComplete(story.id)}>
+            <CheckCheck size={13} /> Complete
+          </button>
+        ) : (
+          <button className="tz-btn" onClick={() => onReactivate(story.id)}>
+            <RotateCcw size={13} /> Reactivate
+          </button>
         )}
-        {story.completed && (
-          <span
-            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-            style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}
-          >
-            <CheckCircle2 size={11} />
-            Completed
-          </span>
-        )}
-        <div className="ml-auto hidden sm:flex items-center gap-3 flex-shrink-0">
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Created">
-            <CalendarPlus size={11} />
-            {new Date(story.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Updated">
-            <CalendarClock size={11} />
-            {new Date(story.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-          {tab === 'active' ? (
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onComplete(story.id) }}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md font-semibold transition-all hover:scale-105"
-              style={{ background: 'var(--app-success-light)', color: 'var(--app-success)', border: '1px solid var(--app-success-border)' }}
-              title="Mark as completed"
-            >
-              <CheckCheck size={12} /> Complete?
-            </button>
-          ) : (
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReactivate(story.id) }}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md font-semibold transition-all hover:scale-105"
-              style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-              title="Reactivate"
-            >
-              <RotateCcw size={12} /> Reactivate
-            </button>
-          )}
-        </div>
+        <button className="tz-btn tz-btn-ghost" style={{ padding: 6, color: 'var(--red)' }} onClick={() => onDelete(story.id)} title="Delete">
+          <Trash2 size={14} />
+        </button>
       </div>
-
-      <h3 className="text-base font-semibold text-foreground mb-1 leading-snug" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+      <h2 style={{ fontSize: 24, letterSpacing: '-0.02em', margin: '0 0 8px', color: 'var(--ink)' }}>
         {story.title || 'Untitled Story'}
-      </h3>
-      {story.summary && (
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-          {story.summary}
-        </p>
-      )}
+      </h2>
+      <p style={{ fontSize: 14, color: 'var(--mute)', lineHeight: 1.55, margin: '0 0 18px' }}>
+        {story.summary || 'No summary yet — open the story to add details.'}
+      </p>
 
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {counts.map((c, i) => (
-            <span
-              key={i}
-              title={c.title}
-              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: 'var(--app-glass)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-glass-border)' }}
-            >
-              {c.icon}
-              {c.label}
-            </span>
-          ))}
-        </div>
-        <div className="flex-shrink-0">
-          <DeleteConfirm onConfirm={() => onDelete(story.id)} />
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+        {counts.map((m) => (
+          <div
+            key={m.label}
+            style={{
+              padding: '10px 12px', background: 'var(--panel-2)',
+              border: '1px solid var(--border)', borderRadius: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--mute)', fontSize: 11 }}>
+              <Icon name={m.icon} size={12} /> {m.label}
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', marginTop: 2 }}>
+              {m.value}
+            </div>
+          </div>
+        ))}
       </div>
-    </Link>
+
+      <div className="hairline" style={{ margin: '18px 0' }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginBottom: 4 }}>
+            PROGRESS · {progress.done}/{progress.total} · {pct}%
+          </div>
+          <CaseBar cases={{ pass: progress.done, pending: progress.total - progress.done }} total={Math.max(progress.total, 1)} height={5} />
+        </div>
+        <button className="tz-btn" onClick={() => onOpen(story.id)}>
+          Open <ArrowRight size={13} />
+        </button>
+      </div>
+    </div>
   )
 }
 
+/* ─── Empty state ─────────────────────────────────── */
+
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-xl p-10 text-center" style={{ background: 'var(--app-glass)', border: '1px dashed var(--app-glass-border)' }}>
-      <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4" style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)' }}>
-        <Sparkles size={24} />
+    <div className="panel" style={{ padding: '40px 24px', textAlign: 'center', borderStyle: 'dashed', background: 'var(--panel-2)' }}>
+      <div style={{
+        display: 'inline-grid', placeItems: 'center', width: 52, height: 52, borderRadius: 999,
+        background: 'color-mix(in oklab, var(--purple) 14%, transparent)',
+        color: 'var(--purple)', marginBottom: 14,
+      }}>
+        <Icon name="sparkles" size={22} />
       </div>
-      <h3 className="text-lg font-semibold mb-1">No stories yet</h3>
-      <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Capture business cases, user stories, requirements, process flows, wireframes, RTM, and RAID logs in one place.
+      <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 6px', color: 'var(--ink)' }}>No stories yet</h3>
+      <p style={{ fontSize: 13.5, color: 'var(--mute)', margin: '0 0 18px', maxWidth: 480, marginInline: 'auto' }}>
+        Capture business cases, user stories, requirements, flows, wireframes, RTM and RAID in one place.
       </p>
-      <button
-        onClick={onCreate}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-        style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-      >
-        <Plus size={16} />
-        Create your first story
+      <button className="tz-btn tz-btn-gradient" onClick={onCreate}>
+        <Plus size={14} /> Create your first story
       </button>
     </div>
   )
 }
+
+/* ─── Main ────────────────────────────────────────── */
 
 function StoriesPage() {
   const { stories, loading } = useStories()
@@ -300,205 +267,128 @@ function StoriesPage() {
     reloadStoriesForProject(id)
   }
 
-  const projectLookup = new Map(projects.map((p) => [p.id, p.name]))
+  const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
 
   const activeStories = stories.filter((s) => !s.completed)
   const completedStories = stories.filter((s) => s.completed)
-  const visibleStories = tab === 'active' ? activeStories : completedStories
+  const list = tab === 'active' ? activeStories : completedStories
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  useEffect(() => {
+    if (list.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !list.find((s) => s.id === selectedId)) {
+      setSelectedId(list[0].id)
+    }
+  }, [list, selectedId])
+
+  const selected = list.find((s) => s.id === selectedId) || list[0]
 
   const handleCreate = () => {
     const s = createStory()
     s.title = 'New Story'
     if (activeProjectId) s.projectId = activeProjectId
-    // Optimistic: cache updates synchronously; navigate immediately
     addStory(s)
     navigate({ to: '/stories/$id', params: { id: s.id } })
   }
 
-  const handleDelete = (id: string) => {
-    deleteStory(id)
-  }
+  if (loading) return <LoadingCurtain visible message="Loading Stories" />
 
-  const handleComplete = (id: string) => {
-    completeStory(id, true)
-  }
-
-  const handleReactivate = (id: string) => {
-    completeStory(id, false)
-  }
-
-  if (loading) {
-    return <LoadingCurtain visible={true} message="Loading Stories" />
-  }
-
-  const features: Array<{ icon: React.ReactNode; title: string; body: string }> = [
-    { icon: <Target size={16} />, title: 'Business Case & Scope', body: 'Problem, objectives, in/out of scope, stakeholders with RACI.' },
-    { icon: <FileText size={16} />, title: 'User Stories', body: 'As a / I want / so that — with Given/When/Then acceptance criteria.' },
-    { icon: <ListTree size={16} />, title: 'Requirements (SRS)', body: 'Functional & non-functional, prioritised via MoSCoW.' },
-    { icon: <GitBranch size={16} />, title: 'Process Flows', body: 'Actor + action swim-lane steps; ready for BPMN export.' },
-    { icon: <ImageIcon size={16} />, title: 'Wireframes', body: 'Embed image URLs from Figma, Miro or screenshots.' },
-    { icon: <Network size={16} />, title: 'Traceability (RTM)', body: 'Link requirements to user stories and test cases.' },
-    { icon: <AlertTriangle size={16} />, title: 'RAID Log', body: 'Risks, Assumptions, Issues, Dependencies with owners & impact.' },
-  ]
+  const selectedProjectName = selected?.projectId ? projectLookup.get(selected.projectId) ?? null : null
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <style>{`
-        @keyframes movehp {
-          from { transform: translate(-10%, -10%); }
-          to   { transform: translate(20%, 20%); }
-        }
-        .blob-hp {
-          position: absolute;
-          border-radius: 50%;
-          background: var(--app-accent-gradient);
-          filter: blur(80px);
-          opacity: 0.18;
-          animation: movehp 20s infinite alternate;
-          pointer-events: none;
-        }
-        .dark .homepage-card {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-        :root:not(.dark) .homepage-card {
-          background: rgba(0,0,0,0.02);
-          border: 1px solid rgba(0,0,0,0.1);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-        }
-      `}</style>
-      <div className="blob-hp" style={{ width: 400, height: 400, top: -100, left: -100 }} />
-      <div className="blob-hp" style={{ width: 300, height: 300, bottom: -50, right: -50, animationDelay: '-5s' }} />
-
-      <div className="max-w-4xl mx-auto px-4 py-12 relative z-10">
-        <div className="flex items-start justify-between mb-8 gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 mb-2 text-sm font-semibold px-3 py-1 rounded-full" style={{ background: 'var(--app-accent-bg)', color: 'var(--app-accent-color)', border: '1px solid var(--app-glass-border)' }}>
-              <Sparkles size={13} />
-              Business Analyst Workspace
-            </div>
-            <h1 className="text-4xl font-bold mb-2">Stories</h1>
-            <p className="text-muted-foreground text-lg">
-              Turn ideas into structured requirements, flows, and traceability.
-            </p>
-          </div>
-          <button
-            onClick={handleCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 mt-1 transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
-          >
-            <Plus size={16} />
-            New Story
-          </button>
+    <PageShell>
+      <div style={{ paddingTop: 56, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <EyebrowChip icon="sparkles" tone="blue">Business Analyst Workspace</EyebrowChip>
+          <h1 className="display">Stories</h1>
+          <p className="subhead">Turn ideas into structured requirements, flows, and traceability.</p>
         </div>
+        <button className="tz-btn tz-btn-gradient" style={{ marginTop: 30 }} onClick={handleCreate}>
+          <Plus size={13} /> New Story
+        </button>
+      </div>
 
-        {/* Project selector */}
-        <div className="mb-6">
-          <ProjectSelector
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSelect={handleProjectSwitch}
-          />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28, flexWrap: 'wrap' }}>
+        <ProjectPicker projects={projects} activeProjectId={activeProjectId} onSelect={handleProjectSwitch} />
+      </div>
 
-        {/* Tabs */}
-        {stories.length > 0 && (
-          <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-            <button
-              onClick={() => setTab('active')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
-              style={tab === 'active' ? {
-                background: 'var(--app-btn-primary)',
-                color: 'var(--app-btn-text)',
-                boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-              } : { background: 'transparent', color: 'var(--app-text-secondary)' }}
-            >
-              <Clock size={15} />
-              Active
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-bold"
-                style={tab === 'active'
-                  ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
-                  : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }}
-              >
-                {activeStories.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setTab('completed')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all"
-              style={tab === 'completed' ? {
-                background: 'var(--app-btn-primary)',
-                color: 'var(--app-btn-text)',
-                boxShadow: `0 2px 12px var(--app-btn-primary-shadow)`,
-              } : { background: 'transparent', color: 'var(--app-text-secondary)' }}
-            >
-              <CheckCheck size={15} />
-              Completed
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-bold"
-                style={tab === 'completed'
-                  ? { background: 'rgba(255,255,255,0.2)', color: 'var(--app-btn-text)' }
-                  : { background: 'var(--app-glass)', color: 'var(--app-text-secondary)' }}
-              >
-                {completedStories.length}
-              </span>
-            </button>
-          </div>
-        )}
+      <div style={{ marginTop: 18 }}>
+        <Segmented
+          variant="gradient"
+          options={[
+            { value: 'active', label: 'Active', icon: 'clock', count: activeStories.length },
+            { value: 'completed', label: 'Completed', icon: 'check-circle', count: completedStories.length },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as Tab)}
+        />
+      </div>
 
+      <div style={{ marginTop: 20 }}>
         {stories.length === 0 ? (
-          <>
-            <EmptyState onCreate={handleCreate} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8">
-              {features.map((f) => (
-                <div key={f.title} className="rounded-xl p-4 homepage-card">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span style={{ color: 'var(--app-accent-color)' }}>{f.icon}</span>
-                    <h4 className="text-sm font-semibold">{f.title}</h4>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{f.body}</p>
+          <EmptyState onCreate={handleCreate} />
+        ) : list.length === 0 ? (
+          <div className="panel" style={{ padding: 28, textAlign: 'center', color: 'var(--mute)' }}>
+            No {tab} stories.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 14, minHeight: 560 }}>
+            <div className="panel" style={{ padding: 0, overflow: 'hidden', alignSelf: 'start' }}>
+              {list.map((s, i) => (
+                <div key={s.id} style={i === 0 ? { borderTop: 0 } : undefined}>
+                  <StoryListItem
+                    story={s}
+                    active={s.id === (selected?.id ?? null)}
+                    onClick={() => setSelectedId(s.id)}
+                  />
                 </div>
               ))}
             </div>
-          </>
-        ) : (
-          <>
-            <div className="rounded-lg overflow-hidden" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', backdropFilter: 'blur(10px)' }}>
-              <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--app-glass-border)', background: 'var(--app-section-header-bg)', backdropFilter: 'blur(12px)' }}>
-                <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                  {tab === 'active' ? 'All Stories' : 'Completed Stories'} ({visibleStories.length})
-                </h2>
-                <Link to="/homepage" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  Back to Home <ArrowRight size={11} />
-                </Link>
-              </div>
-              {visibleStories.length === 0 ? (
-                <div className="px-4 py-12 text-center">
-                  <p className="text-muted-foreground text-sm">
-                    {tab === 'active' ? 'No active stories in this view.' : 'No completed stories yet.'}
-                  </p>
-                </div>
-              ) : (
-                <ul className="flex flex-col gap-3 p-3">
-                  {visibleStories.map((story) => (
-                    <li key={story.id}>
-                      <StoryCard
-                        story={story}
-                        projectName={story.projectId ? projectLookup.get(story.projectId) ?? null : null}
-                        tab={tab}
-                        onDelete={handleDelete}
-                        onComplete={handleComplete}
-                        onReactivate={handleReactivate}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </>
+            {selected ? (
+              <SplitDetailPanel
+                story={selected}
+                projectName={selectedProjectName}
+                tab={tab}
+                onDelete={(id) => { if (confirm('Delete this story?')) deleteStory(id) }}
+                onComplete={(id) => completeStory(id, true)}
+                onReactivate={(id) => completeStory(id, false)}
+                onOpen={(id) => navigate({ to: '/stories/$id', params: { id } })}
+              />
+            ) : null}
+          </div>
         )}
       </div>
+
+      <SectionHeadRow />
+    </PageShell>
+  )
+}
+
+function SectionHeadRow() {
+  return (
+    <div style={{ marginTop: 40, display: 'flex', justifyContent: 'flex-end' }}>
+      <Link to="/homepage" className="tz-btn tz-btn-ghost" style={{ textDecoration: 'none' }}>
+        Back to Dashboard <ArrowRight size={12} />
+      </Link>
     </div>
   )
+}
+
+/* ─── helpers ─────────────────────────────────────── */
+
+function computeProgress(s: Story) {
+  const total = s.userStories.length + s.requirements.length + s.rtm.length
+  const done =
+    s.userStories.filter((u) => u.status === 'done').length +
+    s.requirements.filter((r) => r.priority === 'must').length * 0 + // leave neutral
+    s.rtm.filter((r) => r.status === 'verified').length
+  return { done, total }
+}
+
+function formatShort(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  } catch {
+    return ''
+  }
 }
