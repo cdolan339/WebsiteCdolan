@@ -540,6 +540,46 @@ h1.display {
 .tz-input::placeholder { color: var(--mute); }
 .tz-textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
 
+/* Progress slider — Canvas-themed range input */
+.tz-progress-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--border) 70%, transparent);
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.tz-progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--purple);
+  border: 2px solid var(--panel);
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--purple) 35%, transparent);
+  cursor: grab;
+  transition: transform .1s ease;
+}
+.tz-progress-slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.1); }
+.tz-progress-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--purple);
+  border: 2px solid var(--panel);
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--purple) 35%, transparent);
+  cursor: grab;
+}
+.tz-progress-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--border) 70%, transparent);
+}
+.tz-progress-slider:focus { box-shadow: 0 0 0 3px color-mix(in oklab, var(--purple) 18%, transparent); }
+
 /* Scrollbars — subtle */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }

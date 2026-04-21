@@ -129,6 +129,7 @@ export type Story = {
   notes: string;
   completed?: boolean;
   completedAt?: string | null;
+  manualProgress?: number | null;
 };
 
 // ── In-memory cache ───────────────────────────────────────────────
@@ -221,6 +222,7 @@ export function createStory(): Story {
     notes: "",
     completed: false,
     completedAt: null,
+    manualProgress: null,
   };
 }
 

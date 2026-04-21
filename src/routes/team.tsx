@@ -10,7 +10,8 @@ import {
   type TeamMember,
 } from '@/lib/teams'
 import { api } from '@/lib/api'
-import { Check, X, Users, UserCheck } from 'lucide-react'
+import { Check, X, Users, UserCheck, AlertTriangle } from 'lucide-react'
+import { PageShell, EyebrowChip, Pill, Button } from '@/components/design/primitives'
 
 export const Route = createFileRoute('/team')({
   component: TeamPage,
@@ -26,13 +27,19 @@ type Me = {
   email_verified: boolean
 }
 
+const ROLE_TONE: Record<TeamMember['role'], 'blue' | 'purple' | 'neutral'> = {
+  owner: 'blue',
+  manager: 'purple',
+  associate: 'neutral',
+}
+
 function TeamPage() {
-  const [me, setMe]               = useState<Me | null>(null)
-  const [requests, setRequests]   = useState<JoinRequest[]>([])
-  const [members, setMembers]     = useState<TeamMember[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [busyId, setBusyId]       = useState<number | null>(null)
-  const [error, setError]         = useState('')
+  const [me, setMe]             = useState<Me | null>(null)
+  const [requests, setRequests] = useState<JoinRequest[]>([])
+  const [members, setMembers]   = useState<TeamMember[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [busyId, setBusyId]     = useState<number | null>(null)
+  const [error, setError]       = useState('')
 
   const loadAll = useCallback(async () => {
     setError('')
@@ -94,119 +101,202 @@ function TeamPage() {
   }
 
   if (loading) {
-    return <div className="max-w-4xl mx-auto px-4 py-8 text-sm" style={{ color: 'var(--app-text-secondary)' }}>Loading team…</div>
+    return (
+      <PageShell>
+        <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', color: 'var(--mute)' }}>
+          Loading team…
+        </div>
+      </PageShell>
+    )
   }
 
   if (!me?.team_id) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--app-text)' }}>Team</h1>
-        <p style={{ color: 'var(--app-text-secondary)' }}>
-          You{'\u2019'}re not part of a team yet.
-        </p>
-      </div>
+      <PageShell>
+        <div style={{ paddingTop: 20 }}>
+          <EyebrowChip icon="users" tone="purple">Team</EyebrowChip>
+          <h1 style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)', margin: '14px 0 8px' }}>
+            Team
+          </h1>
+          <p style={{ fontSize: 16, color: 'var(--mute)' }}>
+            You{'\u2019'}re not part of a team yet.
+          </p>
+        </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--app-text)' }}>
-          {me.team_name || 'Your team'}
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--app-text-secondary)' }}>
-          Your role: <span className="capitalize font-semibold" style={{ color: 'var(--app-text)' }}>{me.role}</span>
-        </p>
-      </header>
+    <PageShell>
+      {/* Header strip */}
+      <div style={{ paddingTop: 20, marginBottom: 22 }}>
+        <EyebrowChip icon="users" tone="purple">Team</EyebrowChip>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end', marginTop: 14 }}>
+          <div>
+            <h1 style={{
+              fontSize: 36, fontWeight: 700, letterSpacing: '-0.02em',
+              lineHeight: 1.1, color: 'var(--ink)', margin: 0,
+            }}>
+              {me.team_name || 'Your team'}
+            </h1>
+            <p style={{ fontSize: 15, color: 'var(--mute)', marginTop: 6 }}>
+              Your role: <span style={{ color: 'var(--ink)', fontWeight: 600, textTransform: 'capitalize' }}>{me.role}</span>
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <Pill tone="neutral" icon="users">{members.length} member{members.length === 1 ? '' : 's'}</Pill>
+            {me.role === 'owner' && requests.length > 0 && (
+              <Pill tone="amber" icon="clock">{requests.length} pending</Pill>
+            )}
+          </div>
+        </div>
+      </div>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', color: '#dc2626' }}>
-          {error}
+        <div
+          style={{
+            marginBottom: 18,
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: 'color-mix(in oklab, var(--red) 10%, var(--panel))',
+            border: '1px solid color-mix(in oklab, var(--red) 35%, var(--border))',
+            color: 'var(--red)',
+            fontSize: 13,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}
+        >
+          <AlertTriangle size={14} /> {error}
         </div>
       )}
 
+      {/* Join requests — owners only */}
       {me.role === 'owner' && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--app-text)' }}>
-            <UserCheck size={18} />
-            Join requests
-            {requests.length > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#2563eb', color: '#fff' }}>
-                {requests.length}
-              </span>
-            )}
-          </h2>
+        <section className="panel" style={{ padding: 22, marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span
+              className="section-icon grad-blue"
+              style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white' }}
+            >
+              <UserCheck size={16} />
+            </span>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Join requests</div>
+              <div style={{ fontSize: 12, color: 'var(--mute)' }}>
+                {requests.length === 0 ? 'No pending requests' : `${requests.length} waiting for review`}
+              </div>
+            </div>
+          </div>
 
           {requests.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>No pending requests.</p>
+            <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0 }}>
+              Join requests will show up here when someone applies to your team.
+            </p>
           ) : (
-            <ul className="space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {requests.map((r) => (
-                <li
+                <div
                   key={r.id}
-                  className="flex items-center justify-between px-4 py-3 rounded-lg"
-                  style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: 'var(--panel-2)',
+                    border: '1px solid var(--border)',
+                  }}
                 >
-                  <div>
-                    <p className="font-medium" style={{ color: 'var(--app-text)' }}>
-                      {r.username}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{r.username}</span>
                       {!r.email_verified && (
-                        <span className="ml-2 text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#d97706' }}>
-                          unverified email
-                        </span>
+                        <Pill tone="amber" icon="alert">Unverified email</Pill>
                       )}
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>{r.email}</p>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--mute)', marginTop: 2 }}>{r.email}</div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      variant="gradient"
                       onClick={() => handleApprove(r.id)}
                       disabled={busyId === r.id || !r.email_verified}
                       title={r.email_verified ? 'Approve' : 'User must verify email first'}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: '#16a34a', color: '#fff' }}
                     >
-                      <Check size={14} /> Approve
-                    </button>
-                    <button
+                      <Check size={13} /> Approve
+                    </Button>
+                    <Button
+                      variant="default"
                       onClick={() => handleDeny(r.id)}
                       disabled={busyId === r.id}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
-                      style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)', color: 'var(--app-text)' }}
                     >
-                      <X size={14} /> Deny
-                    </button>
+                      <X size={13} /> Deny
+                    </Button>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       )}
 
-      <section>
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--app-text)' }}>
-          <Users size={18} />
-          Members ({members.length})
-        </h2>
-        <ul className="space-y-2">
+      {/* Members */}
+      <section className="panel" style={{ padding: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <span
+            className="section-icon grad-purple"
+            style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white' }}
+          >
+            <Users size={16} />
+          </span>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Members</div>
+            <div style={{ fontSize: 12, color: 'var(--mute)' }}>{members.length} {members.length === 1 ? 'person' : 'people'} on this team</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {members.map((m) => {
-            const isSelf   = me.id === m.id
-            const canEdit  = me.role === 'owner' && !isSelf
-            const roleBg   = m.role === 'owner' ? '#2563eb' : m.role === 'manager' ? '#7c3aed' : 'var(--app-glass)'
-            const roleFg   = m.role === 'owner' || m.role === 'manager' ? '#fff' : 'var(--app-text-secondary)'
+            const isSelf  = me.id === m.id
+            const canEdit = me.role === 'owner' && !isSelf
             return (
-              <li
+              <div
                 key={m.id}
-                className="flex items-center justify-between px-4 py-3 rounded-lg"
-                style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto 1fr auto',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '12px 16px',
+                  borderRadius: 12,
+                  background: 'var(--panel-2)',
+                  border: '1px solid var(--border)',
+                }}
               >
-                <div>
-                  <p className="font-medium" style={{ color: 'var(--app-text)' }}>
-                    {m.username}{isSelf && <span className="ml-2 text-xs" style={{ color: 'var(--app-text-secondary)' }}>(you)</span>}
-                  </p>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 34, height: 34, borderRadius: 999,
+                    display: 'grid', placeItems: 'center',
+                    background: 'color-mix(in oklab, var(--purple) 12%, transparent)',
+                    color: 'var(--purple)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {m.username.slice(0, 2).toUpperCase()}
+                </span>
+
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.username}</span>
+                    {isSelf && (
+                      <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 500 }}>(you)</span>
+                    )}
+                  </div>
                   {m.email && (
-                    <p className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>{m.email}</p>
+                    <div style={{ fontSize: 12, color: 'var(--mute)', marginTop: 2 }}>{m.email}</div>
                   )}
                 </div>
 
@@ -214,12 +304,18 @@ function TeamPage() {
                   <select
                     value={m.role}
                     onChange={(e) => handleRoleChange(m.id, e.target.value as TeamMember['role'])}
-                    className="text-xs px-2 py-1 rounded-md capitalize cursor-pointer outline-none"
                     style={{
-                      background: roleBg,
-                      color: roleFg,
-                      border: m.role === 'associate' ? '1px solid var(--app-glass-border)' : 'none',
+                      fontFamily: 'inherit',
+                      fontSize: 12,
                       fontWeight: 600,
+                      color: 'var(--ink)',
+                      background: 'var(--panel)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 999,
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                      boxShadow: 'var(--shadow-xs)',
                     }}
                   >
                     <option value="owner">Owner</option>
@@ -227,22 +323,13 @@ function TeamPage() {
                     <option value="associate">Associate</option>
                   </select>
                 ) : (
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full capitalize"
-                    style={{
-                      background: roleBg,
-                      color: roleFg,
-                      border: m.role === 'associate' ? '1px solid var(--app-glass-border)' : 'none',
-                    }}
-                  >
-                    {m.role}
-                  </span>
+                  <Pill tone={ROLE_TONE[m.role]}>{m.role}</Pill>
                 )}
-              </li>
+              </div>
             )
           })}
-        </ul>
+        </div>
       </section>
-    </div>
+    </PageShell>
   )
 }

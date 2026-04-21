@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, X, Plus, FolderOpen, ChevronDown, Sparkles } from 'lucide-react'
+import { ArrowLeft, X, Plus, FolderOpen, ChevronDown, Sparkles, Save, Target, ListChecks, ClipboardList } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { createCustomTestCase, createCustomTC, addCustomTestCase, type CustomTestCase, type CustomTC } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
@@ -7,17 +7,27 @@ import { AIFillPanel, type AIFillResult } from '@/components/AIFillPanel'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { PreconditionAttachments, uploadPreconditionImages, type PendingImage } from '@/components/PreconditionAttachments'
 import { AutoGrowTextarea } from '@/components/AutoGrowTextarea'
+import { PageShell, EyebrowChip, Pill, Button } from '@/components/design/primitives'
 
 export const Route = createFileRoute('/test-cases/custom/new')({
   component: NewTestCase,
 })
 
-const PRIORITY_OPTIONS = [
-  { value: 'low'      as const, label: 'Low',      style: { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  } },
-  { value: 'medium'   as const, label: 'Medium',   style: { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  } },
-  { value: 'high'     as const, label: 'High',     style: { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  } },
-  { value: 'critical' as const, label: 'Critical', style: { background: 'rgba(220,38,38,0.15)',  color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'  } },
+type Priority = 'low' | 'medium' | 'high' | 'critical'
+
+const PRIORITY_OPTIONS: Array<{ value: Priority; label: string; tone: 'green' | 'amber' | 'orange' | 'red' }> = [
+  { value: 'low',      label: 'Low',      tone: 'green'  },
+  { value: 'medium',   label: 'Medium',   tone: 'amber'  },
+  { value: 'high',     label: 'High',     tone: 'orange' },
+  { value: 'critical', label: 'Critical', tone: 'red'    },
 ]
+
+const TONE_STYLE: Record<'green' | 'amber' | 'orange' | 'red', { bg: string; fg: string; ring: string }> = {
+  green:  { bg: 'color-mix(in oklab, var(--green) 14%, transparent)',  fg: 'var(--green)',  ring: 'color-mix(in oklab, var(--green) 35%, transparent)' },
+  amber:  { bg: 'color-mix(in oklab, var(--amber) 14%, transparent)',  fg: 'var(--amber)',  ring: 'color-mix(in oklab, var(--amber) 35%, transparent)' },
+  orange: { bg: 'color-mix(in oklab, var(--orange) 14%, transparent)', fg: 'var(--orange)', ring: 'color-mix(in oklab, var(--orange) 35%, transparent)' },
+  red:    { bg: 'color-mix(in oklab, var(--red) 14%, transparent)',    fg: 'var(--red)',    ring: 'color-mix(in oklab, var(--red) 35%, transparent)' },
+}
 
 const ALL_EXISTING_TAGS: string[] = []
 
@@ -30,9 +40,7 @@ function validateTitle(title: string): string | null {
 
 // ── Tag input ─────────────────────────────────────────────────────────────────
 
-type TagInputProps = { tags: string[]; onChange: (tags: string[]) => void }
-
-function TagInput({ tags, onChange }: TagInputProps) {
+function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -48,7 +56,6 @@ function TagInput({ tags, onChange }: TagInputProps) {
     setInput('')
     setOpen(false)
   }
-
   const remove = (tag: string) => onChange(tags.filter((t) => t !== tag))
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -57,12 +64,32 @@ function TagInput({ tags, onChange }: TagInputProps) {
   }
 
   return (
-    <div className="relative">
-      <div className="flex flex-wrap items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-md border border-border bg-background focus-within:ring-1 focus-within:ring-ring">
+    <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6,
+          minHeight: 40, padding: '6px 10px',
+          borderRadius: 10, border: '1px solid var(--border)',
+          background: 'var(--panel)',
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
         {tags.map((tag) => (
-          <span key={tag} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+          <span
+            key={tag}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+              background: 'var(--chip)', color: 'var(--ink)',
+            }}
+          >
             {tag}
-            <button type="button" onClick={() => remove(tag)} className="hover:text-destructive transition-colors" aria-label={`Remove tag ${tag}`}>
+            <button
+              type="button"
+              onClick={() => remove(tag)}
+              aria-label={`Remove tag ${tag}`}
+              style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer', padding: 0, display: 'inline-flex' }}
+            >
               <X size={10} />
             </button>
           </span>
@@ -75,24 +102,91 @@ function TagInput({ tags, onChange }: TagInputProps) {
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={handleKeyDown}
           placeholder={tags.length === 0 ? 'Add tags…' : ''}
-          className="flex-1 min-w-[80px] text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+          style={{
+            flex: 1, minWidth: 100,
+            fontSize: 13, fontFamily: 'inherit',
+            background: 'transparent', border: 'none', outline: 'none',
+            color: 'var(--ink)',
+          }}
         />
       </div>
       {open && (input || suggestions.length > 0) && (
-        <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+        <div
+          className="panel"
+          style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+            minWidth: 200, maxHeight: 200, overflowY: 'auto',
+            padding: 4,
+            boxShadow: '0 20px 50px rgba(20,20,40,0.15)',
+          }}
+        >
           {suggestions.length > 0
             ? suggestions.map((tag) => (
-                <button key={tag} type="button" onMouseDown={() => add(tag)} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground">
+                <button
+                  key={tag}
+                  type="button"
+                  onMouseDown={() => add(tag)}
+                  style={{
+                    width: '100%', textAlign: 'left', fontSize: 12,
+                    padding: '6px 10px', borderRadius: 8,
+                    background: 'transparent', border: 'none', color: 'var(--ink)', cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--panel-2)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
                   {tag}
                 </button>
               ))
             : input && (
-                <button type="button" onMouseDown={() => add(input)} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-muted-foreground">
+                <button
+                  type="button"
+                  onMouseDown={() => add(input)}
+                  style={{
+                    width: '100%', textAlign: 'left', fontSize: 12,
+                    padding: '6px 10px', borderRadius: 8,
+                    background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer',
+                  }}
+                >
                   Add "{input}"
                 </button>
               )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Priority picker (shared) ─────────────────────────────────────────────────
+
+function PriorityPicker({ value, onChange, size = 'md' }: { value: Priority; onChange: (v: Priority) => void; size?: 'sm' | 'md' }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {PRIORITY_OPTIONS.map((opt) => {
+        const selected = value === opt.value
+        const tone = TONE_STYLE[opt.tone]
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            style={{
+              fontSize: size === 'sm' ? 10 : 11,
+              fontWeight: 600,
+              textTransform: 'capitalize',
+              padding: size === 'sm' ? '3px 9px' : '4px 11px',
+              borderRadius: 999,
+              background: selected ? tone.bg : 'transparent',
+              color: selected ? tone.fg : 'var(--mute)',
+              border: selected ? `1px solid ${tone.ring}` : '1px solid var(--border)',
+              cursor: 'pointer',
+              transition: 'all .15s ease',
+              opacity: selected ? 1 : 0.75,
+            }}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -106,56 +200,114 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
   const removeStep = (i: number) => patch({ steps: tc.steps.filter((_, idx) => idx !== i) })
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 mb-4">
-      <div className="flex items-center gap-2 mb-2">
-        <span style={{
-          fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-          background: 'var(--app-accent-gradient)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          flexShrink: 0,
-        }}>
-          Test Case {String(index + 1).padStart(2, '0')}
+    <div
+      style={{
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        background: 'var(--panel-2)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span
+          style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--purple)',
+            fontFamily: "'JetBrains Mono', monospace",
+            flexShrink: 0,
+          }}
+        >
+          TC-{String(index + 1).padStart(2, '0')}
         </span>
-        <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
-        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case"><X size={14} /></button>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        <button
+          onClick={onRemove}
+          aria-label="Remove test case"
+          style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer', display: 'inline-flex' }}
+        >
+          <X size={14} />
+        </button>
       </div>
-      <div className="flex items-start gap-3 mb-3">
+
+      <input
+        type="text"
+        value={tc.name}
+        onChange={(e) => patch({ name: e.target.value })}
+        placeholder="Test case name…"
+        className="tz-input"
+        style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Priority</span>
+        <PriorityPicker value={tc.priority} onChange={(v) => patch({ priority: v })} size="sm" />
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Steps</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tc.steps.map((step, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  width: 22, textAlign: 'center',
+                  fontSize: 11, color: 'var(--mute)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  flexShrink: 0,
+                }}
+              >
+                {i + 1}
+              </span>
+              <input
+                type="text"
+                value={step}
+                onChange={(e) => updateStep(i, e.target.value)}
+                placeholder="Describe the step…"
+                className="tz-input"
+                style={{ fontSize: 13 }}
+              />
+              {tc.steps.length > 1 && (
+                <button
+                  onClick={() => removeStep(i)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer', display: 'inline-flex', flexShrink: 0 }}
+                  aria-label="Remove step"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={addStep}
+          style={{
+            marginTop: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: 'var(--mute)',
+            background: 'transparent', border: 'none', cursor: 'pointer',
+          }}
+        >
+          <Plus size={12} /> Add step
+        </button>
+      </div>
+
+      <div>
+        <div style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Expected result</div>
         <input
           type="text"
-          value={tc.name}
-          onChange={(e) => patch({ name: e.target.value })}
-          placeholder="Test case name…"
-          className="flex-1 text-sm font-semibold bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
+          value={tc.expected}
+          onChange={(e) => patch({ expected: e.target.value })}
+          placeholder="What should happen…"
+          className="tz-input"
+          style={{ fontSize: 13 }}
         />
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <span className="text-xs text-muted-foreground">Priority:</span>
-        {PRIORITY_OPTIONS.map((opt) => (
-          <button key={opt.value} onClick={() => patch({ priority: opt.value })} className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize transition-opacity ${tc.priority === opt.value ? 'opacity-100 ring-1 ring-offset-1 ring-current' : 'opacity-40 hover:opacity-70'}`} style={opt.style}>{opt.label}</button>
-        ))}
-      </div>
-      <div className="mb-3">
-        <p className="text-xs font-medium text-muted-foreground mb-1.5">Steps</p>
-        <ol className="space-y-1.5">
-          {tc.steps.map((step, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-5 flex-shrink-0 text-right">{i + 1}.</span>
-              <input type="text" value={step} onChange={(e) => updateStep(i, e.target.value)} placeholder="Describe the step…" className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors" />
-              {tc.steps.length > 1 && <button onClick={() => removeStep(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"><X size={12} /></button>}
-            </li>
-          ))}
-        </ol>
-        <button onClick={addStep} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"><Plus size={12} /> Add Step</button>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground mb-1.5">Expected Result</p>
-        <input type="text" value={tc.expected} onChange={(e) => patch({ expected: e.target.value })} placeholder="What should happen…" className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors" />
       </div>
     </div>
   )
 }
 
-// ── Project picker ───────────────────────────────────────────────────────────
+// ── Project picker (Canvas-styled) ───────────────────────────────────────────
 
 function ProjectPicker({ projectId, onChange, projects }: { projectId: number | null; onChange: (id: number | null) => void; projects: Project[] }) {
   const [open, setOpen] = useState(false)
@@ -173,65 +325,76 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
   }, [open])
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
         style={{
-          background: selected ? 'var(--app-accent-bg)' : 'var(--app-glass)',
-          border: '1px solid var(--app-glass-border)',
-          color: selected ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          fontSize: 13, fontWeight: 500,
+          padding: '7px 12px',
+          borderRadius: 999,
+          background: selected ? 'color-mix(in oklab, var(--purple) 10%, var(--panel))' : 'var(--panel)',
+          border: '1px solid var(--border)',
+          color: selected ? 'var(--purple)' : 'var(--mute)',
+          cursor: 'pointer',
+          boxShadow: 'var(--shadow-xs)',
         }}
       >
-        <FolderOpen size={14} style={{ opacity: 0.7 }} />
-        <span className="truncate max-w-[200px]">{selected?.name ?? 'No Project'}</span>
-        <ChevronDown size={13} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <FolderOpen size={13} />
+        <span style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected?.name ?? 'No project'}
+        </span>
+        <ChevronDown size={12} style={{ opacity: 0.6, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
       </button>
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl overflow-hidden"
+          className="panel"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            background: 'var(--app-overlay)',
-            border: '1px solid var(--app-overlay-border)',
-            backdropFilter: 'blur(16px)',
+            position: 'absolute', left: 0, top: 'calc(100% + 6px)', zIndex: 50,
+            width: 260, padding: 4,
+            boxShadow: '0 20px 50px rgba(20,20,40,0.15)',
           }}
         >
           <button
             onMouseDown={() => { onChange(null); setOpen(false) }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
             style={{
-              background: projectId === null ? 'var(--app-accent-bg)' : 'transparent',
-              color: projectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
-              borderBottom: '1px solid var(--app-glass-border)',
-              fontWeight: projectId === null ? 600 : 400,
+              width: '100%',
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px',
+              borderRadius: 8,
+              fontSize: 13, fontWeight: projectId === null ? 600 : 500,
+              color: projectId === null ? 'var(--purple)' : 'var(--ink)',
+              background: projectId === null ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+              border: 'none', cursor: 'pointer',
             }}
-            onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
-            onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
           >
-            <FolderOpen size={14} style={{ opacity: 0.7 }} />
-            No Project
+            <FolderOpen size={13} style={{ opacity: 0.7 }} />
+            No project
           </button>
-          <div className="max-h-48 overflow-y-auto">
-            {projects.map((p) => (
-              <button
-                key={p.id}
-                onMouseDown={() => { onChange(p.id); setOpen(false) }}
-                className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
-                style={{
-                  background: projectId === p.id ? 'var(--app-accent-bg)' : 'transparent',
-                  color: 'var(--app-accent-color)',
-                  borderBottom: '1px solid var(--app-glass-border)',
-                  fontWeight: projectId === p.id ? 600 : 400,
-                }}
-                onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-accent-bg)' : 'transparent' }}
-              >
-                {p.name}
-              </button>
-            ))}
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {projects.map((p) => {
+              const active = projectId === p.id
+              return (
+                <button
+                  key={p.id}
+                  onMouseDown={() => { onChange(p.id); setOpen(false) }}
+                  style={{
+                    width: '100%',
+                    display: 'flex', alignItems: 'center',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    fontSize: 13, fontWeight: active ? 600 : 500,
+                    color: active ? 'var(--purple)' : 'var(--ink)',
+                    background: active ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+                    border: 'none', cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -239,7 +402,37 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
   )
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Section card ─────────────────────────────────────────────────────────────
+
+function SectionCard({
+  icon, gradient, title, subtitle, children,
+}: {
+  icon: React.ReactNode
+  gradient: 'grad-purple' | 'grad-pink' | 'grad-blue' | 'grad-green' | 'grad-orange'
+  title: string
+  subtitle?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="panel" style={{ padding: 22, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span
+          className={`section-icon ${gradient}`}
+          style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white' }}
+        >
+          {icon}
+        </span>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 12, color: 'var(--mute)' }}>{subtitle}</div>}
+        </div>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
 
 function NewTestCase() {
   const navigate = useNavigate()
@@ -262,11 +455,11 @@ function NewTestCase() {
   const [aiLoading, setAiLoading] = useState(false)
   const [pendingPrecondImages, setPendingPrecondImages] = useState<PendingImage[]>([])
 
-  // Default to whatever project is currently active on the homepage
   useEffect(() => {
     if (activeProjectId !== null && draft.projectId === null) {
       setDraft((prev) => ({ ...prev, projectId: activeProjectId }))
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProjectId])
 
   const patch = (fields: Partial<typeof draft>) => {
@@ -281,12 +474,10 @@ function NewTestCase() {
     const tc = { ...createCustomTestCase(), ...draft, title: draft.title.trim(), projectId: draft.projectId }
     addCustomTestCase(tc)
 
-    // Upload any pending precondition images now that we have an ID
     if (pendingPrecondImages.length > 0) {
       try {
         await uploadPreconditionImages(`precond:${tc.id}`, pendingPrecondImages)
       } catch {
-        // Non-blocking — test case is already saved, images can be re-uploaded manually
         console.error('Failed to upload precondition images')
       }
     }
@@ -310,7 +501,6 @@ function NewTestCase() {
       })),
     })
 
-    // Convert extracted images from the AI response to pending precondition images
     if (result.extractedImages && result.extractedImages.length > 0) {
       const pending: PendingImage[] = result.extractedImages.map((img) => {
         const byteChars = atob(img.data)
@@ -325,187 +515,221 @@ function NewTestCase() {
   }
 
   const addPrecondition = () => patch({ preconditions: [...draft.preconditions, ''] })
-
   const updatePrecondition = (i: number, value: string) => {
     const next = [...draft.preconditions]
     next[i] = value
     patch({ preconditions: next })
   }
-
   const removePrecondition = (i: number) =>
     patch({ preconditions: draft.preconditions.filter((_, idx) => idx !== i) })
 
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <style>{`
-        @keyframes movenew { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-new { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movenew 20s infinite alternate; pointer-events:none; }
-      `}</style>
-      <div className="blob-new" style={{ width:400, height:400, top:-100, left:-100 }} />
-      <div className="blob-new" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 py-12 relative z-10">
+    <PageShell>
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, marginBottom: 14, flexWrap: 'wrap', fontSize: 13, color: 'var(--mute)' }}>
+        <Link
+          to="/test-suites"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--mute)', textDecoration: 'none' }}
+        >
+          <ArrowLeft size={13} /> Test Suites
+        </Link>
+        <span style={{ opacity: 0.5 }}>/</span>
+        <span style={{ color: 'var(--ink)', fontWeight: 500 }}>New test case</span>
+      </div>
 
-        {/* Back + AI button */}
-        <div className="flex items-center justify-between mb-8">
-          <Link
-            to="/test-suites"
-            className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'var(--app-btn-outline-bg)', border: '1px solid var(--app-btn-outline-border)', color: 'var(--app-text)', backdropFilter: 'blur(6px)', boxShadow: '0 2px 10px var(--app-btn-outline-shadow)' }}
-          >
-            <ArrowLeft size={14} /> Back to Test Suites
-          </Link>
-          <button
-            onClick={() => setAiOpen(true)}
-            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
-          >
-            <Sparkles size={14} /> AI Test Case Generator
-          </button>
-        </div>
-
-        {/* Title */}
-        <div className="mb-2">
+      {/* Header */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'start', marginBottom: 22 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <EyebrowChip icon="clipboard" tone="orange">Test Case</EyebrowChip>
+            <ProjectPicker
+              projectId={draft.projectId ?? null}
+              onChange={(id) => patch({ projectId: id })}
+              projects={projects}
+            />
+          </div>
           <input
-            type="text"
+            className="tz-title-input"
+            style={{
+              width: '100%',
+              fontFamily: 'inherit',
+              fontSize: 36,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              color: 'var(--ink)',
+              background: 'transparent',
+              border: titleError ? '1px solid var(--red)' : '1px solid transparent',
+              borderRadius: 10,
+              padding: titleError ? '6px 10px' : '6px 0',
+              outline: 'none',
+            }}
+            placeholder="Test case title"
             value={draft.title}
             onChange={(e) => patch({ title: e.target.value })}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
-            placeholder="Test plan title…"
             autoFocus
-            className={`w-full text-3xl font-bold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground focus:underline decoration-muted-foreground/40 ${titleError ? 'text-destructive placeholder:text-destructive/50' : ''}`}
-            style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
           />
           {titleError && (
-            <p className="text-sm text-destructive mt-1">{titleError}</p>
+            <p style={{ fontSize: 12, color: 'var(--red)', margin: '6px 0 0' }}>{titleError}</p>
           )}
-        </div>
-
-        {/* Summary */}
-        <AutoGrowTextarea
-          value={draft.summary}
-          onChange={(e) => patch({ summary: e.target.value })}
-          placeholder="Add a description…"
-          minHeight={52}
-          focusMinHeight={140}
-          className="w-full text-lg text-muted-foreground bg-transparent border-none outline-none placeholder:text-muted-foreground/50 mb-4 focus:underline decoration-muted-foreground/40"
-        />
-
-        {/* Priority */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <span className="text-sm text-muted-foreground">Priority:</span>
-          {PRIORITY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => patch({ priority: opt.value })}
-              className={`text-xs px-3 py-1 rounded-full font-medium capitalize transition-opacity ${draft.priority === opt.value ? 'opacity-100 ring-2 ring-offset-1 ring-current' : 'opacity-50 hover:opacity-80'}`} style={opt.style}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Project */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <span className="text-sm text-muted-foreground">Project:</span>
-          <ProjectPicker
-            projectId={draft.projectId ?? null}
-            onChange={(id) => patch({ projectId: id })}
-            projects={projects}
+          <AutoGrowTextarea
+            value={draft.summary}
+            onChange={(e) => patch({ summary: e.target.value })}
+            placeholder="Short summary — what does this test case cover?"
+            minHeight={40}
+            focusMinHeight={120}
+            style={{
+              width: '100%',
+              fontFamily: 'inherit',
+              fontSize: 16,
+              color: 'var(--mute)',
+              background: 'transparent',
+              border: '1px solid transparent',
+              borderRadius: 10,
+              padding: '6px 0',
+              marginTop: 6,
+              outline: 'none',
+              resize: 'none',
+            }}
           />
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, paddingTop: 4 }}>
+          <Button variant="gradient" onClick={() => setAiOpen(true)}>
+            <Sparkles size={14} /> AI Generate
+          </Button>
+          <Button variant="default" onClick={handleSave}>
+            <Save size={14} /> Save
+          </Button>
+        </div>
+      </div>
 
-        {/* Tags */}
-        <div className="mb-8">
-          <p className="text-sm font-medium text-foreground mb-2">Tags</p>
+      {/* Priority + tags row */}
+      <div className="panel" style={{ padding: 18, marginBottom: 18, display: 'grid', gap: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Priority</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <PriorityPicker value={draft.priority} onChange={(v) => patch({ priority: v })} />
+            <Pill tone="neutral" icon="tag">{draft.tags.length} tag{draft.tags.length === 1 ? '' : 's'}</Pill>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Tags</div>
           <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
         </div>
+      </div>
 
-        {/* Objective */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-lg font-semibold mb-3">Objective</h2>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <AutoGrowTextarea
-              value={draft.objective}
-              onChange={(e) => patch({ objective: e.target.value })}
-              placeholder="Describe the objective of this test plan…"
-              minHeight={90}
-              focusMinHeight={200}
-              className="w-full text-sm text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors"
-            />
-          </div>
-        </section>
+      {/* Objective */}
+      <SectionCard
+        icon={<Target size={16} />}
+        gradient="grad-purple"
+        title="Objective"
+        subtitle="What success looks like for this test case"
+      >
+        <AutoGrowTextarea
+          value={draft.objective}
+          onChange={(e) => patch({ objective: e.target.value })}
+          placeholder="Describe the objective of this test case…"
+          minHeight={90}
+          focusMinHeight={200}
+          className="tz-input tz-textarea"
+          style={{ fontSize: 14 }}
+        />
+      </SectionCard>
 
-        {/* Preconditions */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-lg font-semibold mb-3">Preconditions</h2>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <ul className="space-y-2 mb-3">
-              {draft.preconditions.map((item, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="text-muted-foreground select-none">•</span>
-                  <input
-                    type="text"
-                    value={item}
-                    onChange={(e) => updatePrecondition(i, e.target.value)}
-                    placeholder="Add a precondition…"
-                    className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-                  />
-                  <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove precondition">
-                    <X size={14} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button onClick={addPrecondition} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <Plus size={14} />
-              Add Precondition
-            </button>
-          </div>
+      {/* Preconditions */}
+      <SectionCard
+        icon={<ListChecks size={16} />}
+        gradient="grad-blue"
+        title="Preconditions"
+        subtitle="Setup required before running the test"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {draft.preconditions.map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: 'var(--mute)', userSelect: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>•</span>
+              <input
+                type="text"
+                value={item}
+                onChange={(e) => updatePrecondition(i, e.target.value)}
+                placeholder="Add a precondition…"
+                className="tz-input"
+                style={{ fontSize: 13 }}
+              />
+              <button
+                onClick={() => removePrecondition(i)}
+                aria-label="Remove precondition"
+                style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer', display: 'inline-flex', flexShrink: 0 }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={addPrecondition}
+          style={{
+            marginTop: 10,
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            fontSize: 13, color: 'var(--mute)',
+            background: 'transparent', border: 'none', cursor: 'pointer',
+          }}
+        >
+          <Plus size={13} /> Add precondition
+        </button>
+
+        <div style={{ marginTop: 14 }}>
           <PreconditionAttachments
             pendingImages={pendingPrecondImages}
             onPendingChange={setPendingPrecondImages}
           />
-        </section>
-
-        {/* Test cases */}
-        <section className="mb-6 rounded-lg p-4" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-lg font-semibold mb-4">Test Cases</h2>
-          {draft.testCases.map((sub, i) => (
-            <SubTCEditor
-              key={sub.id}
-              tc={sub}
-              index={i}
-              onChange={(updated) => patch({ testCases: draft.testCases.map((s) => s.id === updated.id ? updated : s) })}
-              onRemove={() => patch({ testCases: draft.testCases.filter((s) => s.id !== sub.id) })}
-            />
-          ))}
-          <button
-            type="button"
-            onClick={() => patch({ testCases: [...draft.testCases, createCustomTC()] })}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors w-full justify-center"
-          >
-            <Plus size={14} /> Add Test Case
-          </button>
-        </section>
-
-        {/* Actions */}
-        <div className="flex items-center justify-center gap-4 mt-2">
-          <button
-            onClick={handleSave}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
-          >
-            Save Test Case
-          </button>
-          <Link
-            to="/test-suites"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
-            style={{ background: 'rgba(220,38,38,0.12)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)', backdropFilter: 'blur(6px)' }}
-          >
-            <X size={14} /> Cancel
-          </Link>
         </div>
+      </SectionCard>
 
+      {/* Test cases */}
+      <SectionCard
+        icon={<ClipboardList size={16} />}
+        gradient="grad-orange"
+        title="Test Cases"
+        subtitle="One or more sub-cases covered by this plan"
+      >
+        {draft.testCases.map((sub, i) => (
+          <SubTCEditor
+            key={sub.id}
+            tc={sub}
+            index={i}
+            onChange={(updated) => patch({ testCases: draft.testCases.map((s) => s.id === updated.id ? updated : s) })}
+            onRemove={() => patch({ testCases: draft.testCases.filter((s) => s.id !== sub.id) })}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() => patch({ testCases: [...draft.testCases, createCustomTC()] })}
+          style={{
+            width: '100%',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '10px 14px',
+            borderRadius: 12,
+            border: '1px dashed var(--border-strong)',
+            background: 'transparent',
+            fontSize: 13, fontWeight: 500, color: 'var(--mute)',
+            cursor: 'pointer',
+          }}
+        >
+          <Plus size={13} /> Add test case
+        </button>
+      </SectionCard>
+
+      {/* Bottom actions */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8, paddingBottom: 40 }}>
+        <Link to="/test-suites" style={{ textDecoration: 'none' }}>
+          <Button variant="default">
+            <X size={14} /> Cancel
+          </Button>
+        </Link>
+        <Button variant="gradient" onClick={handleSave}>
+          <Save size={14} /> Save test case
+        </Button>
       </div>
 
       {aiOpen && (
@@ -517,6 +741,6 @@ function NewTestCase() {
       )}
 
       <LoadingCurtain visible={aiLoading} message="Generating test cases" transparent />
-    </div>
+    </PageShell>
   )
 }

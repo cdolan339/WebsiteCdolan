@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Plus, ChevronDown, FolderOpen, ArrowRight, Trash2, RotateCcw, CheckCheck } from 'lucide-react'
+import { Plus, ChevronDown, FolderOpen, ArrowRight, Trash2, RotateCcw, CheckCheck, X } from 'lucide-react'
 import {
   useStories, createStory, addStory, deleteStory, completeStory,
   reloadStoriesForProject, type Story, type StoryStatus,
@@ -8,7 +8,7 @@ import {
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import {
-  PageShell, Pill, CaseBar, Segmented, EyebrowChip, Icon,
+  PageShell, Pill, CaseBar, Segmented, EyebrowChip, Icon, Button,
 } from '@/components/design/primitives'
 
 export const Route = createFileRoute('/stories/')({
@@ -24,6 +24,14 @@ const STATUS_META: Record<StoryStatus, { tone: 'blue' | 'purple' | 'amber' | 'gr
   uat: { tone: 'amber', label: 'UAT' },
   done: { tone: 'green', label: 'Done' },
 }
+
+const STATUS_OPTIONS: Array<{ value: StoryStatus; label: string }> = [
+  { value: 'discovery', label: 'Discovery' },
+  { value: 'analysis', label: 'Analysis' },
+  { value: 'development', label: 'Development' },
+  { value: 'uat', label: 'UAT' },
+  { value: 'done', label: 'Done' },
+]
 
 /* ─── Project dropdown ─────────────────────────────── */
 
@@ -159,7 +167,6 @@ function SplitDetailPanel({
   const pct = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100)
 
   const counts: Array<{ icon: Parameters<typeof Icon>[0]['name']; label: string; value: number }> = [
-    { icon: 'users', label: 'Stakeholders', value: story.stakeholders.length },
     { icon: 'file-text', label: 'User stories', value: story.userStories.length },
     { icon: 'layers', label: 'Requirements', value: story.requirements.length },
     { icon: 'branch', label: 'Flows', value: story.processFlows.length },
@@ -194,7 +201,7 @@ function SplitDetailPanel({
         {story.summary || 'No summary yet — open the story to add details.'}
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
         {counts.map((m) => (
           <div
             key={m.label}
@@ -230,6 +237,205 @@ function SplitDetailPanel({
   )
 }
 
+/* ─── Create Story modal (Canvas style) ─────────────── */
+
+function CreateStoryModal({
+  projects, defaultProjectId, onCreate, onClose,
+}: {
+  projects: Project[]
+  defaultProjectId: number | null
+  onCreate: (data: { title: string; summary: string; projectId: number | null; status: StoryStatus }) => Promise<void>
+  onClose: () => void
+}) {
+  const [title, setTitle] = useState('')
+  const [summary, setSummary] = useState('')
+  const [projectId, setProjectId] = useState<number | null>(defaultProjectId)
+  const [status, setStatus] = useState<StoryStatus>('discovery')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async () => {
+    if (!title.trim()) { setError('Title is required.'); return }
+    setBusy(true)
+    setError('')
+    try {
+      await onCreate({ title: title.trim(), summary: summary.trim(), projectId, status })
+    } catch (err) {
+      setError((err as { message?: string }).message || 'Failed to create story')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 80, display: 'grid', placeItems: 'center', padding: 20,
+        background: 'color-mix(in oklab, var(--ink) 28%, transparent)', backdropFilter: 'blur(4px)',
+      }}
+      onMouseDown={onClose}
+    >
+      <div
+        className="panel"
+        style={{ width: '100%', maxWidth: 520, padding: 22, boxShadow: '0 24px 60px rgba(20,20,40,0.18)' }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <EyebrowChip icon="sparkles" tone="purple">New story</EyebrowChip>
+          <span style={{ flex: 1 }} />
+          <button className="tz-btn tz-btn-ghost" style={{ padding: 6 }} onClick={onClose} aria-label="Close">
+            <X size={14} />
+          </button>
+        </div>
+        <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+          Start a new BA story
+        </h3>
+
+        <ModalField label="Title" required>
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Self-service password reset"
+            className="tz-input"
+          />
+        </ModalField>
+
+        <ModalField label="Summary">
+          <textarea
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="One sentence describing what this story delivers"
+            rows={3}
+            className="tz-input"
+            style={{ resize: 'vertical', minHeight: 64, fontFamily: 'inherit' }}
+          />
+        </ModalField>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <ModalField label="Project">
+            <select
+              value={projectId ?? ''}
+              onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : null)}
+              className="tz-input"
+              style={{ cursor: 'pointer' }}
+            >
+              <option value="">Unassigned</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </ModalField>
+
+          <ModalField label="Status">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as StoryStatus)}
+              className="tz-input"
+              style={{ cursor: 'pointer' }}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </ModalField>
+        </div>
+
+        {error && (
+          <div style={{
+            marginTop: 14, padding: '10px 12px', borderRadius: 10,
+            background: 'color-mix(in oklab, var(--red) 10%, transparent)',
+            border: '1px solid color-mix(in oklab, var(--red) 35%, transparent)',
+            color: 'var(--red)', fontSize: 12.5,
+          }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+          <Button onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="gradient" onClick={submit} disabled={busy}>
+            {busy ? 'Creating…' : 'Create story'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModalField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'block', marginBottom: 12 }}>
+      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--mute)', fontWeight: 600, marginBottom: 4 }}>
+        {label}{required && <span style={{ color: 'var(--red)', marginLeft: 3 }}>*</span>}
+      </div>
+      {children}
+    </label>
+  )
+}
+
+/* ─── Delete confirm modal (Canvas style) ─────────── */
+
+function DeleteStoryModal({
+  story, onConfirm, onClose,
+}: {
+  story: Story; onConfirm: () => void; onClose: () => void
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 80, display: 'grid', placeItems: 'center', padding: 20,
+        background: 'color-mix(in oklab, var(--ink) 28%, transparent)', backdropFilter: 'blur(4px)',
+      }}
+      onMouseDown={onClose}
+    >
+      <div
+        className="panel"
+        style={{ width: '100%', maxWidth: 420, padding: 22, boxShadow: '0 24px 60px rgba(20,20,40,0.18)' }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', margin: '0 0 8px' }}>Delete story</h3>
+        <p style={{ fontSize: 13, color: 'var(--mute)', margin: '0 0 18px', lineHeight: 1.5 }}>
+          Permanently delete <strong style={{ color: 'var(--ink)' }}>"{story.title || 'Untitled Story'}"</strong>?
+          All user stories, requirements, and linked artifacts in this story will be removed. This can't be undone.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button onClick={onClose}>Cancel</Button>
+          <button type="button" onClick={onConfirm} className="tz-btn"
+            style={{ background: 'var(--red)', color: 'white', border: 'none' }}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Toast notification ──────────────────────────── */
+
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3200)
+    return () => clearTimeout(t)
+  }, [onDone])
+  return (
+    <div
+      style={{
+        position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 90, display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 16px', borderRadius: 999,
+        background: 'color-mix(in oklab, var(--panel) 92%, transparent)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 12px 32px rgba(20,20,40,0.16)',
+        backdropFilter: 'blur(12px)',
+        color: 'var(--ink)', fontSize: 13, fontWeight: 500,
+      }}
+    >
+      <Icon name="check-circle" size={14} style={{ color: 'var(--green)' }} />
+      {message}
+    </div>
+  )
+}
+
 /* ─── Empty state ─────────────────────────────────── */
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
@@ -260,6 +466,9 @@ function StoriesPage() {
   const { projects } = useProjects()
   const [activeProjectId, setActiveProjectId] = useActiveProjectId()
   const [tab, setTab] = useState<Tab>('active')
+  const [showCreate, setShowCreate] = useState(false)
+  const [deletingStory, setDeletingStory] = useState<Story | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const handleProjectSwitch = (id: number | null) => {
@@ -283,12 +492,23 @@ function StoriesPage() {
 
   const selected = list.find((s) => s.id === selectedId) || list[0]
 
-  const handleCreate = () => {
+  const handleCreate = async (data: { title: string; summary: string; projectId: number | null; status: StoryStatus }) => {
     const s = createStory()
-    s.title = 'New Story'
-    if (activeProjectId) s.projectId = activeProjectId
-    addStory(s)
+    s.title = data.title
+    s.summary = data.summary
+    s.status = data.status
+    s.projectId = data.projectId
+    await addStory(s)
+    setShowCreate(false)
     navigate({ to: '/stories/$id', params: { id: s.id } })
+  }
+
+  const handleDelete = async () => {
+    if (!deletingStory) return
+    const title = deletingStory.title || 'Untitled Story'
+    await deleteStory(deletingStory.id)
+    setDeletingStory(null)
+    setToast(`Deleted "${title}"`)
   }
 
   if (loading) return <LoadingCurtain visible message="Loading Stories" />
@@ -303,7 +523,7 @@ function StoriesPage() {
           <h1 className="display">Stories</h1>
           <p className="subhead">Turn ideas into structured requirements, flows, and traceability.</p>
         </div>
-        <button className="tz-btn tz-btn-gradient" style={{ marginTop: 30 }} onClick={handleCreate}>
+        <button className="tz-btn tz-btn-gradient" style={{ marginTop: 30 }} onClick={() => setShowCreate(true)}>
           <Plus size={13} /> New Story
         </button>
       </div>
@@ -326,7 +546,7 @@ function StoriesPage() {
 
       <div style={{ marginTop: 20 }}>
         {stories.length === 0 ? (
-          <EmptyState onCreate={handleCreate} />
+          <EmptyState onCreate={() => setShowCreate(true)} />
         ) : list.length === 0 ? (
           <div className="panel" style={{ padding: 28, textAlign: 'center', color: 'var(--mute)' }}>
             No {tab} stories.
@@ -349,7 +569,10 @@ function StoriesPage() {
                 story={selected}
                 projectName={selectedProjectName}
                 tab={tab}
-                onDelete={(id) => { if (confirm('Delete this story?')) deleteStory(id) }}
+                onDelete={(id) => {
+                  const s = list.find((x) => x.id === id) || null
+                  setDeletingStory(s)
+                }}
                 onComplete={(id) => completeStory(id, true)}
                 onReactivate={(id) => completeStory(id, false)}
                 onOpen={(id) => navigate({ to: '/stories/$id', params: { id } })}
@@ -360,6 +583,23 @@ function StoriesPage() {
       </div>
 
       <SectionHeadRow />
+
+      {showCreate && (
+        <CreateStoryModal
+          projects={projects}
+          defaultProjectId={activeProjectId}
+          onCreate={handleCreate}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
+      {deletingStory && (
+        <DeleteStoryModal
+          story={deletingStory}
+          onConfirm={handleDelete}
+          onClose={() => setDeletingStory(null)}
+        />
+      )}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </PageShell>
   )
 }

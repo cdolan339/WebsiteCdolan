@@ -10,7 +10,7 @@ import { useState, useRef } from 'react'
 import { X, Sparkles, Loader2, AlertTriangle, Paperclip, FileText, Image, File, ChevronDown, Lightbulb } from 'lucide-react'
 import { apiUpload, ApiError } from '@/lib/api'
 import type {
-  RaciRole, UserStoryPriority, UserStoryStatus, RequirementType, MoscowPriority,
+  UserStoryPriority, UserStoryStatus, RequirementType, MoscowPriority,
   RaidType, RaidImpact, RaidStatus, RtmStatus,
 } from '@/lib/stories'
 
@@ -21,7 +21,6 @@ export type AIStoryFillResult = {
   objectives: string[]
   scopeIn: string[]
   scopeOut: string[]
-  stakeholders: { name: string; role: string; raci: RaciRole }[]
   userStories: {
     asA: string
     iWant: string
@@ -75,20 +74,16 @@ const EXAMPLES: Array<{ title: string; blurb: string; prompt: string }> = [
 
 Users should be able to request a reset by entering their email, receive a time-limited link, and set a new password. Security team requires: reset link expires after 15 minutes, old password invalidated immediately on reset, and all reset events audit-logged.
 
-Admins need a dashboard to see reset events (user, timestamp, IP address) for the last 90 days. Out of scope: SSO integration, SMS-based reset, and password policy changes.
-
-Stakeholders: Maria (Product), Dan (Security lead), Priya (Customer Support manager), Alex (Engineering).`,
+Admins need a dashboard to see reset events (user, timestamp, IP address) for the last 90 days. Out of scope: SSO integration, SMS-based reset, and password policy changes.`,
   },
   {
     title: 'Multi-tenant billing export',
-    blurb: 'Compliance-driven — finance + legal stakeholders',
+    blurb: 'Compliance-driven finance + legal feature',
     prompt: `Finance needs to export monthly billing data per tenant to their accounting system (NetSuite). Today this is a manual CSV pull by a data analyst — it takes 2 days at month-end and has caused three reconciliation errors in the past year.
 
 We want a scheduled job that runs on the 1st of each month, generates a per-tenant CSV with columns (tenant_id, invoice_id, line_item, amount, currency, tax, period_start, period_end), and uploads it to a designated SFTP. Finance users should be able to re-trigger an export for a given tenant/month from an admin UI.
 
-Constraints: SOC 2 requires audit logs for every export, PII must be excluded from line_item descriptions, and the SFTP credentials live in AWS Secrets Manager. Out of scope: real-time streaming, tenant-facing export UI.
-
-Stakeholders: CFO (accountable), Finance Ops lead (responsible), Security/Compliance (consulted), Eng Platform team (responsible).`,
+Constraints: SOC 2 requires audit logs for every export, PII must be excluded from line_item descriptions, and the SFTP credentials live in AWS Secrets Manager. Out of scope: real-time streaming, tenant-facing export UI.`,
   },
   {
     title: 'Mobile onboarding redesign',
@@ -99,9 +94,7 @@ New flow should: let users skip bank connection and explore the app first, progr
 
 Wireframes exist in Figma for the new welcome carousel, goal-setting screen, and deferred-connection prompt. A/B test must run for 4 weeks against the control funnel before rolling out.
 
-Known risks: Plaid API rate limits during peak install hours, App Store review delay on the new push copy, and potential confusion from users who skip connection then hit a paywall.
-
-Stakeholders: Head of Growth (accountable), Mobile PM (responsible), Design lead (responsible), Data Science (consulted for A/B test design), Compliance (consulted — Plaid terms).`,
+Known risks: Plaid API rate limits during peak install hours, App Store review delay on the new push copy, and potential confusion from users who skip connection then hit a paywall.`,
   },
 ]
 
@@ -232,9 +225,8 @@ export function AIFillStoryPanel({ onFill, onClose, onLoading }: Props) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
           <p style={{ fontSize: '0.82rem', color: 'var(--app-text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
             Paste a product brief, meeting notes, email thread, or existing spec — or upload a document.
-            Claude will generate the full BA artifact: business case, stakeholders, user stories with
-            acceptance criteria, requirements (FR/NFR), process flows, wireframe descriptions, RTM, and
-            a RAID log.
+            Claude will generate the full BA artifact: business case, user stories with acceptance criteria,
+            requirements (FR/NFR), process flows, wireframe descriptions, RTM, and a RAID log.
           </p>
 
           <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--app-text-secondary)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
@@ -393,7 +385,7 @@ export function AIFillStoryPanel({ onFill, onClose, onLoading }: Props) {
                 </p>
                 <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--app-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <li>What problem are we solving and for whom?</li>
-                  <li>Who are the key stakeholders or user roles?</li>
+                  <li>Who are the primary user roles?</li>
                   <li>Any known constraints (compliance, integrations, deadlines)?</li>
                   <li>What's explicitly out of scope?</li>
                 </ul>
@@ -407,7 +399,7 @@ export function AIFillStoryPanel({ onFill, onClose, onLoading }: Props) {
           }}>
             <p style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', margin: 0, lineHeight: 1.6 }}>
               <strong>Merge behavior:</strong> scalar fields (title, summary, business case, notes) only fill
-              if empty. Lists (user stories, requirements, stakeholders, flows, RAID, RTM, wireframes) are
+              if empty. Lists (user stories, requirements, flows, RAID, RTM, wireframes) are
               <strong> appended</strong> — your existing work is preserved.
             </p>
           </div>

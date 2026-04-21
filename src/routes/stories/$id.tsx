@@ -3,13 +3,13 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   ArrowLeft, Save, Plus, X, Trash2, Sparkles, Target, FileText, ListTree,
   GitBranch, Image as ImageIcon, Network, AlertTriangle, StickyNote, ChevronRight,
-  FolderOpen, ChevronDown, Users, HelpCircle, CheckCircle2, Clock, Paperclip, Upload, Download, Loader2,
+  FolderOpen, ChevronDown, Users, HelpCircle, CheckCircle2, Clock, Paperclip, Upload, Download,
 } from 'lucide-react'
 import {
   useStory, updateStory,
-  createStakeholder, createUserStory, createAcceptanceCriterion, createRequirement,
+  createUserStory, createAcceptanceCriterion, createRequirement,
   createProcessFlow, createProcessStep, createWireframe, createRtmEntry, createRaidEntry,
-  type Story, type StoryStatus, type Stakeholder, type UserStory, type AcceptanceCriterion,
+  type Story, type StoryStatus, type UserStory, type AcceptanceCriterion,
   type Requirement, type ProcessFlow, type ProcessFlowStep, type Wireframe,
   type RtmEntry, type RaidEntry, type RaidType, type UserStoryPriority,
   type UserStoryStatus, type RequirementType, type MoscowPriority,
@@ -478,11 +478,17 @@ const US_STATUS: Array<{ value: UserStoryStatus; label: string }> = [
   { value: 'done',        label: 'Done' },
 ]
 
-function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
-  const navigate = useNavigate()
-  const [generatingId, setGeneratingId] = useState<string | null>(null)
-  const [genError, setGenError] = useState<string | null>(null)
-
+function UserStoriesTab({
+  story,
+  set,
+  onGenerateSuite,
+  suiteGenerating,
+}: {
+  story: Story
+  set: (patch: Partial<Story>) => void
+  onGenerateSuite: () => void
+  suiteGenerating: boolean
+}) {
   const updateUS = (id: string, patch: Partial<UserStory>) => {
     set({ userStories: story.userStories.map((u) => u.id === id ? { ...u, ...patch } : u) })
   }
@@ -490,67 +496,6 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
     set({ userStories: story.userStories.filter((u) => u.id !== id) })
   }
   const addUS = () => set({ userStories: [...story.userStories, createUserStory()] })
-
-  const generateTestCaseForUS = async (us: UserStory) => {
-    if (generatingId) return
-    setGeneratingId(us.id)
-    setGenError(null)
-    try {
-      const criteriaText = us.criteria
-        .map((c, i) => `AC-${i + 1}: Given ${c.given || '—'}; When ${c.when || '—'}; Then ${c.then || '—'}.`)
-        .join('\n')
-
-      const promptLines = [
-        `Business story: ${story.title || 'Untitled'}`,
-        story.summary ? `Story summary: ${story.summary}` : '',
-        '',
-        'Generate a test case for this specific user story:',
-        `As a ${us.asA || '—'}, I want ${us.iWant || '—'}, so that ${us.soThat || '—'}.`,
-        us.criteria.length > 0 ? `\nAcceptance criteria:\n${criteriaText}` : '',
-        '',
-        `Priority: ${us.priority}. Status: ${us.status}.`,
-      ].filter(Boolean)
-
-      const formData = new FormData()
-      formData.append('prompt', promptLines.join('\n'))
-
-      const result = await apiUpload<AIFillResult & { aiMessage?: string }>(
-        '/ai/fill-test-case',
-        formData,
-      )
-      if (result.aiMessage) throw new Error(result.aiMessage)
-
-      const fallbackTitle = (us.iWant || 'user story').slice(0, 90)
-      const tc: CustomTestCase = {
-        ...createCustomTestCase(),
-        title: result.title || `Test plan — ${fallbackTitle}`,
-        summary: result.summary || '',
-        objective: result.objective || '',
-        preconditions: result.preconditions ?? [],
-        tags: result.tags ?? [],
-        priority: us.priority,
-        testCases: (result.testCases ?? []).map((sub) => ({
-          ...createCustomTC(),
-          name: sub.name,
-          priority: sub.priority ?? us.priority,
-          steps: sub.steps,
-          expected: sub.expected,
-        })),
-        projectId: story.projectId ?? null,
-      }
-
-      await addCustomTestCase(tc)
-      navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })
-    } catch (err) {
-      const msg =
-        err instanceof ApiError && err.aiMessage ? err.aiMessage :
-        err instanceof Error ? err.message :
-        'Generation failed.'
-      setGenError(msg)
-    } finally {
-      setGeneratingId(null)
-    }
-  }
 
   const updateAC = (usId: string, acId: string, patch: Partial<AcceptanceCriterion>) => {
     const us = story.userStories.find((u) => u.id === usId)
@@ -574,34 +519,34 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
       title="User Stories"
       subtitle="As a [role], I want [goal], so that [benefit]. Include Given/When/Then acceptance criteria."
       action={
-        <button
-          onClick={addUS}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-          style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-        >
-          <Plus size={13} /> Add Story
-        </button>
-      }
-    >
-      {genError && (
-        <div
-          className="mb-3 p-3 rounded-md text-xs flex items-start gap-2"
-          style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#dc2626' }}
-        >
-          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-          <div className="flex-1">{genError}</div>
-          <button onClick={() => setGenError(null)} className="hover:opacity-70" aria-label="Dismiss error">
-            <X size={12} />
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <Button
+            variant="gradient"
+            onClick={onGenerateSuite}
+            disabled={suiteGenerating || story.userStories.length === 0}
+            title={story.userStories.length === 0
+              ? 'Add at least one user story to generate a test suite'
+              : 'Generate a single test suite that covers every user story on this page'}
+            style={story.userStories.length === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+          >
+            <Sparkles size={14} /> Generate Test Suite
+          </Button>
+          <button
+            onClick={addUS}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
+            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+          >
+            <Plus size={13} /> Add Story
           </button>
         </div>
-      )}
+      }
+    >
       {story.userStories.length === 0 ? (
         <p className="text-sm text-muted-foreground">No user stories yet. Click "Add Story" to create one.</p>
       ) : (
         <div className="flex flex-col gap-4">
           {story.userStories.map((us, idx) => {
             const pri = US_PRIORITY.find((p) => p.value === us.priority)!
-            const generating = generatingId === us.id
             return (
               <div
                 key={us.id}
@@ -621,21 +566,6 @@ function UserStoriesTab({ story, set }: { story: Story; set: (patch: Partial<Sto
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => generateTestCaseForUS(us)}
-                      disabled={generatingId !== null}
-                      title="Generate a test case from this user story using AI"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-opacity hover:opacity-90 disabled:cursor-wait"
-                      style={{
-                        background: 'var(--app-btn-primary)',
-                        color: 'var(--app-btn-text)',
-                        boxShadow: '0 2px 10px var(--app-btn-primary-shadow)',
-                        opacity: generatingId !== null && !generating ? 0.5 : 1,
-                      }}
-                    >
-                      {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                      {generating ? 'Generating…' : 'Generate Test Plan'}
-                    </button>
                     <select
                       className="text-xs px-2 py-1 rounded-md border border-border bg-background"
                       value={us.priority}
@@ -1685,6 +1615,7 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
 
 function StoryDetail() {
   const { id } = Route.useParams()
+  const navigate = useNavigate()
   const { story, ready } = useStory(id)
   const { projects } = useProjects()
   const [draft, setDraft] = useState<Story | null>(null)
@@ -1693,6 +1624,9 @@ function StoryDetail() {
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [showErrors, setShowErrors] = useState(false)
+  const [suiteConfirmOpen, setSuiteConfirmOpen] = useState(false)
+  const [suiteGenerating, setSuiteGenerating] = useState(false)
+  const [suiteError, setSuiteError] = useState<string | null>(null)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const titleError   = !!draft && !draft.title.trim()
@@ -1752,13 +1686,6 @@ function StoryDetail() {
         return newUserStories[idx - 1].id
       }
 
-      const newStakeholders: Stakeholder[] = (r.stakeholders ?? []).map((s) => ({
-        ...createStakeholder(),
-        name: s.name ?? '',
-        role: s.role ?? '',
-        raci: s.raci ?? 'R',
-      }))
-
       const newRequirements: Requirement[] = (r.requirements ?? []).map((req) => ({
         ...createRequirement(req.type ?? 'functional'),
         code: req.code ?? '',
@@ -1808,7 +1735,6 @@ function StoryDetail() {
         objectives:   [...d.objectives, ...(r.objectives ?? [])],
         scopeIn:      [...d.scopeIn,    ...(r.scopeIn    ?? [])],
         scopeOut:     [...d.scopeOut,   ...(r.scopeOut   ?? [])],
-        stakeholders: [...d.stakeholders, ...newStakeholders],
         userStories:  [...d.userStories,  ...newUserStories],
         requirements: [...d.requirements, ...newRequirements],
         processFlows: [...d.processFlows, ...newProcessFlows],
@@ -1819,6 +1745,74 @@ function StoryDetail() {
     })
     setAiOpen(false)
   }, [])
+
+  const generateTestSuite = useCallback(async () => {
+    if (!draft) return
+    setSuiteConfirmOpen(false)
+    setSuiteError(null)
+    setSuiteGenerating(true)
+    try {
+      const userStoriesText = draft.userStories.map((us, i) => {
+        const criteriaText = us.criteria
+          .map((c, j) => `    AC-${j + 1}: Given ${c.given || '—'}; When ${c.when || '—'}; Then ${c.then || '—'}.`)
+          .join('\n')
+        return [
+          `US-${i + 1}: As a ${us.asA || '—'}, I want ${us.iWant || '—'}, so that ${us.soThat || '—'}.`,
+          `  Priority: ${us.priority}. Status: ${us.status}.`,
+          us.criteria.length > 0 ? `  Acceptance criteria:\n${criteriaText}` : '',
+        ].filter(Boolean).join('\n')
+      }).join('\n\n')
+
+      const promptLines = [
+        `Business story: ${draft.title || 'Untitled'}`,
+        draft.summary ? `Story summary: ${draft.summary}` : '',
+        '',
+        'Generate one comprehensive test suite that covers ALL of the following user stories together.',
+        'Produce a sub-test-case for each user story; treat the full set as the scope of a single suite.',
+        '',
+        userStoriesText || 'No user stories defined yet — generate sensible coverage for this story.',
+      ].filter(Boolean)
+
+      const formData = new FormData()
+      formData.append('prompt', promptLines.join('\n'))
+
+      const result = await apiUpload<AIFillResult & { aiMessage?: string }>(
+        '/ai/fill-test-case',
+        formData,
+      )
+      if (result.aiMessage) throw new Error(result.aiMessage)
+
+      const fallbackTitle = (draft.title || 'Story').slice(0, 90)
+      const tc: CustomTestCase = {
+        ...createCustomTestCase(),
+        title: result.title || `Test suite — ${fallbackTitle}`,
+        summary: result.summary || '',
+        objective: result.objective || '',
+        preconditions: result.preconditions ?? [],
+        tags: result.tags ?? [],
+        priority: 'medium',
+        testCases: (result.testCases ?? []).map((sub) => ({
+          ...createCustomTC(),
+          name: sub.name,
+          priority: sub.priority ?? 'medium',
+          steps: sub.steps,
+          expected: sub.expected,
+        })),
+        projectId: draft.projectId ?? null,
+      }
+
+      await addCustomTestCase(tc)
+      navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.aiMessage ? err.aiMessage :
+        err instanceof Error ? err.message :
+        'Generation failed.'
+      setSuiteError(msg)
+    } finally {
+      setSuiteGenerating(false)
+    }
+  }, [draft, navigate])
 
   // Keyboard save (Ctrl/Cmd+S)
   useEffect(() => {
@@ -1855,7 +1849,6 @@ function StoryDetail() {
 
   const progressPct = computeStoryProgress(draft)
   const counts = {
-    stakeholders: draft.stakeholders.length,
     userStories: draft.userStories.length,
     requirements: draft.requirements.length,
     flows: draft.processFlows.length,
@@ -1972,8 +1965,7 @@ function StoryDetail() {
       </div>
 
       {/* Count tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 12, marginBottom: 22 }}>
-        <CountTile icon="users" gradient="grad-purple" label="Stakeholders" value={counts.stakeholders} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12, marginBottom: 22 }}>
         <CountTile icon="file-text" gradient="grad-pink" label="User stories" value={counts.userStories} />
         <CountTile icon="layers" gradient="grad-blue" label="Requirements" value={counts.requirements} />
         <CountTile icon="branch" gradient="grad-green" label="Flows" value={counts.flows} />
@@ -1982,23 +1974,13 @@ function StoryDetail() {
       </div>
 
       {/* Progress strip */}
-      <div className="panel" style={{ padding: '14px 18px', marginBottom: 22, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Ring value={progressPct} size={42} stroke={4} color="var(--purple)" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 4 }}>
-            Progress
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace" }}>
-            {progressPct}% <span style={{ fontSize: 13, color: 'var(--mute)', fontWeight: 500 }}>complete</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Pill tone="neutral" icon="calendar">Updated {formatUpdated(draft.updatedAt)}</Pill>
-          {draft.attachments && draft.attachments.length > 0 && (
-            <Pill tone="blue" icon="clipboard">{draft.attachments.length} file{draft.attachments.length === 1 ? '' : 's'}</Pill>
-          )}
-        </div>
-      </div>
+      <ProgressStrip
+        progressPct={progressPct}
+        manual={draft.manualProgress ?? null}
+        onManualChange={(v) => set({ manualProgress: v })}
+        updatedAt={draft.updatedAt}
+        attachmentCount={draft.attachments?.length ?? 0}
+      />
 
       {/* Tabs */}
       <div style={{ marginBottom: 22, overflowX: 'auto', paddingBottom: 4 }}>
@@ -2012,7 +1994,7 @@ function StoryDetail() {
 
       {/* Tab content */}
       {tab === 'overview'      && <OverviewTab      story={draft} set={set} />}
-      {tab === 'user-stories'  && <UserStoriesTab   story={draft} set={set} />}
+      {tab === 'user-stories'  && <UserStoriesTab   story={draft} set={set} onGenerateSuite={() => setSuiteConfirmOpen(true)} suiteGenerating={suiteGenerating} />}
       {tab === 'requirements'  && <RequirementsTab  story={draft} set={set} />}
       {tab === 'process-flows' && <ProcessFlowsTab  story={draft} set={set} />}
       {tab === 'wireframes'    && <WireframesTab    story={draft} set={set} />}
@@ -2030,6 +2012,18 @@ function StoryDetail() {
       )}
 
       <LoadingCurtain visible={aiLoading} message="Generating BA story" transparent />
+      <LoadingCurtain visible={suiteGenerating} message="Generating test suite from all user stories" />
+
+      {suiteConfirmOpen && (
+        <GenerateSuiteConfirmModal
+          storyTitle={draft.title}
+          userStoryCount={draft.userStories.length}
+          onConfirm={generateTestSuite}
+          onClose={() => setSuiteConfirmOpen(false)}
+        />
+      )}
+
+      {suiteError && <SuiteErrorToast message={suiteError} onDone={() => setSuiteError(null)} />}
 
       {/* Sticky unsaved changes pill */}
       {dirty && (
@@ -2167,6 +2161,9 @@ function StoryTileIcon({ name }: { name: IconName }) {
 }
 
 function computeStoryProgress(s: Story): number {
+  if (typeof s.manualProgress === 'number') {
+    return Math.max(0, Math.min(100, Math.round(s.manualProgress)))
+  }
   const done = s.userStories.filter((u) => u.status === 'done').length
   const verified = s.rtm.filter((r) => r.status === 'verified').length
   const totalItems = s.userStories.length + s.rtm.length
@@ -2180,4 +2177,173 @@ function formatUpdated(iso: string | undefined): string {
   if (Number.isNaN(d.getTime())) return '—'
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return `${months[d.getMonth()]} ${d.getDate()}`
+}
+
+function ProgressStrip({
+  progressPct,
+  manual,
+  onManualChange,
+  updatedAt,
+  attachmentCount,
+}: {
+  progressPct: number
+  manual: number | null
+  onManualChange: (v: number | null) => void
+  updatedAt: string | undefined
+  attachmentCount: number
+}) {
+  const isManual = typeof manual === 'number'
+  const displayValue = isManual ? Math.max(0, Math.min(100, manual!)) : progressPct
+
+  return (
+    <div
+      className="panel"
+      style={{
+        padding: '14px 18px', marginBottom: 22,
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        alignItems: 'center', gap: 16,
+      }}
+    >
+      <Ring value={displayValue} size={42} stroke={4} color="var(--purple)" />
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 2 }}>
+              Progress
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace" }}>
+              {displayValue}%
+              <span style={{ fontSize: 13, color: 'var(--mute)', fontWeight: 500 }}> complete</span>
+              <span
+                style={{
+                  marginLeft: 10, fontSize: 11, fontWeight: 600,
+                  color: isManual ? 'var(--purple)' : 'var(--mute)',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {isManual ? 'Manual' : 'Auto'}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onManualChange(isManual ? null : progressPct)}
+            style={{
+              fontSize: 12, fontWeight: 500, color: 'var(--mute)',
+              background: 'transparent', border: '1px solid var(--border)',
+              padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+            }}
+          >
+            {isManual ? 'Use auto-computed' : 'Set manually'}
+          </button>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={displayValue}
+          onChange={(e) => onManualChange(Number(e.target.value))}
+          className="tz-progress-slider"
+          style={{ width: '100%' }}
+          aria-label="Story progress"
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <Pill tone="neutral" icon="calendar">Updated {formatUpdated(updatedAt)}</Pill>
+        {attachmentCount > 0 && (
+          <Pill tone="blue" icon="clipboard">{attachmentCount} file{attachmentCount === 1 ? '' : 's'}</Pill>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GenerateSuiteConfirmModal({
+  storyTitle,
+  userStoryCount,
+  onConfirm,
+  onClose,
+}: {
+  storyTitle: string
+  userStoryCount: number
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'color-mix(in oklab, var(--ink) 28%, transparent)',
+        backdropFilter: 'blur(8px)',
+        display: 'grid', placeItems: 'center', padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="panel"
+        style={{
+          width: 'min(480px, 100%)', padding: 22,
+          display: 'flex', flexDirection: 'column', gap: 14,
+          boxShadow: '0 30px 90px rgba(20,20,40,0.25)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            className="section-icon grad-purple"
+            style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white' }}
+          >
+            <Sparkles size={16} />
+          </span>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>Generate test suite?</div>
+        </div>
+        <p style={{ fontSize: 14, color: 'var(--mute)', lineHeight: 1.5, margin: 0 }}>
+          We'll use AI to build a single test suite covering {userStoryCount === 0
+            ? 'this story'
+            : `all ${userStoryCount} user stor${userStoryCount === 1 ? 'y' : 'ies'}`} on
+          <span style={{ color: 'var(--ink)', fontWeight: 500 }}> {storyTitle || 'this story'}</span>. The
+          generated suite opens in a new test case — you'll be navigated there when it's ready.
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+          <Button variant="default" onClick={onClose}>Cancel</Button>
+          <Button variant="gradient" onClick={onConfirm}>
+            <Sparkles size={14} /> Generate
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SuiteErrorToast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 5000)
+    return () => clearTimeout(t)
+  }, [onDone])
+  return (
+    <div
+      style={{
+        position: 'fixed', bottom: 24, right: 24, zIndex: 70,
+        padding: '12px 16px', borderRadius: 12,
+        background: 'var(--panel)',
+        border: '1px solid var(--red)',
+        boxShadow: '0 20px 50px rgba(20,20,40,0.18)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        maxWidth: 380,
+      }}
+    >
+      <AlertTriangle size={16} color="var(--red)" />
+      <div style={{ fontSize: 13, color: 'var(--ink)', flex: 1 }}>{message}</div>
+      <button
+        onClick={onDone}
+        style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer' }}
+        aria-label="Dismiss"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  )
 }

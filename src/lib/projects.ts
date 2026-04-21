@@ -186,7 +186,9 @@ export function useProjects(): { projects: Project[]; loading: boolean } {
       setLoading(false);
     });
 
-    const sync = () => setProjects([...(projectCache ?? [])]);
+    const sync = () => {
+      ensureLoaded().then((data) => setProjects([...data]));
+    };
     listeners.add(sync);
     return () => {
       listeners.delete(sync);
