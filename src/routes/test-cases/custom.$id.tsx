@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Tag, X, Plus, Check, FolderOpen, ChevronDown, ChevronUp, Sparkles, Save } from 'lucide-react'
+import { ArrowLeft, Calendar, X, Plus, Check, FolderOpen, ChevronDown, ChevronUp, Sparkles, Save } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   useCustomTestCase,
@@ -22,6 +22,7 @@ import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { Attachments } from '@/components/Attachments'
 import { PreconditionAttachments } from '@/components/PreconditionAttachments'
 import { AutoGrowTextarea } from '@/components/AutoGrowTextarea'
+import { Pill } from '@/components/design/primitives'
 
 export const Route = createFileRoute('/test-cases/custom/$id')({
   component: CustomTestCaseDetail,
@@ -30,24 +31,31 @@ export const Route = createFileRoute('/test-cases/custom/$id')({
 // ── Shared constants ──────────────────────────────────────────────────────────
 
 const PRIORITY_OPTIONS = [
-  { value: 'low'      as const, label: 'Low',      color: '#16a34a', bg: '', text: '', style: { background: 'rgba(22,163,74,0.15)',  color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)'  } },
-  { value: 'medium'   as const, label: 'Medium',   color: '#ca8a04', bg: '', text: '', style: { background: 'rgba(202,138,4,0.15)',  color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)'  } },
-  { value: 'high'     as const, label: 'High',     color: '#ea580c', bg: '', text: '', style: { background: 'rgba(234,88,12,0.15)',  color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)'  } },
-  { value: 'critical' as const, label: 'Critical', color: '#dc2626', bg: '', text: '', style: { background: 'rgba(220,38,38,0.15)',  color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)'  } },
+  { value: 'low'      as const, label: 'Low',      tone: 'green'  as const },
+  { value: 'medium'   as const, label: 'Medium',   tone: 'amber'  as const },
+  { value: 'high'     as const, label: 'High',     tone: 'orange' as const },
+  { value: 'critical' as const, label: 'Critical', tone: 'red'    as const },
 ]
 
-const STATUS_STYLES: { [K in TestStatus]: string } = {
-  pass:    'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
-  fail:    'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  blocked: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+const PRIORITY_TONE: Record<'green' | 'amber' | 'orange' | 'red', { bg: string; fg: string; border: string }> = {
+  green:  { bg: 'color-mix(in oklab, var(--green)  12%, transparent)', fg: 'var(--green)',  border: 'color-mix(in oklab, var(--green)  25%, transparent)' },
+  amber:  { bg: 'color-mix(in oklab, var(--amber)  14%, transparent)', fg: 'var(--amber)',  border: 'color-mix(in oklab, var(--amber)  30%, transparent)' },
+  orange: { bg: 'color-mix(in oklab, var(--orange) 14%, transparent)', fg: 'var(--orange)', border: 'color-mix(in oklab, var(--orange) 30%, transparent)' },
+  red:    { bg: 'color-mix(in oklab, var(--red)    12%, transparent)', fg: 'var(--red)',    border: 'color-mix(in oklab, var(--red)    25%, transparent)' },
 }
 
-const STATUS_OPTIONS = [
-  { value: 'pass'    as const, label: '✓ Pass',    color: '#16a34a' },
-  { value: 'fail'    as const, label: '✕ Fail',    color: '#dc2626' },
-  { value: 'pending' as const, label: '◷ Pending', color: '#ca8a04' },
-  { value: 'blocked' as const, label: '⊘ Blocked', color: '#ea580c' },
+const STATUS_TONES: Record<TestStatus, { bg: string; fg: string; border: string; icon: 'check-circle' | 'x-circle' | 'clock' | 'alert' }> = {
+  pass:    { bg: 'var(--green-soft)',                                          fg: '#0B6F49',     border: 'color-mix(in oklab, var(--green) 30%, transparent)', icon: 'check-circle' },
+  fail:    { bg: 'var(--red-soft)',                                            fg: '#9A261F',     border: 'color-mix(in oklab, var(--red) 30%, transparent)',   icon: 'x-circle'     },
+  pending: { bg: 'color-mix(in oklab, var(--amber) 14%, transparent)',         fg: '#7A5409',     border: 'color-mix(in oklab, var(--amber) 30%, transparent)', icon: 'clock'        },
+  blocked: { bg: 'var(--chip)',                                                fg: 'var(--mute)', border: 'var(--border)',                                       icon: 'alert'        },
+}
+
+const STATUS_OPTIONS: Array<{ value: TestStatus; label: string }> = [
+  { value: 'pass',    label: 'PASSED'  },
+  { value: 'fail',    label: 'FAILED'  },
+  { value: 'pending', label: 'PENDING' },
+  { value: 'blocked', label: 'BLOCKED' },
 ]
 
 const ALL_EXISTING_TAGS: string[] = []
@@ -58,47 +66,35 @@ function formatDate(iso: string) {
 
 // ── Shared small components ───────────────────────────────────────────────────
 
-type DropdownProps = {
-  label: string
-  options: { value: string; label: string; color: string }[]
-  current: string
-  badgeClass: string
-  badgeStyle?: React.CSSProperties
-  onSelect: (v: string) => void
-}
-
-function Dropdown({ label, options, current, badgeClass, badgeStyle, onSelect }: DropdownProps) {
-  const [open, setOpen] = useState(false)
+function StatusSelect({ value, onChange, disabled }: { value: TestStatus; onChange: (v: TestStatus) => void; disabled?: boolean }) {
+  const tone = STATUS_TONES[value]
+  const chevron = encodeURIComponent(tone.fg.startsWith('var(') ? '#6E6E82' : tone.fg)
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide cursor-pointer select-none ${badgeClass}`}
-        style={badgeStyle}
-      >
-        {label}
-        <span style={{ fontSize: '10px', opacity: 0.7 }}>▼</span>
-      </button>
-      {open && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50, minWidth: '140px', borderRadius: '8px', border: '1px solid rgba(120,120,120,0.3)', background: 'var(--card)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => { onSelect(opt.value); setOpen(false) }}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '9px 14px', background: current === opt.value ? 'rgba(120,120,120,0.1)' : 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: current === opt.value ? 600 : 400, color: opt.color, textAlign: 'left' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(120,120,120,0.1)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = current === opt.value ? 'rgba(120,120,120,0.1)' : 'transparent' }}
-              >
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: opt.color, flexShrink: 0 }} />
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value as TestStatus)}
+      style={{
+        background: tone.bg,
+        color: tone.fg,
+        border: `1px solid ${tone.border}`,
+        borderRadius: 999,
+        padding: '5px 26px 5px 12px',
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: '0.04em',
+        cursor: disabled ? 'default' : 'pointer',
+        appearance: 'none',
+        WebkitAppearance: 'none',
+        MozAppearance: 'none',
+        fontFamily: 'inherit',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${chevron}' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'right 10px center',
+      }}
+    >
+      {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
   )
 }
 
@@ -107,7 +103,6 @@ function Dropdown({ label, options, current, badgeClass, badgeStyle, onSelect }:
 function ProjectPicker({ projectId, onChange, projects }: { projectId: number | null; onChange: (id: number | null) => void; projects: Project[] }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
-
   const selected = projects.find((p) => p.id === projectId)
 
   useEffect(() => {
@@ -120,70 +115,82 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
   }, [open])
 
   return (
-    <div ref={wrapperRef} className="relative" style={{ display: 'inline-block' }}>
+    <div ref={wrapperRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer select-none"
         style={{
-          background: selected ? 'var(--app-accent-bg)' : 'var(--app-glass)',
-          border: '1px solid var(--app-glass-border)',
-          color: selected ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          fontSize: 12, fontWeight: 500,
+          padding: '5px 12px',
+          borderRadius: 999,
+          background: selected ? 'color-mix(in oklab, var(--purple) 10%, var(--panel))' : 'var(--panel)',
+          border: '1px solid var(--border)',
+          color: selected ? 'var(--purple)' : 'var(--mute)',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          boxShadow: 'var(--shadow-xs)',
+          letterSpacing: '0.005em',
         }}
       >
-        <FolderOpen size={13} style={{ opacity: 0.7 }} />
-        <span className="truncate max-w-[180px]">{selected?.name ?? 'No Project'}</span>
-        <ChevronDown size={12} className={`opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <FolderOpen size={12} />
+        <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected?.name ?? 'No project'}
+        </span>
+        <ChevronDown size={11} style={{ opacity: 0.6, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
       </button>
 
       {open && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
-          <div
-            className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl overflow-hidden"
+        <div
+          className="panel"
+          style={{
+            position: 'absolute', left: 0, top: 'calc(100% + 6px)', zIndex: 50,
+            width: 260, padding: 4,
+            boxShadow: '0 20px 50px rgba(20,20,40,0.18)',
+          }}
+        >
+          <button
+            onMouseDown={() => { onChange(null); setOpen(false) }}
             style={{
-              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-              background: 'var(--app-overlay)',
-              border: '1px solid var(--app-overlay-border)',
-              backdropFilter: 'blur(16px)',
+              width: '100%',
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px',
+              borderRadius: 8,
+              fontSize: 13, fontWeight: projectId === null ? 600 : 500,
+              color: projectId === null ? 'var(--purple)' : 'var(--ink)',
+              background: projectId === null ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+              border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
-            <button
-              onClick={() => { onChange(null); setOpen(false) }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-              style={{
-                background: projectId === null ? 'var(--app-accent-bg)' : 'transparent',
-                color: projectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
-                borderBottom: '1px solid var(--app-glass-border)',
-                fontWeight: projectId === null ? 600 : 400,
-              }}
-              onMouseEnter={(e) => { if (projectId !== null) e.currentTarget.style.background = 'var(--app-glass)' }}
-              onMouseLeave={(e) => { if (projectId !== null) e.currentTarget.style.background = 'transparent' }}
-            >
-              <FolderOpen size={14} style={{ opacity: 0.7 }} />
-              No Project
-            </button>
-            <div className="max-h-48 overflow-y-auto">
-              {projects.map((p) => (
+            <FolderOpen size={13} style={{ opacity: 0.7 }} />
+            No project
+          </button>
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {projects.map((p) => {
+              const active = projectId === p.id
+              return (
                 <button
                   key={p.id}
-                  onClick={() => { onChange(p.id); setOpen(false) }}
-                  className="w-full flex items-center px-4 py-2.5 text-sm text-left transition-colors truncate"
+                  onMouseDown={() => { onChange(p.id); setOpen(false) }}
                   style={{
-                    background: projectId === p.id ? 'var(--app-accent-bg)' : 'transparent',
-                    color: 'var(--app-accent-color)',
-                    borderBottom: '1px solid var(--app-glass-border)',
-                    fontWeight: projectId === p.id ? 600 : 400,
+                    width: '100%',
+                    display: 'flex', alignItems: 'center',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    fontSize: 13, fontWeight: active ? 600 : 500,
+                    color: active ? 'var(--purple)' : 'var(--ink)',
+                    background: active ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+                    border: 'none', cursor: 'pointer', textAlign: 'left',
+                    fontFamily: 'inherit',
                   }}
-                  onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                  onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-accent-bg)' : 'transparent' }}
                 >
-                  {p.name}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        </>
+        </div>
       )}
     </div>
   )
@@ -264,126 +271,273 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
 
 // ── Sub-test case editor ─────────────────────────────────────────────────────
 
-function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, onMoveDown }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string; onMoveUp?: () => void; onMoveDown?: () => void }) {
+function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, onMoveDown, subStatus }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string; onMoveUp?: () => void; onMoveDown?: () => void; subStatus?: TestStatus }) {
+  const [expanded, setExpanded] = useState(true)
   const patch = (fields: Partial<CustomTC>) => onChange({ ...tc, ...fields })
 
   const addStep = () => patch({ steps: [...tc.steps, ''] })
   const updateStep = (i: number, v: string) => { const next = [...tc.steps]; next[i] = v; patch({ steps: next }) }
   const removeStep = (i: number) => patch({ steps: tc.steps.filter((_, idx) => idx !== i) })
 
+  const tcCode = `TC-${String(index + 1).padStart(2, '0')}`
+  const passed = subStatus === 'pass'
+
   return (
-    <div id={id} className="rounded-lg border border-border bg-card p-4 mb-4">
-      <div className="flex items-center gap-2 mb-2">
-        <span style={{
-          fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-          background: 'var(--app-accent-gradient)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          flexShrink: 0,
-        }}>
-          Test Case {String(index + 1).padStart(2, '0')}
+    <div
+      id={id}
+      style={{
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        background: 'var(--panel-2)',
+        marginBottom: 10,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px',
+          background: 'color-mix(in oklab, var(--purple) 5%, var(--panel-2))',
+          borderBottom: expanded ? '1px solid var(--border)' : 'none',
+        }}
+      >
+        <span
+          className="tz-mono"
+          style={{
+            fontSize: 11, fontWeight: 600, color: 'var(--purple)',
+            background: 'color-mix(in oklab, var(--purple) 12%, var(--panel))',
+            border: '1px solid color-mix(in oklab, var(--purple) 25%, var(--border))',
+            padding: '3px 9px', borderRadius: 6, letterSpacing: '0.05em',
+          }}
+        >
+          {tcCode}
         </span>
-        <div style={{ flex: 1, height: '1px', background: 'var(--app-glass-border)' }} />
-        {(onMoveUp || onMoveDown) && (
-          <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
-            <button
-              onClick={onMoveUp}
-              disabled={!onMoveUp}
-              style={{ background: 'transparent', border: 'none', cursor: onMoveUp ? 'pointer' : 'default', color: onMoveUp ? 'var(--app-text-secondary)' : 'var(--app-glass-border)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
-              aria-label="Move up"
-            >
-              <ChevronUp size={16} />
-            </button>
-            <button
-              onClick={onMoveDown}
-              disabled={!onMoveDown}
-              style={{ background: 'transparent', border: 'none', cursor: onMoveDown ? 'pointer' : 'default', color: onMoveDown ? 'var(--app-text-secondary)' : 'var(--app-glass-border)', padding: 4, borderRadius: '6px', transition: 'color 0.15s' }}
-              aria-label="Move down"
-            >
-              <ChevronDown size={16} />
-            </button>
-          </div>
-        )}
-        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" aria-label="Remove test case">
-          <X size={14} />
-        </button>
-      </div>
-      <div className="flex items-start gap-3 mb-3">
         <input
           type="text"
           value={tc.name}
           onChange={(e) => patch({ name: e.target.value })}
           placeholder="Test case name…"
-          className="flex-1 text-sm font-semibold bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
+          style={{
+            flex: 1, minWidth: 0,
+            background: 'transparent', border: 'none', outline: 'none',
+            fontSize: 13, fontWeight: 600, color: 'var(--ink)',
+            fontFamily: 'inherit',
+          }}
         />
-      </div>
-
-      {/* Priority */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <span className="text-xs text-muted-foreground">Priority:</span>
-        {PRIORITY_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => patch({ priority: opt.value })}
-            className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize transition-opacity ${tc.priority === opt.value ? 'opacity-100 ring-1 ring-offset-1 ring-current' : 'opacity-40 hover:opacity-70'}`} style={opt.style}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Steps */}
-      <div className="mb-3">
-        <p className="text-xs font-medium text-muted-foreground mb-1.5">Steps</p>
-        <ol className="space-y-1.5">
-          {tc.steps.map((step, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-5 flex-shrink-0 text-right">{i + 1}.</span>
-              <input
-                type="text"
-                value={step}
-                onChange={(e) => updateStep(i, e.target.value)}
-                placeholder="Describe the step…"
-                className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-              />
-              {tc.steps.length > 1 && (
-                <button onClick={() => removeStep(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"><X size={12} /></button>
-              )}
-            </li>
-          ))}
-        </ol>
-        <button onClick={addStep} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2">
-          <Plus size={12} /> Add Step
+        {(onMoveUp || onMoveDown) && (
+          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+            <button
+              onClick={onMoveUp}
+              disabled={!onMoveUp}
+              className="tz-btn tz-btn-ghost"
+              style={{ padding: 4, color: onMoveUp ? 'var(--mute)' : 'var(--border-strong)', cursor: onMoveUp ? 'pointer' : 'default' }}
+              aria-label="Move up"
+            >
+              <ChevronUp size={14} />
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={!onMoveDown}
+              className="tz-btn tz-btn-ghost"
+              style={{ padding: 4, color: onMoveDown ? 'var(--mute)' : 'var(--border-strong)', cursor: onMoveDown ? 'pointer' : 'default' }}
+              aria-label="Move down"
+            >
+              <ChevronDown size={14} />
+            </button>
+          </div>
+        )}
+        <button
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: 4 }}
+          onClick={() => setExpanded((e) => !e)}
+          aria-label="Toggle expand"
+        >
+          <ChevronDown
+            size={14}
+            style={{ transform: expanded ? 'none' : 'rotate(-90deg)', transition: 'transform .15s', color: 'var(--mute)' }}
+          />
+        </button>
+        <button
+          onClick={onRemove}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: 4, color: 'var(--mute)' }}
+          aria-label="Remove test case"
+        >
+          <X size={13} />
         </button>
       </div>
 
-      {/* Expected */}
-      <div className="mb-3">
-        <p className="text-xs font-medium text-muted-foreground mb-1.5">Expected Result</p>
-        <input
-          type="text"
-          value={tc.expected}
-          onChange={(e) => patch({ expected: e.target.value })}
-          placeholder="What should happen…"
-          className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-        />
-      </div>
+      {expanded && (
+        <div style={{ padding: 14 }}>
+          {/* Priority */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <span
+              className="tz-mono"
+              style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}
+            >
+              PRIORITY
+            </span>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {PRIORITY_OPTIONS.map((opt) => {
+                const active = tc.priority === opt.value
+                const tone = PRIORITY_TONE[opt.tone]
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => patch({ priority: opt.value })}
+                    style={{
+                      background: active ? tone.bg : 'var(--chip)',
+                      color: active ? tone.fg : 'var(--mute)',
+                      border: `1px solid ${active ? tone.border : 'var(--border)'}`,
+                      borderRadius: 999,
+                      padding: '4px 11px',
+                      fontSize: 12,
+                      fontWeight: active ? 600 : 500,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-      {/* Notes */}
-      <div className="mb-2">
-        <p className="text-xs font-medium text-muted-foreground mb-1.5">Notes</p>
-        <AutoGrowTextarea
-          value={tc.notes ?? ''}
-          onChange={(e) => patch({ notes: e.target.value })}
-          placeholder="Add notes, observations, or comments..."
-          minHeight={44}
-          focusMinHeight={140}
-          className="w-full text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
-          style={{ lineHeight: 1.7, fontFamily: "'Segoe UI', system-ui, sans-serif" }}
-        />
-      </div>
+          {/* Steps */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+              <span
+                className="tz-mono"
+                style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}
+              >
+                STEPS
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {tc.steps.map((step, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '32px 1fr 28px',
+                    gap: 8,
+                    alignItems: 'center',
+                    padding: '7px 10px',
+                    background: 'var(--panel)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                  }}
+                >
+                  <span
+                    className="tz-mono"
+                    style={{ fontSize: 11, color: 'var(--mute)', textAlign: 'center' }}
+                  >
+                    {i + 1}.
+                  </span>
+                  <input
+                    type="text"
+                    value={step}
+                    onChange={(e) => updateStep(i, e.target.value)}
+                    placeholder="Describe the step…"
+                    style={{
+                      background: 'transparent', border: 'none', outline: 'none',
+                      fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit',
+                    }}
+                  />
+                  {tc.steps.length > 1 && (
+                    <button
+                      onClick={() => removeStep(i)}
+                      className="tz-btn tz-btn-ghost"
+                      style={{ padding: 4, color: 'var(--mute)' }}
+                      aria-label="Remove step"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={addStep}
+                className="tz-btn tz-btn-ghost"
+                style={{ alignSelf: 'flex-start', padding: '5px 10px', fontSize: 12, marginTop: 2 }}
+              >
+                <Plus size={11} /> Add step
+              </button>
+            </div>
+          </div>
 
-      {/* Attachments */}
-      <Attachments testCaseId={`${parentTcId}__${tc.id}`} />
+          {/* Expected */}
+          <div style={{ marginBottom: 12 }}>
+            <div
+              className="tz-mono"
+              style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 5 }}
+            >
+              EXPECTED RESULT
+            </div>
+            <input
+              type="text"
+              value={tc.expected}
+              onChange={(e) => patch({ expected: e.target.value })}
+              placeholder="What should happen…"
+              style={{
+                width: '100%', padding: '9px 12px',
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
+                borderRadius: 9,
+                fontSize: 13, color: 'var(--ink)',
+                outline: 'none', fontFamily: 'inherit',
+              }}
+            />
+          </div>
+
+          {/* Notes */}
+          <div style={{ marginBottom: 12 }}>
+            <div
+              className="tz-mono"
+              style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 5 }}
+            >
+              NOTES
+            </div>
+            <AutoGrowTextarea
+              value={tc.notes ?? ''}
+              onChange={(e) => patch({ notes: e.target.value })}
+              placeholder="Add notes, observations, or comments…"
+              minHeight={56}
+              focusMinHeight={140}
+              className="tz-input tz-textarea"
+              style={{ fontSize: 13 }}
+            />
+          </div>
+
+          {/* Attachments */}
+          <div
+            className="tz-mono"
+            style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}
+          >
+            # ATTACHMENTS
+          </div>
+          <Attachments testCaseId={`${parentTcId}__${tc.id}`} />
+
+          {/* Result confirmation pill */}
+          {passed && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '9px 12px', borderRadius: 9,
+                fontSize: 13, fontWeight: 600,
+                background: 'var(--green-soft)', color: '#0B6F49',
+                border: '1px solid color-mix(in oklab, var(--green) 30%, transparent)',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <Check size={13} /> Expected: {tc.expected || '—'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -514,56 +668,35 @@ function CustomTestCaseDetail() {
 
   if (!ready || !tc || !draft) return null
 
-  const statusCurrent = STATUS_OPTIONS.find((o) => o.value === status) ?? STATUS_OPTIONS[2]
-
   return (
-    <div className="min-h-screen text-foreground overflow-hidden relative" style={{ background: 'var(--app-bg)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <style>{`
-        @keyframes movecid2 { from { transform: translate(-10%,-10%); } to { transform: translate(20%,20%); } }
-        .blob-cid2 { position:absolute; border-radius:50%; background:var(--app-accent-gradient); filter:blur(80px); opacity:0.18; animation:movecid2 20s infinite alternate; pointer-events:none; }
-      `}</style>
-      <div className="blob-cid2" style={{ width:400, height:400, top:-100, left:-100 }} />
-      <div className="blob-cid2" style={{ width:300, height:300, bottom:-50, right:-50, animationDelay:'-5s' }} />
-      <div className="max-w-3xl mx-auto px-4 pt-4 pb-12 relative z-10">
+    <div style={{ position: 'relative', minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
+      <div className="page-atmos" aria-hidden />
+      <div className="shell" style={{ paddingTop: 28 }}>
 
         {/* Header row */}
-        <div className="flex items-center justify-between mb-6 gap-2">
-          <Link
-            to="/test-suites"
-            className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: '0 2px 12px var(--app-btn-primary-shadow)' }}
-          >
-            <ArrowLeft size={14} /> Back to Test Suites
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+          <Link to="/test-suites" style={{ textDecoration: 'none' }}>
+            <button className="tz-btn tz-btn-ghost">
+              <ArrowLeft size={13} /> Back to Test Suites
+            </button>
           </Link>
-          <div className="flex items-center gap-2">
-            {canEdit && (
-              <button
-                onClick={() => setAiOpen(true)}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-semibold transition-opacity hover:opacity-90"
-                style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)', boxShadow: `0 2px 12px var(--app-btn-primary-shadow)` }}
-              >
-                <Sparkles size={14} /> AI Generate
-              </button>
-            )}
-            {canEdit && (
-              <button
-                onClick={saveDraft}
-                disabled={!dirty && !saved}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
-                style={{
-                  background: dirty ? 'var(--app-btn-primary)' : 'var(--app-glass)',
-                  color: dirty ? 'var(--app-btn-text)' : 'var(--app-text-secondary)',
-                  border: dirty ? 'none' : '1px solid var(--app-glass-border)',
-                  opacity: !dirty && !saved ? 0.6 : 1,
-                  cursor: !dirty && !saved ? 'default' : 'pointer',
-                  boxShadow: dirty ? '0 2px 12px var(--app-btn-primary-shadow)' : 'none',
-                }}
-              >
-                <Save size={14} />
-                {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
-              </button>
-            )}
-          </div>
+          <span style={{ flex: 1 }} />
+          {canEdit && (
+            <button onClick={() => setAiOpen(true)} className="tz-btn tz-btn-gradient">
+              <Sparkles size={14} /> AI Generate
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={saveDraft}
+              disabled={!dirty && !saved}
+              className={dirty ? 'tz-btn tz-btn-gradient' : 'tz-btn'}
+              style={{ opacity: !dirty && !saved ? 0.6 : 1, cursor: !dirty && !saved ? 'default' : 'pointer' }}
+            >
+              <Save size={14} />
+              {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
+            </button>
+          )}
         </div>
 
         {/* Title */}
@@ -589,18 +722,14 @@ function CustomTestCaseDetail() {
         />
 
         {/* Status + passed count + project */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <Dropdown
-            label={statusCurrent.label}
-            options={STATUS_OPTIONS}
-            current={status}
-            badgeClass={STATUS_STYLES[status]}
-            onSelect={(v) => setStatus(v as TestStatus)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <StatusSelect
+            value={status}
+            onChange={(v) => setStatus(v)}
+            disabled={!canEdit}
           />
           {passedCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
-              <Check size={13} /> {passedCount} passed
-            </span>
+            <Pill tone="green" icon="check">{passedCount} passed</Pill>
           )}
           {canEdit ? (
             <ProjectPicker
@@ -609,10 +738,9 @@ function CustomTestCaseDetail() {
               projects={projects}
             />
           ) : draft.projectId ? (
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium" style={{ background: 'var(--app-accent-bg)', border: '1px solid var(--app-glass-border)', color: 'var(--app-accent-color)' }}>
-              <FolderOpen size={13} style={{ opacity: 0.7 }} />
+            <Pill tone="purple" icon="folder">
               {projects.find((p) => p.id === draft.projectId)?.name ?? 'Project'}
-            </span>
+            </Pill>
           ) : null}
         </div>
 
@@ -623,33 +751,54 @@ function CustomTestCaseDetail() {
         </div>
 
         {/* Priority */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="text-sm text-muted-foreground">Priority:</span>
-          {PRIORITY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => canEdit && patch({ priority: opt.value })}
-              disabled={!canEdit}
-              className={`text-xs px-3 py-1 rounded-full font-medium capitalize transition-opacity ${draft.priority === opt.value ? 'opacity-100 ring-2 ring-offset-1 ring-current' : 'opacity-50 hover:opacity-80'}`} style={opt.style}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tags */}
-        <div className="mb-6 flex items-start gap-2">
-          <Tag size={14} className="mt-3 text-muted-foreground flex-shrink-0" />
-          <div className="flex-1">
-            <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <span className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}>PRIORITY</span>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {PRIORITY_OPTIONS.map((opt) => {
+              const active = draft.priority === opt.value
+              const tone = PRIORITY_TONE[opt.tone]
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => canEdit && patch({ priority: opt.value })}
+                  disabled={!canEdit}
+                  style={{
+                    background: active ? tone.bg : 'var(--chip)',
+                    color: active ? tone.fg : 'var(--mute)',
+                    border: `1px solid ${active ? tone.border : 'var(--border)'}`,
+                    borderRadius: 999,
+                    padding: '4px 11px',
+                    fontSize: 12,
+                    fontWeight: active ? 600 : 500,
+                    cursor: canEdit ? 'pointer' : 'default',
+                    fontFamily: 'inherit',
+                    transition: 'all .15s',
+                    opacity: canEdit ? 1 : 0.7,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        <hr className="border-border mb-6" />
+        {/* Tags */}
+        <div
+          style={{
+            marginBottom: 18,
+            padding: '10px 12px',
+            background: 'var(--panel-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+          }}
+        >
+          <TagInput tags={draft.tags} onChange={(tags) => patch({ tags })} />
+        </div>
 
         {/* Objective */}
-        <section className="mb-6 rounded-lg p-5" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-base font-semibold mb-3">Objective</h2>
+        <section className="panel" style={{ padding: 18, marginBottom: 14 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.005em', color: 'var(--ink)' }}>Objective</h2>
           <AutoGrowTextarea
             value={draft.objective}
             onChange={(e) => patch({ objective: e.target.value })}
@@ -662,8 +811,8 @@ function CustomTestCaseDetail() {
         </section>
 
         {/* Preconditions */}
-        <section className="mb-6 rounded-lg p-5" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-base font-semibold mb-3">Preconditions</h2>
+        <section className="panel" style={{ padding: 18, marginBottom: 14 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.005em', color: 'var(--ink)' }}>Preconditions</h2>
           <ul className="space-y-2 mb-3">
             {draft.preconditions.map((item, i) => (
               <li key={i} className="flex items-center gap-2">
@@ -691,8 +840,8 @@ function CustomTestCaseDetail() {
         </section>
 
         {/* Test Cases */}
-        <section className="rounded-lg p-5" style={{ background: 'var(--app-glass)', border: '1px solid var(--app-glass-border)' }}>
-          <h2 className="text-base font-semibold mb-4">Test Cases</h2>
+        <section className="panel" style={{ padding: 18, marginBottom: 18 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.005em', color: 'var(--ink)' }}>Test Cases</h2>
           {draft.testCases.map((sub, i) => (
             <div key={sub.id}>
               <SubTCEditor
@@ -738,15 +887,19 @@ function CustomTestCaseDetail() {
       {/* Sticky footer save hint */}
       {dirty && canEdit && (
         <div
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium"
-          style={{ background: 'var(--app-overlay)', border: '1px solid var(--app-overlay-border)', backdropFilter: 'blur(12px)', color: 'var(--app-text)' }}
+          style={{
+            position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 50, display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 10px 8px 16px', borderRadius: 999,
+            background: 'color-mix(in oklab, var(--panel) 92%, transparent)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 10px 30px rgba(20,20,40,0.12)',
+            backdropFilter: 'blur(12px)',
+            color: 'var(--ink)', fontSize: 13, fontWeight: 500,
+          }}
         >
           Unsaved changes
-          <button
-            onClick={saveDraft}
-            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
+          <button onClick={saveDraft} className="tz-btn tz-btn-gradient" style={{ padding: '5px 12px', fontSize: 12 }}>
             <Save size={11} /> Save
           </button>
         </div>

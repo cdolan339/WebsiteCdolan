@@ -232,18 +232,19 @@ code {
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* Canvas palette */
-  --bg: #F1F1F7;
-  --bg-veil: #E7E7F0;
+  /* Canvas palette — warm cream */
+  --bg: #F6F2EA;
+  --bg-2: #EFE9DD;
+  --bg-veil: #EFE9DD;
   --panel: #FFFFFF;
-  --panel-2: #FAFAFE;
-  --border: #E2E2EC;
-  --border-strong: #CFCFDC;
-  --ink: #15151E;
-  --ink-2: #2C2C3A;
-  --mute: #6E6E82;
-  --mute-2: #9C9CB0;
-  --chip: #ECECF3;
+  --panel-2: #F6F2E8;
+  --border: #E4DCCC;
+  --border-strong: #D4C9B5;
+  --ink: #23211D;
+  --ink-2: #4A463F;
+  --mute: #8C857B;
+  --mute-2: #B8B0A3;
+  --chip: #EFE9DD;
 
   /* Accents */
   --purple: #7C5CFF;
@@ -315,21 +316,23 @@ body {
 .page-atmos::before {
   content: "";
   position: absolute;
-  top: -200px; left: -200px;
-  width: 720px; height: 720px;
+  top: -220px; left: -220px;
+  width: 760px; height: 760px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(124, 92, 255, 0.08), transparent 60%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.06), transparent 62%);
+  filter: blur(48px);
 }
 .page-atmos::after {
   content: "";
   position: absolute;
-  top: 40%; right: -200px;
-  width: 540px; height: 540px;
+  bottom: -220px; right: -220px;
+  width: 620px; height: 620px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(232, 90, 168, 0.05), transparent 60%);
+  background: radial-gradient(circle, rgba(242, 139, 59, 0.06), transparent 62%);
   filter: blur(60px);
 }
+.dark .page-atmos::before { background: radial-gradient(circle, rgba(124, 92, 255, 0.10), transparent 60%); }
+.dark .page-atmos::after  { background: radial-gradient(circle, rgba(242, 139, 59, 0.06), transparent 60%); }
 
 .shell {
   position: relative;

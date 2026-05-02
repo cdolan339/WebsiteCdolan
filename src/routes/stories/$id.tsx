@@ -464,11 +464,18 @@ function OverviewTab({ story, set }: { story: Story; set: (patch: Partial<Story>
 
 // ── User Stories tab ───────────────────────────────────────────────
 
-const US_PRIORITY: Array<{ value: UserStoryPriority; label: string; style: React.CSSProperties }> = [
-  { value: 'low',      label: 'Low',      style: { background: 'rgba(22,163,74,0.15)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)' } },
-  { value: 'medium',   label: 'Medium',   style: { background: 'rgba(202,138,4,0.15)', color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)' } },
-  { value: 'high',     label: 'High',     style: { background: 'rgba(234,88,12,0.15)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)' } },
-  { value: 'critical', label: 'Critical', style: { background: 'rgba(220,38,38,0.15)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' } },
+const US_PRIORITY_TONE: Record<UserStoryPriority, { bg: string; fg: string; border: string }> = {
+  low:      { bg: 'color-mix(in oklab, var(--green)  12%, transparent)', fg: 'var(--green)',  border: 'color-mix(in oklab, var(--green)  25%, transparent)' },
+  medium:   { bg: 'color-mix(in oklab, var(--amber)  14%, transparent)', fg: 'var(--amber)',  border: 'color-mix(in oklab, var(--amber)  30%, transparent)' },
+  high:     { bg: 'color-mix(in oklab, var(--orange) 14%, transparent)', fg: 'var(--orange)', border: 'color-mix(in oklab, var(--orange) 30%, transparent)' },
+  critical: { bg: 'color-mix(in oklab, var(--red)    14%, transparent)', fg: 'var(--red)',    border: 'color-mix(in oklab, var(--red)    30%, transparent)' },
+}
+
+const US_PRIORITY: Array<{ value: UserStoryPriority; label: string }> = [
+  { value: 'low',      label: 'Low'      },
+  { value: 'medium',   label: 'Medium'   },
+  { value: 'high',     label: 'High'     },
+  { value: 'critical', label: 'Critical' },
 ]
 
 const US_STATUS: Array<{ value: UserStoryStatus; label: string }> = [
@@ -477,6 +484,61 @@ const US_STATUS: Array<{ value: UserStoryStatus; label: string }> = [
   { value: 'in-progress', label: 'In Progress' },
   { value: 'done',        label: 'Done' },
 ]
+
+// Ghost delete button — red only on hover, per reference
+function DeleteIconBtn({ onClick, label }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className="tz-btn tz-btn-ghost"
+      title={label ?? 'Delete'}
+      aria-label={label ?? 'Delete'}
+      style={{ padding: 6, color: 'var(--mute)', flexShrink: 0, transition: 'all .15s' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = 'var(--red)'
+        e.currentTarget.style.background = 'color-mix(in oklab, var(--red) 10%, transparent)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = 'var(--mute)'
+        e.currentTarget.style.background = 'transparent'
+      }}
+    >
+      <Trash2 size={13} />
+    </button>
+  )
+}
+
+// Soft user-story status select (no harsh box)
+const US_STATUS_TONE: Record<UserStoryStatus, { bg: string; fg: string; border: string }> = {
+  draft:         { bg: 'var(--chip)',                                          fg: 'var(--mute)',   border: 'var(--border)' },
+  ready:         { bg: 'color-mix(in oklab, var(--blue) 12%, transparent)',    fg: 'var(--blue)',   border: 'color-mix(in oklab, var(--blue) 25%, transparent)' },
+  'in-progress': { bg: 'color-mix(in oklab, var(--purple) 12%, transparent)', fg: 'var(--purple)', border: 'color-mix(in oklab, var(--purple) 25%, transparent)' },
+  done:          { bg: 'var(--green-soft)',                                    fg: '#0B6F49',       border: 'color-mix(in oklab, var(--green) 30%, transparent)' },
+}
+
+function USStatusSelect({ value, onChange }: { value: UserStoryStatus; onChange: (v: UserStoryStatus) => void }) {
+  const tone = US_STATUS_TONE[value]
+  const chevron = encodeURIComponent(tone.fg.startsWith('var(') ? '#6E6E82' : tone.fg)
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as UserStoryStatus)}
+      style={{
+        background: tone.bg,
+        color: tone.fg,
+        border: `1px solid ${tone.border}`,
+        borderRadius: 999, padding: '4px 22px 4px 10px',
+        fontSize: 11.5, fontWeight: 600, letterSpacing: '0.02em',
+        cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+        fontFamily: 'inherit',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${chevron}' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+      }}
+    >
+      {US_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+    </select>
+  )
+}
 
 function UserStoriesTab({
   story,
@@ -542,111 +604,309 @@ function UserStoriesTab({
       }
     >
       {story.userStories.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No user stories yet. Click "Add Story" to create one.</p>
+        <p style={{ fontSize: 13, color: 'var(--mute)' }}>No user stories yet. Click "Add Story" to create one.</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {story.userStories.map((us, idx) => {
-            const pri = US_PRIORITY.find((p) => p.value === us.priority)!
-            return (
-              <div
-                key={us.id}
-                className="p-4 rounded-lg"
-                style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
-              >
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">US-{idx + 1}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={pri.style}>{pri.label}</span>
-                    <select
-                      className="text-xs px-2 py-0.5 rounded-md border border-border bg-background"
-                      value={us.status}
-                      onChange={(e) => updateUS(us.id, { status: e.target.value as UserStoryStatus })}
-                    >
-                      {US_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="text-xs px-2 py-1 rounded-md border border-border bg-background"
-                      value={us.priority}
-                      onChange={(e) => updateUS(us.id, { priority: e.target.value as UserStoryPriority })}
-                    >
-                      {US_PRIORITY.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                    </select>
-                    <button
-                      onClick={() => removeUS(us.id)}
-                      className="text-muted-foreground hover:text-destructive transition-colors"
-                      aria-label="Remove user story"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-                  <div>
-                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">As a</label>
-                    <AutoGrowTextarea className={inputClass} minHeight={38} focusMinHeight={100} placeholder="role" value={us.asA} onChange={(e) => updateUS(us.id, { asA: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">I want</label>
-                    <AutoGrowTextarea className={inputClass} minHeight={38} focusMinHeight={100} placeholder="goal" value={us.iWant} onChange={(e) => updateUS(us.id, { iWant: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">So that</label>
-                    <AutoGrowTextarea className={inputClass} minHeight={38} focusMinHeight={100} placeholder="benefit" value={us.soThat} onChange={(e) => updateUS(us.id, { soThat: e.target.value })} />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Acceptance Criteria</label>
-                    <button
-                      onClick={() => addAC(us.id)}
-                      className="text-xs inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Plus size={12} /> Add criterion
-                    </button>
-                  </div>
-                  {us.criteria.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No criteria yet.</p>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {us.criteria.map((ac, i) => (
-                        <div key={ac.id} className="grid grid-cols-12 gap-2 items-start">
-                          <span className="col-span-1 text-xs text-muted-foreground mt-2 text-right">AC-{i + 1}</span>
-                          <AutoGrowTextarea className={inputClass + ' col-span-11 md:col-span-3'} minHeight={38} focusMinHeight={100} placeholder="Given…" value={ac.given} onChange={(e) => updateAC(us.id, ac.id, { given: e.target.value })} />
-                          <AutoGrowTextarea className={inputClass + ' col-span-12 md:col-span-3 md:col-start-auto'} minHeight={38} focusMinHeight={100} placeholder="When…" value={ac.when} onChange={(e) => updateAC(us.id, ac.id, { when: e.target.value })} />
-                          <AutoGrowTextarea className={inputClass + ' col-span-11 md:col-span-4'} minHeight={38} focusMinHeight={100} placeholder="Then…" value={ac.then} onChange={(e) => updateAC(us.id, ac.id, { then: e.target.value })} />
-                          <button
-                            onClick={() => removeAC(us.id, ac.id)}
-                            className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors mt-2"
-                            aria-label="Remove criterion"
-                          >
-                            <X size={13} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {story.userStories.map((us, idx) => (
+            <UserStoryCard
+              key={us.id}
+              us={us}
+              index={idx}
+              onPatch={(patch) => updateUS(us.id, patch)}
+              onRemove={() => removeUS(us.id)}
+              onACPatch={(acId, patch) => updateAC(us.id, acId, patch)}
+              onACRemove={(acId) => removeAC(us.id, acId)}
+              onACAdd={() => addAC(us.id)}
+            />
+          ))}
         </div>
       )}
     </SectionCard>
   )
 }
 
+function UserStoryCard({
+  us, index, onPatch, onRemove, onACPatch, onACRemove, onACAdd,
+}: {
+  us: UserStory
+  index: number
+  onPatch: (patch: Partial<UserStory>) => void
+  onRemove: () => void
+  onACPatch: (acId: string, patch: Partial<AcceptanceCriterion>) => void
+  onACRemove: (acId: string) => void
+  onACAdd: () => void
+}) {
+  const [expanded, setExpanded] = useState(true)
+  const tone = US_PRIORITY_TONE[us.priority]
+
+  return (
+    <div
+      style={{
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: 14,
+        background: 'var(--panel-2)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span
+          className="tz-mono"
+          style={{
+            fontSize: 11, fontWeight: 600,
+            color: 'var(--purple)',
+            background: 'color-mix(in oklab, var(--purple) 12%, var(--panel))',
+            border: '1px solid color-mix(in oklab, var(--purple) 25%, var(--border))',
+            padding: '3px 9px', borderRadius: 6,
+            letterSpacing: '0.05em', flexShrink: 0,
+          }}
+        >
+          US-{String(index + 1).padStart(2, '0')}
+        </span>
+        <span style={{
+          fontSize: 12, fontWeight: 600,
+          color: 'var(--purple)',
+          background: 'color-mix(in oklab, var(--purple) 12%, transparent)',
+          padding: '3px 9px', borderRadius: 999, letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        }}>WHO</span>
+        <input
+          type="text"
+          value={us.asA}
+          onChange={(e) => onPatch({ asA: e.target.value })}
+          placeholder="role"
+          style={{
+            flex: 1, minWidth: 0,
+            background: 'transparent', border: 'none', outline: 'none',
+            fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+          }}
+        />
+
+        {/* Priority pill (soft tint) */}
+        <span
+          style={{
+            background: tone.bg, color: tone.fg,
+            border: `1px solid ${tone.border}`,
+            borderRadius: 999, padding: '3px 9px',
+            fontSize: 11.5, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+          }}
+        >
+          <span style={{ width: 5, height: 5, borderRadius: 999, background: tone.fg }} />
+          <select
+            value={us.priority}
+            onChange={(e) => onPatch({ priority: e.target.value as UserStoryPriority })}
+            style={{
+              background: 'transparent', border: 'none', outline: 'none',
+              color: tone.fg, fontWeight: 600, fontSize: 11.5,
+              fontFamily: 'inherit', cursor: 'pointer',
+              appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+            }}
+          >
+            {US_PRIORITY.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </span>
+
+        <USStatusSelect value={us.status} onChange={(v) => onPatch({ status: v })} />
+
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: 4 }}
+          aria-label="Toggle expand"
+        >
+          <ChevronDown
+            size={14}
+            style={{ transform: expanded ? 'none' : 'rotate(-90deg)', transition: 'transform .15s', color: 'var(--mute)' }}
+          />
+        </button>
+        <DeleteIconBtn onClick={onRemove} label="Remove user story" />
+      </div>
+
+      {/* WANT / BENEFIT split */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{
+          background: 'var(--panel)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: 10,
+        }}>
+          <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 4 }}>
+            WANT
+          </div>
+          <AutoGrowTextarea
+            value={us.iWant}
+            onChange={(e) => onPatch({ iWant: e.target.value })}
+            placeholder="to do something"
+            minHeight={36}
+            focusMinHeight={100}
+            style={{
+              width: '100%', background: 'transparent', border: 'none', outline: 'none',
+              fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', resize: 'none', lineHeight: 1.45,
+            }}
+          />
+        </div>
+        <div style={{
+          background: 'var(--panel)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: 10,
+        }}>
+          <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 4 }}>
+            BENEFIT
+          </div>
+          <AutoGrowTextarea
+            value={us.soThat}
+            onChange={(e) => onPatch({ soThat: e.target.value })}
+            placeholder="so that…"
+            minHeight={36}
+            focusMinHeight={100}
+            style={{
+              width: '100%', background: 'transparent', border: 'none', outline: 'none',
+              fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', resize: 'none', lineHeight: 1.45,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Acceptance criteria */}
+      {expanded && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span
+              className="tz-mono"
+              style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}
+            >
+              ACCEPTANCE CRITERIA
+            </span>
+            <span style={{ flex: 1 }} />
+            <button
+              onClick={onACAdd}
+              className="tz-btn tz-btn-ghost"
+              style={{ padding: '4px 8px', fontSize: 11 }}
+            >
+              <Plus size={10} /> Add criterion
+            </button>
+          </div>
+          {us.criteria.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--mute)', margin: 0 }}>No criteria yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr 32px', gap: 8 }}>
+              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>#</div>
+              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>GIVEN</div>
+              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>WHEN</div>
+              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>THEN</div>
+              <div />
+              {us.criteria.map((ac, i) => (
+                <ACRow
+                  key={ac.id}
+                  index={i}
+                  ac={ac}
+                  onPatch={(patch) => onACPatch(ac.id, patch)}
+                  onRemove={() => onACRemove(ac.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ACRow({
+  ac, index, onPatch, onRemove,
+}: {
+  ac: AcceptanceCriterion
+  index: number
+  onPatch: (patch: Partial<AcceptanceCriterion>) => void
+  onRemove: () => void
+}) {
+  const cellStyle: React.CSSProperties = {
+    background: 'var(--panel)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: 8,
+    fontSize: 12,
+    color: 'var(--ink)',
+    fontFamily: 'inherit',
+    outline: 'none',
+    resize: 'none',
+    lineHeight: 1.45,
+  }
+  return (
+    <>
+      <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)', padding: '8px 4px', fontWeight: 500 }}>
+        AC-{index + 1}
+      </span>
+      <AutoGrowTextarea
+        value={ac.given}
+        onChange={(e) => onPatch({ given: e.target.value })}
+        placeholder="Given…"
+        minHeight={32}
+        focusMinHeight={100}
+        style={cellStyle}
+      />
+      <AutoGrowTextarea
+        value={ac.when}
+        onChange={(e) => onPatch({ when: e.target.value })}
+        placeholder="When…"
+        minHeight={32}
+        focusMinHeight={100}
+        style={cellStyle}
+      />
+      <AutoGrowTextarea
+        value={ac.then}
+        onChange={(e) => onPatch({ then: e.target.value })}
+        placeholder="Then…"
+        minHeight={32}
+        focusMinHeight={100}
+        style={cellStyle}
+      />
+      <button
+        onClick={onRemove}
+        className="tz-btn tz-btn-ghost"
+        style={{ padding: 4, alignSelf: 'start', marginTop: 4, color: 'var(--mute)' }}
+        aria-label="Remove criterion"
+      >
+        <X size={12} />
+      </button>
+    </>
+  )
+}
+
 // ── Requirements tab ───────────────────────────────────────────────
 
-const MOSCOW: Array<{ value: MoscowPriority; label: string; style: React.CSSProperties }> = [
-  { value: 'must',   label: 'Must',    style: { background: 'rgba(220,38,38,0.15)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' } },
-  { value: 'should', label: 'Should',  style: { background: 'rgba(234,88,12,0.15)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)' } },
-  { value: 'could',  label: 'Could',   style: { background: 'rgba(202,138,4,0.15)', color: '#ca8a04', border: '1px solid rgba(202,138,4,0.3)' } },
-  { value: 'wont',   label: "Won't",   style: { background: 'rgba(107,114,128,0.15)', color: '#6b7280', border: '1px solid rgba(107,114,128,0.3)' } },
+const MOSCOW_TONE: Record<MoscowPriority, { bg: string; fg: string; border: string }> = {
+  must:   { bg: 'color-mix(in oklab, var(--red)    12%, transparent)', fg: '#9A261F',     border: 'color-mix(in oklab, var(--red)    25%, transparent)' },
+  should: { bg: 'color-mix(in oklab, var(--amber)  14%, transparent)', fg: '#7A5409',     border: 'color-mix(in oklab, var(--amber)  30%, transparent)' },
+  could:  { bg: 'color-mix(in oklab, var(--blue)   12%, transparent)', fg: '#1C44B5',     border: 'color-mix(in oklab, var(--blue)   25%, transparent)' },
+  wont:   { bg: 'var(--chip)',                                          fg: 'var(--mute)', border: 'var(--border)' },
+}
+
+const MOSCOW: Array<{ value: MoscowPriority; label: string }> = [
+  { value: 'must',   label: 'Must'   },
+  { value: 'should', label: 'Should' },
+  { value: 'could',  label: 'Could'  },
+  { value: 'wont',   label: "Won't"  },
 ]
+
+function MoscowSelect({ value, onChange }: { value: MoscowPriority; onChange: (v: MoscowPriority) => void }) {
+  const tone = MOSCOW_TONE[value]
+  const chevron = encodeURIComponent(tone.fg.startsWith('var(') ? '#6E6E82' : tone.fg)
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as MoscowPriority)}
+      style={{
+        background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`,
+        borderRadius: 8, padding: '6px 22px 6px 10px',
+        fontSize: 12, fontWeight: 600,
+        cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+        fontFamily: 'inherit',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${chevron}' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+      }}
+    >
+      {MOSCOW.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+    </select>
+  )
+}
 
 function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
   const updateReq = (id: string, patch: Partial<Requirement>) => {
@@ -665,49 +925,55 @@ function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<St
   const renderList = (type: RequirementType) => {
     const reqs = story.requirements.filter((r) => r.type === type)
     if (reqs.length === 0) {
-      return <p className="text-sm text-muted-foreground">None yet.</p>
+      return <p style={{ fontSize: 13, color: 'var(--mute)' }}>None yet.</p>
     }
     return (
-      <div className="flex flex-col gap-2">
-        {reqs.map((r) => {
-          const pri = MOSCOW.find((m) => m.value === r.priority)!
-          return (
-            <div
-              key={r.id}
-              className="grid grid-cols-12 gap-2 items-start p-3 rounded-md"
-              style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
-            >
-              <input
-                className={inputClass + ' col-span-3 md:col-span-2 text-xs font-mono'}
-                value={r.code}
-                onChange={(e) => updateReq(r.id, { code: e.target.value })}
-              />
-              <AutoGrowTextarea
-                className={inputClass + ' col-span-12 md:col-span-7'}
-                minHeight={44}
-                focusMinHeight={120}
-                placeholder="Description"
-                value={r.description}
-                onChange={(e) => updateReq(r.id, { description: e.target.value })}
-              />
-              <select
-                className={inputClass + ' col-span-8 md:col-span-2'}
-                value={r.priority}
-                onChange={(e) => updateReq(r.id, { priority: e.target.value as MoscowPriority })}
-                style={pri.style}
-              >
-                {MOSCOW.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
-              <button
-                onClick={() => removeReq(r.id)}
-                className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors mt-2"
-                aria-label="Remove requirement"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          )
-        })}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {reqs.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '110px 1fr 130px 36px',
+              gap: 10, alignItems: 'center',
+              padding: 10,
+              background: 'var(--panel-2)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+            }}
+          >
+            <input
+              className="tz-mono"
+              value={r.code}
+              onChange={(e) => updateReq(r.id, { code: e.target.value })}
+              style={{
+                fontSize: 12, fontWeight: 600, color: 'var(--purple)',
+                background: 'color-mix(in oklab, var(--purple) 8%, var(--panel))',
+                border: '1px solid color-mix(in oklab, var(--purple) 20%, var(--border))',
+                borderRadius: 8, padding: '6px 10px', textAlign: 'center',
+                outline: 'none', fontFamily: "'JetBrains Mono', monospace",
+              }}
+            />
+            <AutoGrowTextarea
+              minHeight={36}
+              focusMinHeight={120}
+              placeholder="Description"
+              value={r.description}
+              onChange={(e) => updateReq(r.id, { description: e.target.value })}
+              style={{
+                width: '100%',
+                fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5,
+                background: 'transparent', border: 'none', outline: 'none',
+                fontFamily: 'inherit', resize: 'none',
+              }}
+            />
+            <MoscowSelect
+              value={r.priority}
+              onChange={(v) => updateReq(r.id, { priority: v })}
+            />
+            <DeleteIconBtn onClick={() => removeReq(r.id)} label="Remove requirement" />
+          </div>
+        ))}
       </div>
     )
   }
@@ -718,28 +984,21 @@ function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<St
         title="Functional Requirements"
         subtitle="What the system must do. Prioritised with MoSCoW."
         action={
-          <button
-            onClick={() => addReq('functional')}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
+          <Button variant="gradient" onClick={() => addReq('functional')}>
             <Plus size={13} /> Add FR
-          </button>
+          </Button>
         }
       >
         {renderList('functional')}
       </SectionCard>
+      <div style={{ marginTop: 14 }} />
       <SectionCard
         title="Non-Functional Requirements"
         subtitle="Performance, security, usability, reliability constraints."
         action={
-          <button
-            onClick={() => addReq('non-functional')}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-          >
+          <Button variant="gradient" onClick={() => addReq('non-functional')}>
             <Plus size={13} /> Add NFR
-          </button>
+          </Button>
         }
       >
         {renderList('non-functional')}
@@ -1065,23 +1324,23 @@ function RtmTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => 
 
 // ── RAID tab ───────────────────────────────────────────────────────
 
-const RAID_TYPE_META: Record<RaidType, { label: string; style: React.CSSProperties }> = {
-  risk:        { label: 'Risk',        style: { background: 'rgba(220,38,38,0.15)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' } },
-  assumption:  { label: 'Assumption',  style: { background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' } },
-  issue:       { label: 'Issue',       style: { background: 'rgba(234,88,12,0.15)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)' } },
-  dependency:  { label: 'Dependency',  style: { background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' } },
+const RAID_TYPE_META: Record<RaidType, { label: string; color: string }> = {
+  risk:       { label: 'Risk',       color: 'var(--red)'    },
+  assumption: { label: 'Assumption', color: 'var(--blue)'   },
+  issue:      { label: 'Issue',      color: 'var(--orange)' },
+  dependency: { label: 'Dependency', color: 'var(--purple)' },
 }
 
 const RAID_IMPACT: Array<{ value: RaidImpact; label: string }> = [
-  { value: 'low',    label: 'Low' },
+  { value: 'low',    label: 'Low'    },
   { value: 'medium', label: 'Medium' },
-  { value: 'high',   label: 'High' },
+  { value: 'high',   label: 'High'   },
 ]
 
 const RAID_STATUS: Array<{ value: RaidStatus; label: string }> = [
-  { value: 'open',      label: 'Open' },
+  { value: 'open',      label: 'Open'      },
   { value: 'mitigated', label: 'Mitigated' },
-  { value: 'closed',    label: 'Closed' },
+  { value: 'closed',    label: 'Closed'    },
 ]
 
 function RaidTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
@@ -1103,78 +1362,123 @@ function RaidTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =>
       title="RAID Log"
       subtitle="Risks, Assumptions, Issues, Dependencies."
       action={
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {types.map((t) => (
-            <button
-              key={t}
-              onClick={() => addRaid(t)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-opacity hover:opacity-90"
-              style={RAID_TYPE_META[t].style}
-            >
-              <Plus size={11} /> {RAID_TYPE_META[t].label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {types.map((t) => {
+            const meta = RAID_TYPE_META[t]
+            return (
+              <button
+                key={t}
+                onClick={() => addRaid(t)}
+                className="tz-btn"
+                style={{
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  color: meta.color,
+                  borderColor: `color-mix(in oklab, ${meta.color} 30%, var(--border))`,
+                  background: `color-mix(in oklab, ${meta.color} 8%, var(--panel))`,
+                }}
+              >
+                <Plus size={11} /> {meta.label}
+              </button>
+            )
+          })}
         </div>
       }
     >
       {story.raid.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No entries yet.</p>
+        <p style={{ fontSize: 13, color: 'var(--mute)' }}>No entries yet.</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {types.map((type) => {
             const items = grouped[type]
             if (items.length === 0) return null
             const meta = RAID_TYPE_META[type]
             return (
               <div key={type}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={meta.style}>{meta.label}</span>
-                  <span className="text-xs text-muted-foreground">({items.length})</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      background: `color-mix(in oklab, ${meta.color} 14%, transparent)`,
+                      color: meta.color,
+                      border: `1px solid color-mix(in oklab, ${meta.color} 25%, transparent)`,
+                      borderRadius: 999,
+                      padding: '3px 9px',
+                      fontSize: 11.5, fontWeight: 600,
+                    }}
+                  >
+                    <span style={{ width: 5, height: 5, borderRadius: 999, background: meta.color }} />
+                    {meta.label}
+                  </span>
+                  <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)' }}>({items.length})</span>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {items.map((r) => (
                     <div
                       key={r.id}
-                      className="grid grid-cols-12 gap-2 items-start p-3 rounded-md"
-                      style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 180px 110px 110px 36px',
+                        gap: 10,
+                        alignItems: 'center',
+                        padding: 10,
+                        background: 'var(--panel-2)',
+                        border: `1px solid color-mix(in oklab, ${meta.color} 12%, var(--border))`,
+                        borderLeft: `3px solid ${meta.color}`,
+                        borderRadius: 10,
+                      }}
                     >
                       <AutoGrowTextarea
-                        className={inputClass + ' col-span-12 md:col-span-5'}
-                        minHeight={44}
+                        minHeight={32}
                         focusMinHeight={120}
                         placeholder="Description"
                         value={r.description}
                         onChange={(e) => updateRaid(r.id, { description: e.target.value })}
+                        style={{
+                          width: '100%',
+                          background: 'transparent',
+                          border: 'none', outline: 'none',
+                          fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5,
+                          fontFamily: 'inherit', resize: 'none',
+                        }}
                       />
-                      <AutoGrowTextarea
-                        className={inputClass + ' col-span-6 md:col-span-3 text-xs'}
-                        minHeight={38}
-                        focusMinHeight={100}
+                      <input
+                        type="text"
                         placeholder="Owner"
                         value={r.owner}
                         onChange={(e) => updateRaid(r.id, { owner: e.target.value })}
+                        style={{
+                          background: 'var(--panel)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8, padding: '6px 10px',
+                          fontSize: 12, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none',
+                        }}
                       />
                       <select
-                        className={inputClass + ' col-span-3 md:col-span-1 text-xs'}
                         value={r.impact}
                         onChange={(e) => updateRaid(r.id, { impact: e.target.value as RaidImpact })}
+                        style={{
+                          background: 'var(--panel)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8, padding: '6px 10px',
+                          fontSize: 12, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer',
+                        }}
                       >
                         {RAID_IMPACT.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
                       </select>
                       <select
-                        className={inputClass + ' col-span-2 md:col-span-2 text-xs'}
                         value={r.status}
                         onChange={(e) => updateRaid(r.id, { status: e.target.value as RaidStatus })}
+                        style={{
+                          background: 'var(--panel)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8, padding: '6px 10px',
+                          fontSize: 12, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer',
+                        }}
                       >
                         {RAID_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                       </select>
-                      <button
-                        onClick={() => removeRaid(r.id)}
-                        className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors mt-2"
-                        aria-label="Remove"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <DeleteIconBtn onClick={() => removeRaid(r.id)} label="Remove" />
                     </div>
                   ))}
                 </div>
@@ -1421,24 +1725,22 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
       title="Notes"
       subtitle="Capture meetings, questions, decisions, and follow-ups as separate entries."
       action={
-        <div ref={addWrapperRef} className="relative">
+        <div ref={addWrapperRef} style={{ position: 'relative' }}>
           <button
             type="button"
             onClick={() => setAddOpen((o) => !o)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-            style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
+            className="tz-btn tz-btn-gradient"
           >
             <Plus size={13} /> Add note
-            <ChevronDown size={12} className={`opacity-70 transition-transform ${addOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={12} style={{ opacity: 0.7, transform: addOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
           </button>
           {addOpen && (
             <div
-              className="absolute right-0 top-full mt-2 z-50 w-52 rounded-xl overflow-hidden"
+              className="panel"
               style={{
-                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                background: 'var(--app-overlay)',
-                border: '1px solid var(--app-overlay-border)',
-                backdropFilter: 'blur(16px)',
+                position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
+                width: 200, padding: 4,
+                boxShadow: '0 20px 50px rgba(20,20,40,0.18)',
               }}
             >
               {NOTE_CATEGORIES.map((cat) => {
@@ -1448,14 +1750,23 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
                     key={cat}
                     type="button"
                     onMouseDown={() => addEntry(cat)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors"
-                    style={{ color: 'var(--app-text)', borderBottom: '1px solid var(--app-glass-border)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-glass)' }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', borderRadius: 8,
+                      background: 'transparent', border: 0, cursor: 'pointer',
+                      textAlign: 'left', fontFamily: 'inherit',
+                      fontSize: 13, color: 'var(--ink)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel-2)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                   >
                     <span
-                      className="inline-flex items-center justify-center rounded-md flex-shrink-0"
-                      style={{ background: meta.bg, color: meta.color, width: 24, height: 24 }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        background: `color-mix(in oklab, ${meta.color} 14%, transparent)`,
+                        color: meta.color, width: 22, height: 22, borderRadius: 6,
+                        flexShrink: 0,
+                      }}
                     >
                       {meta.icon}
                     </span>
@@ -1469,7 +1780,7 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
       }
     >
       {entries.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
           {chips.map((chip) => {
             const active = filter === chip.key
             const count = counts[chip.key] ?? 0
@@ -1477,20 +1788,27 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
               <button
                 key={chip.key}
                 onClick={() => setFilter(chip.key)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
                 style={{
-                  background: active ? chip.color : 'var(--app-glass)',
-                  color: active ? '#fff' : 'var(--app-text-secondary)',
-                  border: `1px solid ${active ? chip.color : 'var(--app-glass-border)'}`,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '5px 11px', borderRadius: 999,
+                  fontSize: 12, fontWeight: active ? 600 : 500,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  background: active
+                    ? 'linear-gradient(105deg, var(--purple), var(--pink))'
+                    : `color-mix(in oklab, ${chip.color} 8%, var(--panel))`,
+                  color: active ? 'white' : chip.color,
+                  border: active ? '1px solid transparent' : `1px solid color-mix(in oklab, ${chip.color} 20%, var(--border))`,
+                  transition: 'all .15s',
                 }}
               >
                 {chip.icon}
                 {chip.label}
                 <span
-                  className="px-1.5 rounded-full text-[10px] leading-[16px]"
+                  className="tz-mono"
                   style={{
-                    background: active ? 'rgba(255,255,255,0.22)' : 'var(--app-bg)',
-                    color: active ? '#fff' : 'var(--app-text-secondary)',
+                    fontSize: 10, fontWeight: 600, opacity: active ? 0.85 : 0.7,
+                    marginLeft: 2,
                   }}
                 >
                   {count}
@@ -1503,37 +1821,51 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
 
       {visible.length === 0 ? (
         <div
-          className="rounded-xl p-8 text-center"
-          style={{ background: 'var(--app-bg)', border: '1px dashed var(--app-glass-border)' }}
+          style={{
+            borderRadius: 12, padding: 28, textAlign: 'center',
+            background: 'var(--panel-2)',
+            border: '1.5px dashed var(--border-strong)',
+            color: 'var(--mute)',
+          }}
         >
-          <StickyNote size={28} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm text-muted-foreground">
+          <StickyNote size={24} style={{ opacity: 0.5, margin: '0 auto 6px' }} />
+          <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0 }}>
             {entries.length === 0
               ? 'No notes yet. Click "Add note" to capture a meeting, question, decision, or follow-up.'
               : `No ${NOTE_CATEGORY_META[filter as NoteCategory].label.toLowerCase()} notes yet.`}
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {visible.map((entry) => {
             const meta = NOTE_CATEGORY_META[entry.category]
             return (
               <div
                 key={entry.id}
-                className="rounded-xl"
                 style={{
-                  background: 'var(--app-bg)',
-                  border: '1px solid var(--app-glass-border)',
+                  background: `color-mix(in oklab, ${meta.color} 4%, var(--panel-2))`,
+                  border: `1px solid color-mix(in oklab, ${meta.color} 20%, var(--border))`,
                   borderLeft: `3px solid ${meta.color}`,
+                  borderRadius: 12,
+                  padding: 14,
                 }}
               >
-                <div className="flex items-start gap-2 px-3 pt-3">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <select
                     value={entry.category}
                     onChange={(e) => updateEntry(entry.id, { category: e.target.value as NoteCategory })}
-                    className="text-xs font-semibold px-2 py-1 rounded-md border-0 focus:outline-none cursor-pointer flex-shrink-0"
-                    style={{ background: meta.bg, color: meta.color }}
                     title="Change category"
+                    style={{
+                      fontSize: 11.5, fontWeight: 600,
+                      background: `color-mix(in oklab, ${meta.color} 14%, transparent)`,
+                      color: meta.color,
+                      border: `1px solid color-mix(in oklab, ${meta.color} 25%, transparent)`,
+                      borderRadius: 8, padding: '4px 22px 4px 10px',
+                      cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+                      fontFamily: 'inherit',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(meta.color)}' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                    }}
                   >
                     {NOTE_CATEGORIES.map((c) => (
                       <option key={c} value={c}>{NOTE_CATEGORY_META[c].label}</option>
@@ -1541,67 +1873,69 @@ function NotesTab({ story, set }: { story: Story; set: (patch: Partial<Story>) =
                   </select>
 
                   <input
-                    className="flex-1 bg-transparent text-sm font-semibold border-0 focus:outline-none placeholder:text-muted-foreground px-1 py-1 min-w-0"
                     placeholder="Title…"
                     value={entry.title}
                     onChange={(e) => updateEntry(entry.id, { title: e.target.value })}
-                    style={{ color: 'var(--app-text)' }}
+                    style={{
+                      flex: 1, minWidth: 0,
+                      background: 'transparent', border: 'none', outline: 'none',
+                      fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
+                      fontFamily: 'inherit',
+                    }}
                   />
 
-                  <span className="text-[11px] text-muted-foreground flex-shrink-0 mt-1.5 whitespace-nowrap">
+                  <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)', flexShrink: 0 }}>
                     {noteRelTime(entry.createdAt)}
                   </span>
 
-                  <button
-                    onClick={() => removeEntry(entry.id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-1.5"
-                    aria-label="Delete note"
-                    title="Delete note"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <DeleteIconBtn onClick={() => removeEntry(entry.id)} label="Delete note" />
                 </div>
 
-                <div className="px-3 pb-3 pt-2">
-                  {editingId === entry.id ? (
-                    <AutoGrowTextarea
-                      className={textareaClass}
-                      minHeight={90}
-                      focusMinHeight={180}
-                      placeholder="Write the details… Start lines with 1., 2.… to format as a numbered list."
-                      value={entry.content}
-                      autoFocus
-                      onFocus={(e) => {
-                        const el = e.currentTarget
-                        const len = el.value.length
-                        el.setSelectionRange(len, len)
-                      }}
-                      onChange={(e) => updateEntry(entry.id, { content: e.target.value })}
-                      onBlur={() => setEditingId(null)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(entry.id)}
-                      className="w-full text-left rounded-md px-3 py-2.5 transition-colors cursor-text"
-                      style={{
-                        background: 'var(--app-glass)',
-                        border: '1px solid var(--app-glass-border)',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--app-overlay)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--app-glass)' }}
-                      title="Click to edit"
-                    >
-                      {entry.content.trim() ? (
-                        <NoteBodyDisplay text={entry.content} />
-                      ) : (
-                        <span className="text-sm italic" style={{ color: 'var(--app-text-secondary)' }}>
-                          Click to add details…
-                        </span>
-                      )}
-                    </button>
-                  )}
-                </div>
+                {editingId === entry.id ? (
+                  <AutoGrowTextarea
+                    minHeight={90}
+                    focusMinHeight={180}
+                    placeholder="Write the details… Start lines with 1., 2.… to format as a numbered list."
+                    value={entry.content}
+                    autoFocus
+                    onFocus={(e) => {
+                      const el = e.currentTarget
+                      const len = el.value.length
+                      el.setSelectionRange(len, len)
+                    }}
+                    onChange={(e) => updateEntry(entry.id, { content: e.target.value })}
+                    onBlur={() => setEditingId(null)}
+                    className="tz-input tz-textarea"
+                    style={{ fontSize: 13 }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(entry.id)}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      borderRadius: 10, padding: '10px 12px',
+                      background: 'var(--panel)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--ink-2)',
+                      fontFamily: 'inherit',
+                      cursor: 'text',
+                      fontSize: 13,
+                      transition: 'background .15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel-2)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--panel)' }}
+                    title="Click to edit"
+                  >
+                    {entry.content.trim() ? (
+                      <NoteBodyDisplay text={entry.content} />
+                    ) : (
+                      <span style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--mute)' }}>
+                        Click to add details…
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
             )
           })}

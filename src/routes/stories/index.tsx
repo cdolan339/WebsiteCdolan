@@ -8,7 +8,8 @@ import {
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import {
-  PageShell, Pill, CaseBar, Segmented, EyebrowChip, Icon, Button,
+  PageShell, Pill, PriorityPill, CaseBar, Segmented, EyebrowChip, Icon, Button,
+  AvatarStack, colorForName,
 } from '@/components/design/primitives'
 
 export const Route = createFileRoute('/stories/')({
@@ -113,6 +114,7 @@ function StoryListItem({ story, active, onClick }: { story: Story; active: boole
   const meta = STATUS_META[story.status]
   const progress = computeProgress(story)
   const updated = formatShort(story.updatedAt)
+  const people = collaboratorsWithColor(story)
   return (
     <div
       onClick={onClick}
@@ -126,8 +128,10 @@ function StoryListItem({ story, active, onClick }: { story: Story; active: boole
       onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--panel-2)' }}
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
         <Pill tone={meta.tone}>{meta.label}</Pill>
+        <PriorityPill level={story.priority} />
+        {story.sprint && <Pill tone="neutral" icon="flag">{story.sprint}</Pill>}
         <span style={{ flex: 1 }} />
         <span className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)' }}>{updated}</span>
       </div>
@@ -141,12 +145,20 @@ function StoryListItem({ story, active, onClick }: { story: Story; active: boole
         <div style={{ flex: 1 }}>
           <CaseBar cases={{ pass: progress.done, pending: progress.total - progress.done }} height={3} />
         </div>
+        {people.length > 0 && <AvatarStack people={people} max={3} size={20} />}
         <span className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)' }}>
           {progress.total === 0 ? '0%' : Math.round((progress.done / progress.total) * 100) + '%'}
         </span>
       </div>
     </div>
   )
+}
+
+function collaboratorsWithColor(story: Story) {
+  return (story.collaborators ?? []).map((c) => ({
+    name: c.name,
+    color: c.color ?? colorForName(c.name || '?'),
+  }))
 }
 
 /* ─── Right pane detail panel ─────────────────────── */
@@ -166,21 +178,26 @@ function SplitDetailPanel({
   const progress = computeProgress(story)
   const pct = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100)
 
+  const issueCount = story.raid.filter((r) => r.type === 'issue').length
   const counts: Array<{ icon: Parameters<typeof Icon>[0]['name']; label: string; value: number }> = [
     { icon: 'file-text', label: 'User stories', value: story.userStories.length },
     { icon: 'layers', label: 'Requirements', value: story.requirements.length },
     { icon: 'branch', label: 'Flows', value: story.processFlows.length },
     { icon: 'clipboard', label: 'RTM', value: story.rtm.length },
-    { icon: 'alert', label: 'RAID', value: story.raid.length },
+    { icon: 'alert', label: 'Issues', value: issueCount },
   ]
+  const people = collaboratorsWithColor(story)
 
   return (
     <div className="panel" style={{ padding: 24, alignSelf: 'start' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <Pill tone={meta.tone}>{meta.label}</Pill>
+        <PriorityPill level={story.priority} />
+        {story.sprint && <Pill tone="neutral" icon="flag">{story.sprint}</Pill>}
         {projectName && <Pill tone="blue" icon="folder">{projectName}</Pill>}
         {story.completed && <Pill tone="green" icon="check">Completed</Pill>}
         <span style={{ flex: 1 }} />
+        {people.length > 0 && <AvatarStack people={people} max={4} size={22} />}
         {tab === 'active' ? (
           <button className="tz-btn" onClick={() => onComplete(story.id)}>
             <CheckCheck size={13} /> Complete
@@ -361,6 +378,7 @@ function CreateStoryModal({
     </div>
   )
 }
+
 
 function ModalField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (

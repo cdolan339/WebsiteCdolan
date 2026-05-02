@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTestOrder } from '@/lib/useTestOrder'
-import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, Trash2, RotateCcw, ChevronRight, ArrowRight } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, Trash2, RotateCcw, ChevronRight, ArrowRight, X, AlertTriangle } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject, type CustomTestCase } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
@@ -209,7 +209,7 @@ function DenseRow({ tc, projectName, status, priority, passedCount, tab, onCompl
         <button
           className="tz-btn tz-btn-ghost" style={{ padding: 6, color: 'var(--red)' }}
           title="Delete"
-          onClick={() => { if (confirm('Delete this test plan?')) onDelete(tc.id) }}
+          onClick={() => onDelete(tc.id)}
         >
           <Trash2 size={13} />
         </button>
@@ -230,6 +230,16 @@ function TestSuitesPage() {
   const { projects } = useProjects()
   const [activeProjectId, setActiveProjectId] = useActiveProjectId()
   const [tab, setTab] = useState<Tab>('active')
+  const [deletingTC, setDeletingTC] = useState<CustomTestCase | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const handleDelete = useCallback(async () => {
+    if (!deletingTC) return
+    const title = deletingTC.title || 'Untitled Test Plan'
+    await deleteCustomTestCase(deletingTC.id)
+    setDeletingTC(null)
+    setToast(`Deleted "${title}"`)
+  }, [deletingTC])
 
   const handleProjectSwitch = useCallback((id: number | null) => {
     setActiveProjectId(id)
@@ -363,7 +373,10 @@ function TestSuitesPage() {
                     tab={tab}
                     onComplete={(id) => completeTestCase(id, true)}
                     onReactivate={(id) => completeTestCase(id, false)}
-                    onDelete={(id) => deleteCustomTestCase(id)}
+                    onDelete={(id) => {
+                      const target = sortedCases.find((c) => c.id === id)
+                      if (target) setDeletingTC(target)
+                    }}
                   />
                 )
               })}
@@ -377,7 +390,104 @@ function TestSuitesPage() {
           Back to Dashboard <ArrowRight size={12} />
         </Link>
       </div>
+
+      {deletingTC && (
+        <DeleteTestPlanModal
+          tc={deletingTC}
+          onConfirm={handleDelete}
+          onClose={() => setDeletingTC(null)}
+        />
+      )}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </PageShell>
+  )
+}
+
+function DeleteTestPlanModal({ tc, onConfirm, onClose }: { tc: CustomTestCase; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9000,
+        background: 'color-mix(in oklab, var(--ink) 28%, transparent)',
+        backdropFilter: 'blur(8px)',
+        display: 'grid', placeItems: 'center', padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="panel"
+        style={{
+          width: 'min(440px, 100%)', padding: 22,
+          display: 'flex', flexDirection: 'column', gap: 14,
+          boxShadow: '0 30px 90px rgba(20,20,40,0.25)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            style={{
+              width: 32, height: 32, borderRadius: 10,
+              display: 'grid', placeItems: 'center',
+              background: 'color-mix(in oklab, var(--red) 14%, transparent)',
+              color: 'var(--red)',
+            }}
+          >
+            <AlertTriangle size={16} />
+          </span>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>Delete test plan?</div>
+        </div>
+        <p style={{ fontSize: 14, color: 'var(--mute)', lineHeight: 1.5, margin: 0 }}>
+          You're about to delete <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{tc.title || 'Untitled Test Plan'}</span> and
+          all of its sub-cases. This can't be undone.
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+          <button onClick={onClose} className="tz-btn">Cancel</button>
+          <button
+            onClick={onConfirm}
+            className="tz-btn"
+            style={{
+              background: 'var(--red)',
+              color: 'white',
+              border: '1px solid var(--red)',
+              boxShadow: '0 1px 2px rgba(216,67,59,0.3), 0 4px 14px -2px rgba(216,67,59,0.35)',
+            }}
+          >
+            <Trash2 size={13} /> Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3200)
+    return () => clearTimeout(t)
+  }, [onDone])
+  return (
+    <div
+      style={{
+        position: 'fixed', bottom: 24, right: 24, zIndex: 9100,
+        padding: '10px 14px', borderRadius: 12,
+        background: 'var(--panel)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 20px 50px rgba(20,20,40,0.18)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        fontSize: 13, color: 'var(--ink)',
+        maxWidth: 340,
+      }}
+    >
+      <CheckCircle2 size={15} color="var(--green)" />
+      <span style={{ flex: 1 }}>{message}</span>
+      <button
+        onClick={onDone}
+        style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer' }}
+        aria-label="Dismiss"
+      >
+        <X size={14} />
+      </button>
+    </div>
   )
 }
 

@@ -104,6 +104,13 @@ export type Attachment = {
 };
 
 export type StoryStatus = "discovery" | "analysis" | "development" | "uat" | "done";
+export type StoryPriority = "low" | "medium" | "high" | "critical";
+
+export type Collaborator = {
+  userId?: number;
+  name: string;
+  color?: string;
+};
 
 export type Story = {
   id: string;
@@ -112,6 +119,8 @@ export type Story = {
   title: string;
   summary: string;
   status: StoryStatus;
+  priority: StoryPriority;
+  sprint: string | null;
   createdAt: string;
   updatedAt: string;
   businessCase: string;
@@ -126,6 +135,7 @@ export type Story = {
   rtm: RtmEntry[];
   raid: RaidEntry[];
   attachments: Attachment[];
+  collaborators: Collaborator[];
   notes: string;
   completed?: boolean;
   completedAt?: string | null;
@@ -205,6 +215,8 @@ export function createStory(): Story {
     title: "",
     summary: "",
     status: "discovery",
+    priority: "medium",
+    sprint: null,
     createdAt: now,
     updatedAt: now,
     businessCase: "",
@@ -219,6 +231,7 @@ export function createStory(): Story {
     rtm: [],
     raid: [],
     attachments: [],
+    collaborators: [],
     notes: "",
     completed: false,
     completedAt: null,

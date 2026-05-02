@@ -8,6 +8,10 @@
 import { useState, useEffect } from "react";
 import { api } from "./api";
 
+export type ProjectPriority = "low" | "med" | "high" | "critical";
+export type ProjectVisibility = "team" | "private" | "public";
+export type ProjectTemplate = "blank" | "regression" | "feature" | "compliance";
+
 export type Project = {
   id: number;
   name: string;
@@ -16,6 +20,13 @@ export type Project = {
   timelineStart: string | null;
   timelineEnd: string | null;
   deadline: string | null;
+  priority: ProjectPriority;
+  visibility: ProjectVisibility;
+  color: string;
+  template: ProjectTemplate;
+  sprintId: string | null;
+  autoRaid: boolean;
+  notifyTeam: boolean;
   createdBy: string | null;
   userId: number;
   createdAt: string;
@@ -29,6 +40,13 @@ export type CreateProjectPayload = {
   timelineStart?: string | null;
   timelineEnd?: string | null;
   deadline?: string | null;
+  priority?: ProjectPriority;
+  visibility?: ProjectVisibility;
+  color?: string;
+  template?: ProjectTemplate;
+  sprintId?: string | null;
+  autoRaid?: boolean;
+  notifyTeam?: boolean;
 };
 
 export type ProjectMember = {
