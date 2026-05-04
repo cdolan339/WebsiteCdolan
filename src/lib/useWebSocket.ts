@@ -11,7 +11,9 @@ import { getToken } from "./api";
 
 export type WSEvent =
   | { type: "test-case:created" | "test-case:updated" | "test-case:completed" | "test-case:deleted"; id: string }
+  | { type: "test-case:reordered" }
   | { type: "story:created" | "story:updated" | "story:deleted" | "story:completed"; id: string }
+  | { type: "story:reordered" }
   | { type: "project:created" | "project:updated" | "project:deleted"; id: number }
   | { type: "order:updated" }
   | { type: "status:updated"; slug: string; status: string }

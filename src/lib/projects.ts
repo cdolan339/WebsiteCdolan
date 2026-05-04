@@ -11,6 +11,7 @@ import { api } from "./api";
 export type ProjectPriority = "low" | "med" | "high" | "critical";
 export type ProjectVisibility = "team" | "private" | "public";
 export type ProjectTemplate = "blank" | "regression" | "feature" | "compliance";
+export type ProjectHealth = "on-track" | "at-risk" | "blocked";
 
 export type Project = {
   id: number;
@@ -27,6 +28,7 @@ export type Project = {
   sprintId: string | null;
   autoRaid: boolean;
   notifyTeam: boolean;
+  health: ProjectHealth | null;
   createdBy: string | null;
   userId: number;
   createdAt: string;
@@ -154,6 +156,38 @@ export async function updateProject(id: number, payload: Partial<CreateProjectPa
   projectCache = (projectCache ?? []).map((p) => (p.id === id ? project : p));
   notify();
   return project;
+}
+
+export async function setProjectHealth(
+  id: number,
+  health: ProjectHealth | null,
+): Promise<Project> {
+  // Optimistic local patch
+  await ensureLoaded();
+  const prev = (projectCache ?? []).find((p) => p.id === id) ?? null;
+  if (prev) {
+    projectCache = (projectCache ?? []).map((p) =>
+      p.id === id ? { ...p, health } : p,
+    );
+    notify();
+  }
+
+  try {
+    const project = await api<Project>(`/projects/${id}/health`, {
+      method: "PATCH",
+      body: JSON.stringify({ health }),
+    });
+    projectCache = (projectCache ?? []).map((p) => (p.id === id ? project : p));
+    notify();
+    return project;
+  } catch (err) {
+    // Rollback on failure
+    if (prev) {
+      projectCache = (projectCache ?? []).map((p) => (p.id === id ? prev : p));
+      notify();
+    }
+    throw err;
+  }
 }
 
 export async function deleteProject(id: number): Promise<void> {

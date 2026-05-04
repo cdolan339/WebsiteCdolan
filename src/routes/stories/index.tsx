@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Plus, ChevronDown, FolderOpen, ArrowRight, Trash2, RotateCcw, CheckCheck, X } from 'lucide-react'
 import {
   useStories, createStory, addStory, deleteStory, completeStory,
-  reloadStoriesForProject, type Story, type StoryStatus,
+  reloadStoriesForProject, reorderStories, type Story, type StoryStatus,
 } from '@/lib/stories'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
@@ -11,6 +11,15 @@ import {
   PageShell, Pill, PriorityPill, CaseBar, Segmented, EyebrowChip, Icon, Button,
   AvatarStack, colorForName,
 } from '@/components/design/primitives'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'
 
 export const Route = createFileRoute('/stories/')({
   component: StoriesPage,
@@ -109,6 +118,23 @@ function ProjectPicker({
 }
 
 /* ─── Story list row (left pane) ─────────────────────── */
+
+function SortableStoryListItem({ story, active, onClick }: { story: Story; active: boolean; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: story.id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition ? 'transform 200ms ease' : undefined,
+    opacity: isDragging ? 0.55 : 1,
+    background: isDragging ? 'var(--panel-2)' : undefined,
+    cursor: isDragging ? 'grabbing' : undefined,
+    touchAction: 'none',
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <StoryListItem story={story} active={active} onClick={onClick} />
+    </div>
+  )
+}
 
 function StoryListItem({ story, active, onClick }: { story: Story; active: boolean; onClick: () => void }) {
   const meta = STATUS_META[story.status]
@@ -242,7 +268,7 @@ function SplitDetailPanel({
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ flex: 1 }}>
           <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginBottom: 4 }}>
-            PROGRESS · {progress.done}/{progress.total} · {pct}%
+            PROGRESS · {pct}%
           </div>
           <CaseBar cases={{ pass: progress.done, pending: progress.total - progress.done }} total={Math.max(progress.total, 1)} height={5} />
         </div>
@@ -500,6 +526,21 @@ function StoriesPage() {
   const completedStories = stories.filter((s) => s.completed)
   const list = tab === 'active' ? activeStories : completedStories
 
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldIndex = list.findIndex((s) => s.id === active.id)
+    const newIndex = list.findIndex((s) => s.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const reordered = arrayMove(list, oldIndex, newIndex)
+    // Build the full ordered id list across both tabs (keep the other tab's order untouched)
+    const ids = tab === 'active'
+      ? [...reordered.map((s) => s.id), ...completedStories.map((s) => s.id)]
+      : [...activeStories.map((s) => s.id), ...reordered.map((s) => s.id)]
+    reorderStories(ids).catch((err) => console.error('Reorder failed', err))
+  }
+
   const [selectedId, setSelectedId] = useState<string | null>(null)
   useEffect(() => {
     if (list.length === 0) { setSelectedId(null); return }
@@ -572,15 +613,24 @@ function StoriesPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 14, minHeight: 560 }}>
             <div className="panel" style={{ padding: 0, overflow: 'hidden', alignSelf: 'start' }}>
-              {list.map((s, i) => (
-                <div key={s.id} style={i === 0 ? { borderTop: 0 } : undefined}>
-                  <StoryListItem
-                    story={s}
-                    active={s.id === (selected?.id ?? null)}
-                    onClick={() => setSelectedId(s.id)}
-                  />
-                </div>
-              ))}
+              <DndContext
+                sensors={dndSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+              >
+                <SortableContext items={list.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                  {list.map((s, i) => (
+                    <div key={s.id} style={i === 0 ? { borderTop: 0 } : undefined}>
+                      <SortableStoryListItem
+                        story={s}
+                        active={s.id === (selected?.id ?? null)}
+                        onClick={() => setSelectedId(s.id)}
+                      />
+                    </div>
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
             {selected ? (
               <SplitDetailPanel
@@ -635,12 +685,10 @@ function SectionHeadRow() {
 /* ─── helpers ─────────────────────────────────────── */
 
 function computeProgress(s: Story) {
-  const total = s.userStories.length + s.requirements.length + s.rtm.length
-  const done =
-    s.userStories.filter((u) => u.status === 'done').length +
-    s.requirements.filter((r) => r.priority === 'must').length * 0 + // leave neutral
-    s.rtm.filter((r) => r.status === 'verified').length
-  return { done, total }
+  const pct = typeof s.manualProgress === 'number'
+    ? Math.max(0, Math.min(100, Math.round(s.manualProgress)))
+    : 0
+  return { done: pct, total: 100 }
 }
 
 function formatShort(iso: string) {

@@ -4,6 +4,7 @@ import {
   ArrowLeft, Save, Plus, X, Trash2, Sparkles, Target, FileText, ListTree,
   GitBranch, Image as ImageIcon, Network, AlertTriangle, StickyNote, ChevronRight,
   FolderOpen, ChevronDown, Users, HelpCircle, CheckCircle2, Clock, Paperclip, Upload, Download,
+  Eye, Edit3, Settings as SettingsIcon,
 } from 'lucide-react'
 import {
   useStory, updateStory,
@@ -26,7 +27,7 @@ import {
   type CustomTestCase,
 } from '@/lib/customTestCases'
 import {
-  PageShell, EyebrowChip, Pill, Button, Ring, Segmented,
+  PageShell, EyebrowChip, Pill, Button, Ring,
   type IconName,
 } from '@/components/design/primitives'
 
@@ -34,20 +35,54 @@ export const Route = createFileRoute('/stories/$id')({
   component: StoryDetail,
 })
 
-type TabKey =
-  | 'overview' | 'user-stories' | 'requirements' | 'process-flows'
-  | 'wireframes' | 'rtm' | 'raid' | 'notes'
+// ── Phases (Canvas wizard layout) ──────────────────────────────────
 
-const TABS: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
-  { key: 'overview',      label: 'Overview',       icon: <Target size={14} /> },
-  { key: 'user-stories',  label: 'User Stories',   icon: <FileText size={14} /> },
-  { key: 'requirements',  label: 'Requirements',   icon: <ListTree size={14} /> },
-  { key: 'process-flows', label: 'Process Flows',  icon: <GitBranch size={14} /> },
-  { key: 'wireframes',    label: 'Wireframes',     icon: <ImageIcon size={14} /> },
-  { key: 'rtm',           label: 'RTM',            icon: <Network size={14} /> },
-  { key: 'raid',          label: 'RAID Log',       icon: <AlertTriangle size={14} /> },
-  { key: 'notes',         label: 'Notes',          icon: <StickyNote size={14} /> },
+type PhaseId = 'discover' | 'define' | 'design' | 'validate' | 'deliver'
+
+const PHASES: Array<{ id: PhaseId; num: number; label: string; desc: string }> = [
+  { id: 'discover', num: 1, label: 'Discover', desc: 'Business case, goals, scope' },
+  { id: 'define',   num: 2, label: 'Define',   desc: 'Stories & requirements' },
+  { id: 'design',   num: 3, label: 'Design',   desc: 'Process flows, wireframes' },
+  { id: 'validate', num: 4, label: 'Validate', desc: 'Traceability & RAID' },
+  { id: 'deliver',  num: 5, label: 'Deliver',  desc: 'Sign-off, handoff, notes' },
 ]
+
+function computePhasePercents(s: Story): Record<PhaseId, number> {
+  // Discover: 33% bus case, 33% objectives, 34% scope (in OR out)
+  const discover =
+    (s.businessCase.trim() ? 33 : 0) +
+    (s.objectives.length > 0 ? 33 : 0) +
+    ((s.scopeIn.length > 0 || s.scopeOut.length > 0) ? 34 : 0)
+
+  // Define: 50% have stories with AC, 50% have any requirements
+  const stories = s.userStories.length
+  const storiesWithAC = s.userStories.filter((u) => u.criteria.some((c) => c.given.trim() || c.when.trim() || c.then.trim())).length
+  const define =
+    (stories === 0 ? 0 : Math.round((storiesWithAC / stories) * 50)) +
+    (s.requirements.length > 0 ? 50 : 0)
+
+  // Design: 50% any flow, 50% any wireframe
+  const design =
+    (s.processFlows.length > 0 ? 50 : 0) +
+    (s.wireframes.length > 0 ? 50 : 0)
+
+  // Validate: 50% have RTM, 50% have RAID
+  const validate =
+    (s.rtm.length > 0 ? 50 : 0) +
+    (s.raid.length > 0 ? 50 : 0)
+
+  // Deliver: 100% on completed flag, else 25% if any notes
+  const deliver = s.completed ? 100 : (s.notes && s.notes.trim() ? 25 : 0)
+
+  const clamp = (n: number) => Math.max(0, Math.min(100, n))
+  return {
+    discover: clamp(discover),
+    define:   clamp(define),
+    design:   clamp(design),
+    validate: clamp(validate),
+    deliver:  clamp(deliver),
+  }
+}
 
 const STATUS_OPTIONS: Array<{ value: StoryStatus; label: string }> = [
   { value: 'discovery',   label: 'Discovery' },
@@ -61,7 +96,6 @@ const STATUS_OPTIONS: Array<{ value: StoryStatus; label: string }> = [
 
 const inputClass =
   'w-full px-3 py-2 rounded-md border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring'
-const textareaClass = inputClass
 
 // ── Project picker pill (dark-mode aware custom dropdown) ─────────
 
@@ -414,51 +448,184 @@ function AttachmentsSection({
 // ── Overview tab ───────────────────────────────────────────────────
 
 function OverviewTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
-
   return (
-    <>
-      <SectionCard title="Business Case" subtitle="Why this project matters — problem statement and expected outcomes.">
-        <AutoGrowTextarea
-          className={textareaClass}
-          placeholder="Describe the business problem, opportunity, and expected value…"
-          value={story.businessCase}
-          onChange={(e) => set({ businessCase: e.target.value })}
-        />
-      </SectionCard>
-
-      <SectionCard title="Objectives">
-        <StringListEditor
-          label="SMART objective"
-          placeholder="e.g. Reduce customer support tickets by 20% within 3 months"
-          items={story.objectives}
-          onChange={(objectives) => set({ objectives })}
-        />
-      </SectionCard>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SectionCard title="In Scope">
-          <StringListEditor
-            label="In-scope item"
-            placeholder="e.g. Password reset via email"
-            items={story.scopeIn}
-            onChange={(scopeIn) => set({ scopeIn })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <DiscoverSection
+        title="Business Case"
+        icon={<SettingsIcon size={16} />}
+        gradient="grad-purple"
+        editView={(
+          <AutoGrowTextarea
+            placeholder="Describe the business problem, opportunity, and expected value…"
+            value={story.businessCase}
+            onChange={(e) => set({ businessCase: e.target.value })}
+            className="tz-input tz-textarea"
+            style={{ fontSize: 14 }}
           />
-        </SectionCard>
-        <SectionCard title="Out of Scope">
+        )}
+      >
+        {story.businessCase.trim() ? (
+          <p style={{ fontSize: 14.5, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
+            {story.businessCase}
+          </p>
+        ) : (
+          <p style={{ fontSize: 14, color: 'var(--mute)', margin: 0, fontStyle: 'italic' }}>
+            No business case yet — click Edit to describe the problem and expected value.
+          </p>
+        )}
+      </DiscoverSection>
+
+      <DiscoverSection
+        title="Objectives & KPIs"
+        icon={<Target size={16} />}
+        gradient="grad-orange"
+        editView={(
           <StringListEditor
-            label="Out-of-scope item"
-            placeholder="e.g. SSO with third-party IdPs"
-            items={story.scopeOut}
-            onChange={(scopeOut) => set({ scopeOut })}
+            label="SMART objective"
+            placeholder="e.g. Reduce customer support tickets by 20% within 3 months"
+            items={story.objectives}
+            onChange={(objectives) => set({ objectives })}
           />
-        </SectionCard>
+        )}
+      >
+        {story.objectives.length > 0 ? (
+          <ul style={{ fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-2)', margin: 0, paddingLeft: 22 }}>
+            {story.objectives.map((o, i) => <li key={i}>{o}</li>)}
+          </ul>
+        ) : (
+          <p style={{ fontSize: 14, color: 'var(--mute)', margin: 0, fontStyle: 'italic' }}>
+            No objectives yet.
+          </p>
+        )}
+      </DiscoverSection>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <ScopePanel
+          title="In scope"
+          tone="purple"
+          items={story.scopeIn}
+          icon={<CheckCircle2 size={14} />}
+          editLabel="In-scope item"
+          editPlaceholder="e.g. Password reset via email"
+          onChange={(scopeIn) => set({ scopeIn })}
+        />
+        <ScopePanel
+          title="Out of scope"
+          tone="orange"
+          items={story.scopeOut}
+          icon={<X size={14} />}
+          editLabel="Out-of-scope item"
+          editPlaceholder="e.g. SSO with third-party IdPs"
+          onChange={(scopeOut) => set({ scopeOut })}
+        />
       </div>
 
       <AttachmentsSection
         attachments={story.attachments ?? []}
         onChange={(attachments) => set({ attachments })}
       />
-    </>
+    </div>
+  )
+}
+
+function DiscoverSection({
+  title, icon, gradient, editView, children,
+}: {
+  title: string
+  icon: React.ReactNode
+  gradient: 'grad-purple' | 'grad-orange' | 'grad-pink' | 'grad-blue' | 'grad-green'
+  editView: React.ReactNode
+  children: React.ReactNode
+}) {
+  const [editing, setEditing] = useState(false)
+  return (
+    <section
+      className="panel"
+      style={{ padding: 22 }}
+      onBlur={(e) => {
+        if (!editing) return
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setEditing(false)
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <span
+          className={`section-icon ${gradient}`}
+          style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white', flexShrink: 0 }}
+        >
+          {icon}
+        </span>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, letterSpacing: '-0.005em', color: 'var(--ink)', flex: 1 }}>
+          {title}
+        </h3>
+        <button
+          onClick={() => setEditing((e) => !e)}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: '4px 8px', fontSize: 11, color: 'var(--mute)' }}
+        >
+          {editing ? <><Eye size={12} /> View</> : <><Edit3 size={12} /> Edit</>}
+        </button>
+      </div>
+      {editing ? editView : children}
+    </section>
+  )
+}
+
+function ScopePanel({
+  title, tone, items, icon, editLabel, editPlaceholder, onChange,
+}: {
+  title: string
+  tone: 'purple' | 'orange'
+  items: string[]
+  icon: React.ReactNode
+  editLabel: string
+  editPlaceholder: string
+  onChange: (items: string[]) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const color = tone === 'purple' ? 'var(--purple)' : 'var(--orange)'
+  return (
+    <section
+      className="panel"
+      style={{
+        padding: 18,
+        borderLeft: `3px solid ${color}`,
+      }}
+      onBlur={(e) => {
+        if (!editing) return
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setEditing(false)
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ color, display: 'inline-flex' }}>{icon}</span>
+        <h4 style={{ fontSize: 15, fontWeight: 600, margin: 0, letterSpacing: '-0.005em', color: 'var(--ink)', flex: 1 }}>
+          {title}
+        </h4>
+        <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{items.length}</span>
+        <button
+          onClick={() => setEditing((e) => !e)}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: '4px 8px', fontSize: 11, color: 'var(--mute)' }}
+        >
+          {editing ? <><Eye size={12} /> View</> : <><Edit3 size={12} /> Edit</>}
+        </button>
+      </div>
+      {editing ? (
+        <StringListEditor label={editLabel} placeholder={editPlaceholder} items={items} onChange={onChange} />
+      ) : items.length > 0 ? (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {items.map((s, i) => (
+            <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+              <span style={{ color, marginTop: 7, width: 4, height: 4, borderRadius: 999, background: color, flexShrink: 0 }} />
+              <span>{s}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0, fontStyle: 'italic' }}>None yet.</p>
+      )}
+    </section>
   )
 }
 
@@ -637,6 +804,7 @@ function UserStoryCard({
   onACAdd: () => void
 }) {
   const [expanded, setExpanded] = useState(true)
+  const [editing, setEditing] = useState(false)
   const tone = US_PRIORITY_TONE[us.priority]
 
   return (
@@ -647,6 +815,11 @@ function UserStoryCard({
         padding: 14,
         background: 'var(--panel-2)',
       }}
+      onBlur={(e) => {
+        if (!editing) return
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setEditing(false)
+      }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <span
@@ -654,32 +827,42 @@ function UserStoryCard({
           style={{
             fontSize: 11, fontWeight: 600,
             color: 'var(--purple)',
-            background: 'color-mix(in oklab, var(--purple) 12%, var(--panel))',
-            border: '1px solid color-mix(in oklab, var(--purple) 25%, var(--border))',
-            padding: '3px 9px', borderRadius: 6,
+            background: 'color-mix(in oklab, var(--purple) 10%, var(--panel-2))',
+            padding: '3px 8px', borderRadius: 6,
             letterSpacing: '0.05em', flexShrink: 0,
           }}
         >
           US-{String(index + 1).padStart(2, '0')}
         </span>
-        <span style={{
-          fontSize: 12, fontWeight: 600,
-          color: 'var(--purple)',
-          background: 'color-mix(in oklab, var(--purple) 12%, transparent)',
-          padding: '3px 9px', borderRadius: 999, letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-        }}>WHO</span>
-        <input
-          type="text"
-          value={us.asA}
-          onChange={(e) => onPatch({ asA: e.target.value })}
-          placeholder="role"
+        <span
           style={{
-            flex: 1, minWidth: 0,
-            background: 'transparent', border: 'none', outline: 'none',
-            fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            background: 'var(--chip)',
+            border: '1px solid var(--border)',
+            borderRadius: 999, padding: '3px 9px',
+            fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 0,
+            maxWidth: '100%',
           }}
-        />
+        >
+          <Users size={11} style={{ flexShrink: 0, color: 'var(--mute)' }} />
+          {editing ? (
+            <input
+              type="text"
+              value={us.asA}
+              onChange={(e) => onPatch({ asA: e.target.value })}
+              placeholder="role"
+              style={{
+                flex: 1, minWidth: 0,
+                background: 'transparent', border: 'none', outline: 'none',
+                fontSize: 12, color: 'var(--ink-2)', fontFamily: 'inherit',
+              }}
+            />
+          ) : (
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {us.asA || <em style={{ color: 'var(--mute)', fontStyle: 'normal' }}>role</em>}
+            </span>
+          )}
+        </span>
 
         {/* Priority pill (soft tint) */}
         <span
@@ -709,6 +892,13 @@ function UserStoryCard({
         <USStatusSelect value={us.status} onChange={(v) => onPatch({ status: v })} />
 
         <button
+          onClick={() => setEditing((e) => !e)}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: '4px 8px', fontSize: 11, color: 'var(--mute)' }}
+        >
+          {editing ? <><Eye size={12} /> View</> : <><Edit3 size={12} /> Edit</>}
+        </button>
+        <button
           onClick={() => setExpanded((e) => !e)}
           className="tz-btn tz-btn-ghost"
           style={{ padding: 4 }}
@@ -726,41 +916,53 @@ function UserStoryCard({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{
           background: 'var(--panel)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: 10,
+          borderRadius: 10, padding: 10, minWidth: 0,
         }}>
           <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 4 }}>
             WANT
           </div>
-          <AutoGrowTextarea
-            value={us.iWant}
-            onChange={(e) => onPatch({ iWant: e.target.value })}
-            placeholder="to do something"
-            minHeight={36}
-            focusMinHeight={100}
-            style={{
-              width: '100%', background: 'transparent', border: 'none', outline: 'none',
-              fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', resize: 'none', lineHeight: 1.45,
-            }}
-          />
+          {editing ? (
+            <AutoGrowTextarea
+              value={us.iWant}
+              onChange={(e) => onPatch({ iWant: e.target.value })}
+              placeholder="to do something"
+              minHeight={36}
+              focusMinHeight={100}
+              style={{
+                width: '100%', background: 'transparent', border: 'none', outline: 'none',
+                fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', resize: 'none', lineHeight: 1.45,
+              }}
+            />
+          ) : (
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, margin: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+              {us.iWant || <em style={{ color: 'var(--mute)', fontStyle: 'italic' }}>to do something…</em>}
+            </p>
+          )}
         </div>
         <div style={{
           background: 'var(--panel)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: 10,
+          borderRadius: 10, padding: 10, minWidth: 0,
         }}>
           <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 4 }}>
             BENEFIT
           </div>
-          <AutoGrowTextarea
-            value={us.soThat}
-            onChange={(e) => onPatch({ soThat: e.target.value })}
-            placeholder="so that…"
-            minHeight={36}
-            focusMinHeight={100}
-            style={{
-              width: '100%', background: 'transparent', border: 'none', outline: 'none',
-              fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', resize: 'none', lineHeight: 1.45,
-            }}
-          />
+          {editing ? (
+            <AutoGrowTextarea
+              value={us.soThat}
+              onChange={(e) => onPatch({ soThat: e.target.value })}
+              placeholder="so that…"
+              minHeight={36}
+              focusMinHeight={100}
+              style={{
+                width: '100%', background: 'transparent', border: 'none', outline: 'none',
+                fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', resize: 'none', lineHeight: 1.45,
+              }}
+            />
+          ) : (
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, margin: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+              {us.soThat || <em style={{ color: 'var(--mute)', fontStyle: 'italic' }}>so that…</em>}
+            </p>
+          )}
         </div>
       </div>
 
@@ -775,28 +977,26 @@ function UserStoryCard({
               ACCEPTANCE CRITERIA
             </span>
             <span style={{ flex: 1 }} />
-            <button
-              onClick={onACAdd}
-              className="tz-btn tz-btn-ghost"
-              style={{ padding: '4px 8px', fontSize: 11 }}
-            >
-              <Plus size={10} /> Add criterion
-            </button>
+            {editing && (
+              <button
+                onClick={onACAdd}
+                className="tz-btn tz-btn-ghost"
+                style={{ padding: '4px 8px', fontSize: 11 }}
+              >
+                <Plus size={10} /> Add criterion
+              </button>
+            )}
           </div>
           {us.criteria.length === 0 ? (
             <p style={{ fontSize: 12, color: 'var(--mute)', margin: 0 }}>No criteria yet.</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr 32px', gap: 8 }}>
-              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>#</div>
-              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>GIVEN</div>
-              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>WHEN</div>
-              <div className="tz-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', padding: '6px 4px', fontWeight: 600 }}>THEN</div>
-              <div />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {us.criteria.map((ac, i) => (
                 <ACRow
                   key={ac.id}
                   index={i}
                   ac={ac}
+                  editing={editing}
                   onPatch={(patch) => onACPatch(ac.id, patch)}
                   onRemove={() => onACRemove(ac.id)}
                 />
@@ -810,63 +1010,91 @@ function UserStoryCard({
 }
 
 function ACRow({
-  ac, index, onPatch, onRemove,
+  ac, index, editing, onPatch, onRemove,
 }: {
   ac: AcceptanceCriterion
   index: number
+  editing: boolean
   onPatch: (patch: Partial<AcceptanceCriterion>) => void
   onRemove: () => void
 }) {
-  const cellStyle: React.CSSProperties = {
-    background: 'var(--panel)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: 8,
-    fontSize: 12,
-    color: 'var(--ink)',
-    fontFamily: 'inherit',
+  const inputStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: 'none',
     outline: 'none',
-    resize: 'none',
-    lineHeight: 1.45,
+    fontSize: 13,
+    color: 'var(--ink-2)',
+    fontFamily: 'inherit',
+    flex: 1,
+    minWidth: 60,
+    lineHeight: 1.5,
   }
+  const labelStyle = (color: string): React.CSSProperties => ({
+    fontWeight: 600,
+    color,
+    flexShrink: 0,
+    marginRight: 4,
+  })
+
+  // Cell renderer: read-only text in view mode (wraps), input in edit mode
+  const cell = (
+    label: string,
+    color: string,
+    value: string,
+    setter: (v: string) => void,
+  ) => (
+    <span style={{ display: 'flex', alignItems: 'flex-start', minWidth: 0, gap: 0, flexWrap: 'nowrap' }}>
+      <span style={labelStyle(color)}>{label}</span>
+      {editing ? (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setter(e.target.value)}
+          placeholder="…"
+          style={inputStyle}
+        />
+      ) : (
+        <span
+          style={{
+            flex: 1, minWidth: 0,
+            fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5,
+            wordBreak: 'break-word', overflowWrap: 'anywhere',
+          }}
+        >
+          {value || <em style={{ color: 'var(--mute)', fontStyle: 'italic' }}>…</em>}
+        </span>
+      )}
+    </span>
+  )
+
   return (
-    <>
-      <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)', padding: '8px 4px', fontWeight: 500 }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: editing ? '52px 1fr 1fr 1fr 28px' : '52px 1fr 1fr 1fr',
+        gap: 12,
+        alignItems: 'flex-start',
+        padding: '6px 0',
+        fontSize: 13,
+      }}
+    >
+      <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 500, marginTop: 2 }}>
         AC-{index + 1}
       </span>
-      <AutoGrowTextarea
-        value={ac.given}
-        onChange={(e) => onPatch({ given: e.target.value })}
-        placeholder="Given…"
-        minHeight={32}
-        focusMinHeight={100}
-        style={cellStyle}
-      />
-      <AutoGrowTextarea
-        value={ac.when}
-        onChange={(e) => onPatch({ when: e.target.value })}
-        placeholder="When…"
-        minHeight={32}
-        focusMinHeight={100}
-        style={cellStyle}
-      />
-      <AutoGrowTextarea
-        value={ac.then}
-        onChange={(e) => onPatch({ then: e.target.value })}
-        placeholder="Then…"
-        minHeight={32}
-        focusMinHeight={100}
-        style={cellStyle}
-      />
-      <button
-        onClick={onRemove}
-        className="tz-btn tz-btn-ghost"
-        style={{ padding: 4, alignSelf: 'start', marginTop: 4, color: 'var(--mute)' }}
-        aria-label="Remove criterion"
-      >
-        <X size={12} />
-      </button>
-    </>
+      {cell('Given', 'var(--purple)', ac.given, (v) => onPatch({ given: v }))}
+      {cell('When',  'var(--blue)',   ac.when,  (v) => onPatch({ when: v }))}
+      {cell('Then',  'var(--green)',  ac.then,  (v) => onPatch({ then: v }))}
+      {editing && (
+        <button
+          onClick={onRemove}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: 4, color: 'var(--mute)' }}
+          aria-label="Remove criterion"
+        >
+          <X size={12} />
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -908,6 +1136,105 @@ function MoscowSelect({ value, onChange }: { value: MoscowPriority; onChange: (v
   )
 }
 
+function ReqRow({
+  req, onPatch, onRemove,
+}: {
+  req: Requirement
+  onPatch: (patch: Partial<Requirement>) => void
+  onRemove: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const codeColor = req.type === 'functional' ? 'var(--purple)' : 'var(--blue)'
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: editing ? '100px 1fr 130px 36px 36px' : '100px 1fr 130px 36px',
+        gap: 10, alignItems: 'center',
+        padding: 10,
+        background: 'var(--panel-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+      }}
+      onBlur={(e) => {
+        if (!editing) return
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setEditing(false)
+      }}
+    >
+      {editing ? (
+        <input
+          className="tz-mono"
+          value={req.code}
+          onChange={(e) => onPatch({ code: e.target.value })}
+          style={{
+            fontSize: 12, fontWeight: 600, color: codeColor,
+            background: `color-mix(in oklab, ${codeColor} 8%, var(--panel))`,
+            border: `1px solid color-mix(in oklab, ${codeColor} 20%, var(--border))`,
+            borderRadius: 8, padding: '6px 10px', textAlign: 'center',
+            outline: 'none', fontFamily: "'JetBrains Mono', monospace",
+          }}
+        />
+      ) : (
+        <span
+          className="tz-mono"
+          style={{
+            fontSize: 12, fontWeight: 600, color: codeColor,
+            background: `color-mix(in oklab, ${codeColor} 8%, var(--panel))`,
+            border: `1px solid color-mix(in oklab, ${codeColor} 20%, var(--border))`,
+            borderRadius: 8, padding: '6px 10px', textAlign: 'center',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          {req.code || '—'}
+        </span>
+      )}
+
+      {editing ? (
+        <AutoGrowTextarea
+          minHeight={36}
+          focusMinHeight={120}
+          placeholder="Description"
+          value={req.description}
+          onChange={(e) => onPatch({ description: e.target.value })}
+          style={{
+            width: '100%',
+            fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5,
+            background: 'transparent', border: 'none', outline: 'none',
+            fontFamily: 'inherit', resize: 'none',
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5,
+            wordBreak: 'break-word', overflowWrap: 'anywhere',
+          }}
+        >
+          {req.description || <em style={{ color: 'var(--mute)', fontStyle: 'italic' }}>No description.</em>}
+        </span>
+      )}
+
+      <MoscowSelect
+        value={req.priority}
+        onChange={(v) => onPatch({ priority: v })}
+      />
+
+      <button
+        onClick={() => setEditing((e) => !e)}
+        className="tz-btn tz-btn-ghost"
+        style={{ padding: 6, color: 'var(--mute)' }}
+        title={editing ? 'View' : 'Edit'}
+      >
+        {editing ? <Eye size={13} /> : <Edit3 size={13} />}
+      </button>
+
+      {editing && <DeleteIconBtn onClick={onRemove} label="Remove requirement" />}
+    </div>
+  )
+}
+
 function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
   const updateReq = (id: string, patch: Partial<Requirement>) => {
     set({ requirements: story.requirements.map((r) => r.id === id ? { ...r, ...patch } : r) })
@@ -930,49 +1257,12 @@ function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<St
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {reqs.map((r) => (
-          <div
+          <ReqRow
             key={r.id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '110px 1fr 130px 36px',
-              gap: 10, alignItems: 'center',
-              padding: 10,
-              background: 'var(--panel-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 10,
-            }}
-          >
-            <input
-              className="tz-mono"
-              value={r.code}
-              onChange={(e) => updateReq(r.id, { code: e.target.value })}
-              style={{
-                fontSize: 12, fontWeight: 600, color: 'var(--purple)',
-                background: 'color-mix(in oklab, var(--purple) 8%, var(--panel))',
-                border: '1px solid color-mix(in oklab, var(--purple) 20%, var(--border))',
-                borderRadius: 8, padding: '6px 10px', textAlign: 'center',
-                outline: 'none', fontFamily: "'JetBrains Mono', monospace",
-              }}
-            />
-            <AutoGrowTextarea
-              minHeight={36}
-              focusMinHeight={120}
-              placeholder="Description"
-              value={r.description}
-              onChange={(e) => updateReq(r.id, { description: e.target.value })}
-              style={{
-                width: '100%',
-                fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5,
-                background: 'transparent', border: 'none', outline: 'none',
-                fontFamily: 'inherit', resize: 'none',
-              }}
-            />
-            <MoscowSelect
-              value={r.priority}
-              onChange={(v) => updateReq(r.id, { priority: v })}
-            />
-            <DeleteIconBtn onClick={() => removeReq(r.id)} label="Remove requirement" />
-          </div>
+            req={r}
+            onPatch={(patch) => updateReq(r.id, patch)}
+            onRemove={() => removeReq(r.id)}
+          />
         ))}
       </div>
     )
@@ -1009,6 +1299,13 @@ function RequirementsTab({ story, set }: { story: Story; set: (patch: Partial<St
 
 // ── Process Flows tab ──────────────────────────────────────────────
 
+const LANE_COLORS = ['var(--purple)', 'var(--blue)', 'var(--green)', 'var(--orange)', 'var(--pink)', 'var(--amber)']
+
+function actorColor(actor: string, lanes: string[]): string {
+  const idx = lanes.indexOf(actor)
+  return LANE_COLORS[(idx >= 0 ? idx : 0) % LANE_COLORS.length]
+}
+
 function ProcessFlowsTab({ story, set }: { story: Story; set: (patch: Partial<Story>) => void }) {
   const updatePF = (id: string, patch: Partial<ProcessFlow>) => {
     set({ processFlows: story.processFlows.map((p) => p.id === id ? { ...p, ...patch } : p) })
@@ -1037,93 +1334,212 @@ function ProcessFlowsTab({ story, set }: { story: Story; set: (patch: Partial<St
       title="Process Flows"
       subtitle="Swim-lane style: each step has an actor and an action. Export to BPMN later."
       action={
-        <button
-          onClick={addPF}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-          style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-        >
+        <Button variant="gradient" onClick={addPF}>
           <Plus size={13} /> Add Flow
-        </button>
+        </Button>
       }
     >
       {story.processFlows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No process flows yet.</p>
+        <p style={{ fontSize: 13, color: 'var(--mute)' }}>No process flows yet.</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {story.processFlows.map((pf) => (
-            <div
+            <FlowCard
               key={pf.id}
-              className="p-4 rounded-lg"
-              style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
-            >
-              <div className="flex items-start gap-2 mb-3">
-                <AutoGrowTextarea
-                  className={inputClass + ' flex-1 font-semibold'}
-                  minHeight={38}
-                  focusMinHeight={100}
-                  placeholder="Flow name (e.g. New user onboarding)"
-                  value={pf.name}
-                  onChange={(e) => updatePF(pf.id, { name: e.target.value })}
-                />
-                <button
-                  onClick={() => removePF(pf.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-2"
-                  aria-label="Remove flow"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <AutoGrowTextarea
-                className={textareaClass + ' mb-3'}
-                placeholder="Describe the flow — trigger, happy path, alternate paths…"
-                value={pf.description}
-                onChange={(e) => updatePF(pf.id, { description: e.target.value })}
-              />
-
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Steps</label>
-                <button
-                  onClick={() => addStep(pf.id)}
-                  className="text-xs inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Plus size={12} /> Add step
-                </button>
-              </div>
-              <div className="flex flex-col gap-2">
-                {pf.steps.map((step, i) => (
-                  <div key={step.id} className="grid grid-cols-12 gap-2 items-start">
-                    <span className="col-span-1 text-xs text-muted-foreground text-right mt-2">{i + 1}.</span>
-                    <AutoGrowTextarea
-                      className={inputClass + ' col-span-4'}
-                      minHeight={38}
-                      focusMinHeight={100}
-                      placeholder="Actor (e.g. User)"
-                      value={step.actor}
-                      onChange={(e) => updateStep(pf.id, step.id, { actor: e.target.value })}
-                    />
-                    <AutoGrowTextarea
-                      className={inputClass + ' col-span-6'}
-                      minHeight={38}
-                      focusMinHeight={100}
-                      placeholder="Action (e.g. Submits signup form)"
-                      value={step.action}
-                      onChange={(e) => updateStep(pf.id, step.id, { action: e.target.value })}
-                    />
-                    <button
-                      onClick={() => removeStep(pf.id, step.id)}
-                      className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive transition-colors mt-2"
-                      aria-label="Remove step"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+              flow={pf}
+              onPatch={(patch) => updatePF(pf.id, patch)}
+              onRemove={() => removePF(pf.id)}
+              onAddStep={() => addStep(pf.id)}
+              onUpdateStep={(stepId, patch) => updateStep(pf.id, stepId, patch)}
+              onRemoveStep={(stepId) => removeStep(pf.id, stepId)}
+            />
           ))}
         </div>
       )}
     </SectionCard>
+  )
+}
+
+function FlowCard({
+  flow, onPatch, onRemove, onAddStep, onUpdateStep, onRemoveStep,
+}: {
+  flow: ProcessFlow
+  onPatch: (patch: Partial<ProcessFlow>) => void
+  onRemove: () => void
+  onAddStep: () => void
+  onUpdateStep: (stepId: string, patch: Partial<ProcessFlowStep>) => void
+  onRemoveStep: (stepId: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+
+  // Unique actor lanes preserving order of first appearance
+  const lanes: string[] = []
+  flow.steps.forEach((s) => { const a = (s.actor || '').trim() || 'Unassigned'; if (!lanes.includes(a)) lanes.push(a) })
+
+  return (
+    <div
+      style={{
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        background: 'var(--panel-2)',
+        overflow: 'hidden',
+      }}
+      onBlur={(e) => {
+        if (!editing) return
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setEditing(false)
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 14px', borderBottom: '1px solid var(--border)',
+        }}
+      >
+        <GitBranch size={14} style={{ color: 'var(--green)', flexShrink: 0 }} />
+        {editing ? (
+          <input
+            type="text"
+            value={flow.name}
+            onChange={(e) => onPatch({ name: e.target.value })}
+            placeholder="Flow name (e.g. New user onboarding)"
+            style={{
+              flex: 1, minWidth: 0,
+              fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
+              background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+        ) : (
+          <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
+            {flow.name || 'Untitled flow'}
+          </span>
+        )}
+        <button
+          onClick={() => setEditing((e) => !e)}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: '4px 8px', fontSize: 11, color: 'var(--mute)' }}
+        >
+          {editing ? <><Eye size={12} /> Swimlane view</> : <><Edit3 size={12} /> Edit</>}
+        </button>
+        <DeleteIconBtn onClick={onRemove} label="Remove flow" />
+      </div>
+
+      {/* Description (only in edit mode) */}
+      {editing && (
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+          <AutoGrowTextarea
+            placeholder="Describe the flow — trigger, happy path, alternate paths…"
+            value={flow.description}
+            onChange={(e) => onPatch({ description: e.target.value })}
+            className="tz-input tz-textarea"
+            style={{ fontSize: 13 }}
+          />
+        </div>
+      )}
+      {!editing && flow.description && (
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          {flow.description}
+        </div>
+      )}
+
+      {/* Body */}
+      {editing ? (
+        <div style={{ padding: '10px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <span className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}>STEPS</span>
+            <span style={{ flex: 1 }} />
+            <button onClick={onAddStep} className="tz-btn tz-btn-ghost" style={{ padding: '4px 8px', fontSize: 11 }}>
+              <Plus size={10} /> Add step
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {flow.steps.map((step, i) => (
+              <div
+                key={step.id}
+                style={{
+                  display: 'grid', gridTemplateColumns: '32px 110px 1fr 32px',
+                  gap: 10, alignItems: 'center',
+                  padding: '8px 10px', background: 'var(--panel)',
+                  border: '1px solid var(--border)', borderRadius: 9,
+                }}
+              >
+                <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)', textAlign: 'center' }}>{i + 1}.</span>
+                <input
+                  type="text"
+                  value={step.actor}
+                  onChange={(e) => onUpdateStep(step.id, { actor: e.target.value })}
+                  placeholder="Actor"
+                  style={{
+                    fontSize: 12, fontWeight: 600, color: 'var(--ink)',
+                    background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={step.action}
+                  onChange={(e) => onUpdateStep(step.id, { action: e.target.value })}
+                  placeholder="Action"
+                  style={{
+                    fontSize: 13, color: 'var(--ink-2)',
+                    background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit',
+                  }}
+                />
+                <button
+                  onClick={() => onRemoveStep(step.id)}
+                  className="tz-btn tz-btn-ghost"
+                  style={{ padding: 4, color: 'var(--mute)' }}
+                  aria-label="Remove step"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: '14px' }}>
+          {lanes.length === 0 || flow.steps.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0 }}>No steps yet — click Edit to add some.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {lanes.map((lane) => {
+                const color = actorColor(lane, lanes)
+                const stepsInLane = flow.steps
+                  .map((s, idx) => ({ s, idx }))
+                  .filter(({ s }) => ((s.actor || '').trim() || 'Unassigned') === lane)
+                return (
+                  <div key={lane} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>{lane}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {stepsInLane.map(({ s, idx }, i) => (
+                        <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            title={s.action || `Step ${idx + 1}`}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '4px 10px', borderRadius: 999,
+                              fontSize: 11.5, fontWeight: 600,
+                              color, background: `color-mix(in oklab, ${color} 12%, transparent)`,
+                              border: `1px solid color-mix(in oklab, ${color} 25%, transparent)`,
+                            }}
+                          >
+                            Step {idx + 1}
+                          </span>
+                          {i < stepsInLane.length - 1 && (
+                            <span aria-hidden style={{ width: 14, height: 1, background: 'var(--border-strong)' }} />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1141,74 +1557,146 @@ function WireframesTab({ story, set }: { story: Story; set: (patch: Partial<Stor
       title="Wireframes & Mockups"
       subtitle="Paste image URLs from Figma, Miro, or any hosted image."
       action={
-        <button
-          onClick={addWF}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-opacity hover:opacity-90"
-          style={{ background: 'var(--app-btn-primary)', color: 'var(--app-btn-text)' }}
-        >
+        <Button variant="gradient" onClick={addWF}>
           <Plus size={13} /> Add Wireframe
-        </button>
+        </Button>
       }
     >
       {story.wireframes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No wireframes yet.</p>
+        <p style={{ fontSize: 13, color: 'var(--mute)' }}>No wireframes yet.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {story.wireframes.map((wf) => (
-            <div
+            <WireframeCard
               key={wf.id}
-              className="p-3 rounded-lg"
-              style={{ background: 'var(--app-bg)', border: '1px solid var(--app-glass-border)' }}
-            >
-              <div className="flex items-start gap-2 mb-2">
-                <AutoGrowTextarea
-                  className={inputClass + ' flex-1 font-semibold'}
-                  minHeight={38}
-                  focusMinHeight={100}
-                  placeholder="Wireframe name"
-                  value={wf.name}
-                  onChange={(e) => updateWF(wf.id, { name: e.target.value })}
-                />
-                <button
-                  onClick={() => removeWF(wf.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 mt-2"
-                  aria-label="Remove wireframe"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <input
-                className={inputClass + ' mb-2 text-xs'}
-                placeholder="Image URL (https://…)"
-                value={wf.imageUrl}
-                onChange={(e) => updateWF(wf.id, { imageUrl: e.target.value })}
-              />
-              {wf.imageUrl && (
-                <div
-                  className="mb-2 rounded-md overflow-hidden"
-                  style={{ border: '1px solid var(--app-glass-border)', background: 'var(--app-glass)' }}
-                >
-                  <img
-                    src={wf.imageUrl}
-                    alt={wf.name || 'Wireframe'}
-                    className="w-full h-auto max-h-64 object-contain"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                  />
-                </div>
-              )}
-              <AutoGrowTextarea
-                className={textareaClass + ' text-xs'}
-                minHeight={60}
-                focusMinHeight={160}
-                placeholder="Notes about this wireframe…"
-                value={wf.notes}
-                onChange={(e) => updateWF(wf.id, { notes: e.target.value })}
-              />
-            </div>
+              wf={wf}
+              onPatch={(patch) => updateWF(wf.id, patch)}
+              onRemove={() => removeWF(wf.id)}
+            />
           ))}
         </div>
       )}
     </SectionCard>
+  )
+}
+
+function WireframeCard({
+  wf, onPatch, onRemove,
+}: {
+  wf: Wireframe
+  onPatch: (patch: Partial<Wireframe>) => void
+  onRemove: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+
+  return (
+    <div
+      style={{
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        background: 'var(--panel-2)',
+        padding: 12,
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+      onBlur={(e) => {
+        if (!editing) return
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setEditing(false)
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <ImageIcon size={13} style={{ color: 'var(--purple)', flexShrink: 0 }} />
+        {editing ? (
+          <input
+            type="text"
+            value={wf.name}
+            onChange={(e) => onPatch({ name: e.target.value })}
+            placeholder="Wireframe name"
+            style={{
+              flex: 1, minWidth: 0,
+              fontSize: 13, fontWeight: 600, color: 'var(--ink)',
+              background: 'transparent', border: 'none', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+        ) : (
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+            {wf.name || 'Untitled wireframe'}
+          </span>
+        )}
+        <button
+          onClick={() => setEditing((e) => !e)}
+          className="tz-btn tz-btn-ghost"
+          style={{ padding: '4px 8px', fontSize: 11, color: 'var(--mute)' }}
+        >
+          {editing ? <><Eye size={12} /> View</> : <><Edit3 size={12} /> Edit</>}
+        </button>
+        <DeleteIconBtn onClick={onRemove} label="Remove wireframe" />
+      </div>
+
+      {/* Preview / placeholder area */}
+      {wf.imageUrl ? (
+        <div
+          style={{
+            borderRadius: 9, overflow: 'hidden',
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <img
+            src={wf.imageUrl}
+            alt={wf.name || 'Wireframe'}
+            style={{ width: '100%', height: 'auto', maxHeight: 220, objectFit: 'contain', display: 'block' }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+          />
+        </div>
+      ) : (
+        <div
+          style={{
+            aspectRatio: '16 / 9',
+            borderRadius: 9,
+            border: '1px dashed var(--border-strong)',
+            background:
+              'repeating-linear-gradient(45deg, var(--panel) 0px, var(--panel) 8px, var(--panel-2) 8px, var(--panel-2) 16px)',
+            display: 'grid', placeItems: 'center', textAlign: 'center', padding: 14,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <ImageIcon size={20} style={{ color: 'var(--mute-2)' }} />
+            <div style={{ fontSize: 12, color: 'var(--mute)' }}>Drop image or paste URL</div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit fields */}
+      {editing && (
+        <>
+          <input
+            type="text"
+            placeholder="Image URL (https://…)"
+            value={wf.imageUrl}
+            onChange={(e) => onPatch({ imageUrl: e.target.value })}
+            className="tz-input"
+            style={{ fontSize: 12 }}
+          />
+          <AutoGrowTextarea
+            placeholder="Notes about this wireframe…"
+            minHeight={40}
+            focusMinHeight={120}
+            value={wf.notes}
+            onChange={(e) => onPatch({ notes: e.target.value })}
+            className="tz-input tz-textarea"
+            style={{ fontSize: 12 }}
+          />
+        </>
+      )}
+
+      {/* Notes (read-only mode) */}
+      {!editing && wf.notes && wf.notes.trim() && (
+        <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          {wf.notes}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1953,7 +2441,7 @@ function StoryDetail() {
   const { story, ready } = useStory(id)
   const { projects } = useProjects()
   const [draft, setDraft] = useState<Story | null>(null)
-  const [tab, setTab] = useState<TabKey>('overview')
+  const [phase, setPhase] = useState<PhaseId>('discover')
   const [saved, setSaved] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
@@ -2181,7 +2669,7 @@ function StoryDetail() {
     )
   }
 
-  const progressPct = computeStoryProgress(draft)
+  const phasePercents = computePhasePercents(draft)
   const counts = {
     userStories: draft.userStories.length,
     requirements: draft.requirements.length,
@@ -2289,14 +2777,25 @@ function StoryDetail() {
           <Button
             variant={dirty ? 'gradient' : 'default'}
             onClick={save}
-            disabled={!dirty && !saved}
-            style={!dirty && !saved ? { opacity: 0.55, cursor: 'default' } : undefined}
+            disabled={!dirty}
+            style={!dirty ? { opacity: 0.55, cursor: 'default' } : undefined}
           >
             <Save size={14} />
-            {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
+            {saved ? 'Saved' : 'Save'}
           </Button>
         </div>
       </div>
+
+      {/* Progress strip */}
+      <ProgressStrip
+        manual={draft.manualProgress ?? null}
+        onManualChange={(v) => set({ manualProgress: v })}
+        updatedAt={draft.updatedAt}
+        attachmentCount={draft.attachments?.length ?? 0}
+      />
+
+      {/* Phase rail */}
+      <PhaseRail phase={phase} percents={phasePercents} onSelect={setPhase} />
 
       {/* Count tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12, marginBottom: 22 }}>
@@ -2307,34 +2806,38 @@ function StoryDetail() {
         <CountTile icon="alert" gradient="grad-red" label="RAID" value={counts.raid} />
       </div>
 
-      {/* Progress strip */}
-      <ProgressStrip
-        progressPct={progressPct}
-        manual={draft.manualProgress ?? null}
-        onManualChange={(v) => set({ manualProgress: v })}
-        updatedAt={draft.updatedAt}
-        attachmentCount={draft.attachments?.length ?? 0}
-      />
+      {/* Phase content */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {phase === 'discover' && <OverviewTab story={draft} set={set} />}
 
-      {/* Tabs */}
-      <div style={{ marginBottom: 22, overflowX: 'auto', paddingBottom: 4 }}>
-        <Segmented
-          variant="gradient"
-          value={tab}
-          onChange={(v) => setTab(v as TabKey)}
-          options={TABS.map((t) => ({ value: t.key, label: t.label, icon: TAB_ICON[t.key] }))}
-        />
+        {phase === 'define' && (
+          <>
+            <UserStoriesTab
+              story={draft}
+              set={set}
+              onGenerateSuite={() => setSuiteConfirmOpen(true)}
+              suiteGenerating={suiteGenerating}
+            />
+            <RequirementsTab story={draft} set={set} />
+          </>
+        )}
+
+        {phase === 'design' && (
+          <>
+            <ProcessFlowsTab story={draft} set={set} />
+            <WireframesTab story={draft} set={set} />
+          </>
+        )}
+
+        {phase === 'validate' && (
+          <>
+            <RtmTab story={draft} set={set} />
+            <RaidTab story={draft} set={set} />
+          </>
+        )}
+
+        {phase === 'deliver' && <NotesTab story={draft} set={set} />}
       </div>
-
-      {/* Tab content */}
-      {tab === 'overview'      && <OverviewTab      story={draft} set={set} />}
-      {tab === 'user-stories'  && <UserStoriesTab   story={draft} set={set} onGenerateSuite={() => setSuiteConfirmOpen(true)} suiteGenerating={suiteGenerating} />}
-      {tab === 'requirements'  && <RequirementsTab  story={draft} set={set} />}
-      {tab === 'process-flows' && <ProcessFlowsTab  story={draft} set={set} />}
-      {tab === 'wireframes'    && <WireframesTab    story={draft} set={set} />}
-      {tab === 'rtm'           && <RtmTab           story={draft} set={set} />}
-      {tab === 'raid'          && <RaidTab          story={draft} set={set} />}
-      {tab === 'notes'         && <NotesTab         story={draft} set={set} />}
 
       {/* AI fill panel */}
       {aiOpen && (
@@ -2401,17 +2904,6 @@ const STATUS_ICON: Record<StoryStatus, IconName> = {
   done: 'check-circle',
 }
 
-const TAB_ICON: Record<TabKey, IconName> = {
-  overview: 'target',
-  'user-stories': 'file-text',
-  requirements: 'layers',
-  'process-flows': 'branch',
-  wireframes: 'grid',
-  rtm: 'link',
-  raid: 'alert',
-  notes: 'edit',
-}
-
 function CountTile({
   icon, gradient, label, value,
 }: {
@@ -2420,89 +2912,80 @@ function CountTile({
   label: string
   value: number
 }) {
-  // grad-red falls back to grad-orange if the theme doesn't define it
   const gradClass = gradient === 'grad-red' ? 'grad-orange' : gradient
   return (
     <div
       className="panel"
       style={{
-        position: 'relative', overflow: 'hidden',
         padding: '14px 16px',
-        display: 'flex', flexDirection: 'column', gap: 10,
+        display: 'flex', alignItems: 'center', gap: 12, minWidth: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          className={`section-icon ${gradClass}`}
-          style={{ width: 28, height: 28, borderRadius: 8, display: 'inline-grid', placeItems: 'center', color: 'white' }}
+      <span
+        className={`section-icon ${gradClass}`}
+        style={{ width: 38, height: 38, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white', flexShrink: 0 }}
+      >
+        <StoryTileIcon name={icon} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div
+          className="tz-mono"
+          style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, textTransform: 'uppercase' }}
         >
-          <StoryTileIcon name={icon} />
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {label}
-        </span>
-      </div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 28, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-        {value}
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, marginTop: 3, color: 'var(--ink)' }}>
+          {value}
+        </div>
       </div>
     </div>
   )
 }
 
 function StoryTileIcon({ name }: { name: IconName }) {
+  const SZ = 22
   const map: Record<IconName, React.ReactNode> = {
-    users: <Users size={14} />,
-    'file-text': <FileText size={14} />,
-    layers: <ListTree size={14} />,
-    branch: <GitBranch size={14} />,
-    target: <Target size={14} />,
-    alert: <AlertTriangle size={14} />,
-    check: <CheckCircle2 size={14} />,
-    x: <X size={14} />,
-    clock: <Clock size={14} />,
-    calendar: <Clock size={14} />,
-    flag: <Clock size={14} />,
-    clipboard: <FileText size={14} />,
-    tag: <FileText size={14} />,
-    search: <HelpCircle size={14} />,
-    filter: <HelpCircle size={14} />,
-    sort: <HelpCircle size={14} />,
-    more: <HelpCircle size={14} />,
-    plus: <Plus size={14} />,
-    'arrow-right': <ChevronRight size={14} />,
-    'chevron-down': <ChevronDown size={14} />,
-    'chevron-right': <ChevronRight size={14} />,
-    folder: <FolderOpen size={14} />,
-    book: <FileText size={14} />,
-    'trend-up': <Target size={14} />,
-    bell: <HelpCircle size={14} />,
-    moon: <HelpCircle size={14} />,
-    sun: <HelpCircle size={14} />,
-    edit: <StickyNote size={14} />,
-    link: <Network size={14} />,
-    play: <Sparkles size={14} />,
-    'check-circle': <CheckCircle2 size={14} />,
-    'x-circle': <X size={14} />,
-    sparkles: <Sparkles size={14} />,
-    home: <HelpCircle size={14} />,
-    grid: <ImageIcon size={14} />,
-    list: <ListTree size={14} />,
-    split: <HelpCircle size={14} />,
-    user: <Users size={14} />,
-    eye: <HelpCircle size={14} />,
+    users: <Users size={SZ} />,
+    'file-text': <FileText size={SZ} />,
+    layers: <ListTree size={SZ} />,
+    branch: <GitBranch size={SZ} />,
+    target: <Target size={SZ} />,
+    alert: <AlertTriangle size={SZ} />,
+    check: <CheckCircle2 size={SZ} />,
+    x: <X size={SZ} />,
+    clock: <Clock size={SZ} />,
+    calendar: <Clock size={SZ} />,
+    flag: <Clock size={SZ} />,
+    clipboard: <FileText size={SZ} />,
+    tag: <FileText size={SZ} />,
+    search: <HelpCircle size={SZ} />,
+    filter: <HelpCircle size={SZ} />,
+    sort: <HelpCircle size={SZ} />,
+    more: <HelpCircle size={SZ} />,
+    plus: <Plus size={SZ} />,
+    'arrow-right': <ChevronRight size={SZ} />,
+    'chevron-down': <ChevronDown size={SZ} />,
+    'chevron-right': <ChevronRight size={SZ} />,
+    folder: <FolderOpen size={SZ} />,
+    book: <FileText size={SZ} />,
+    'trend-up': <Target size={SZ} />,
+    bell: <HelpCircle size={SZ} />,
+    moon: <HelpCircle size={SZ} />,
+    sun: <HelpCircle size={SZ} />,
+    edit: <StickyNote size={SZ} />,
+    link: <Network size={SZ} />,
+    play: <Sparkles size={SZ} />,
+    'check-circle': <CheckCircle2 size={SZ} />,
+    'x-circle': <X size={SZ} />,
+    sparkles: <Sparkles size={SZ} />,
+    home: <HelpCircle size={SZ} />,
+    grid: <ImageIcon size={SZ} />,
+    list: <ListTree size={SZ} />,
+    split: <HelpCircle size={SZ} />,
+    user: <Users size={SZ} />,
+    eye: <HelpCircle size={SZ} />,
   }
   return <>{map[name] ?? <HelpCircle size={14} />}</>
-}
-
-function computeStoryProgress(s: Story): number {
-  if (typeof s.manualProgress === 'number') {
-    return Math.max(0, Math.min(100, Math.round(s.manualProgress)))
-  }
-  const done = s.userStories.filter((u) => u.status === 'done').length
-  const verified = s.rtm.filter((r) => r.status === 'verified').length
-  const totalItems = s.userStories.length + s.rtm.length
-  if (totalItems === 0) return 0
-  return Math.round(((done + verified) / totalItems) * 100)
 }
 
 function formatUpdated(iso: string | undefined): string {
@@ -2514,20 +2997,17 @@ function formatUpdated(iso: string | undefined): string {
 }
 
 function ProgressStrip({
-  progressPct,
   manual,
   onManualChange,
   updatedAt,
   attachmentCount,
 }: {
-  progressPct: number
   manual: number | null
-  onManualChange: (v: number | null) => void
+  onManualChange: (v: number) => void
   updatedAt: string | undefined
   attachmentCount: number
 }) {
-  const isManual = typeof manual === 'number'
-  const displayValue = isManual ? Math.max(0, Math.min(100, manual!)) : progressPct
+  const value = typeof manual === 'number' ? Math.max(0, Math.min(100, manual)) : 0
 
   return (
     <div
@@ -2539,46 +3019,23 @@ function ProgressStrip({
         alignItems: 'center', gap: 16,
       }}
     >
-      <Ring value={displayValue} size={42} stroke={4} color="var(--purple)" />
+      <Ring value={value} size={42} stroke={4} color="var(--purple)" />
       <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 2 }}>
-              Progress
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace" }}>
-              {displayValue}%
-              <span style={{ fontSize: 13, color: 'var(--mute)', fontWeight: 500 }}> complete</span>
-              <span
-                style={{
-                  marginLeft: 10, fontSize: 11, fontWeight: 600,
-                  color: isManual ? 'var(--purple)' : 'var(--mute)',
-                  textTransform: 'uppercase', letterSpacing: '0.06em',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {isManual ? 'Manual' : 'Auto'}
-              </span>
-            </div>
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 2 }}>
+            Progress
           </div>
-          <button
-            type="button"
-            onClick={() => onManualChange(isManual ? null : progressPct)}
-            style={{
-              fontSize: 12, fontWeight: 500, color: 'var(--mute)',
-              background: 'transparent', border: '1px solid var(--border)',
-              padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-            }}
-          >
-            {isManual ? 'Use auto-computed' : 'Set manually'}
-          </button>
+          <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace" }}>
+            {value}%
+            <span style={{ fontSize: 13, color: 'var(--mute)', fontWeight: 500 }}> complete</span>
+          </div>
         </div>
         <input
           type="range"
           min={0}
           max={100}
           step={1}
-          value={displayValue}
+          value={value}
           onChange={(e) => onManualChange(Number(e.target.value))}
           className="tz-progress-slider"
           style={{ width: '100%' }}
@@ -2594,6 +3051,74 @@ function ProgressStrip({
     </div>
   )
 }
+
+function PhaseRail({
+  phase,
+  percents,
+  onSelect,
+}: {
+  phase: PhaseId
+  percents: Record<PhaseId, number>
+  onSelect: (id: PhaseId) => void
+}) {
+  return (
+    <div className="panel" style={{ padding: 16, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+        {PHASES.map((p) => {
+          const pct = percents[p.id]
+          const active = p.id === phase
+          const done = pct === 100
+          return (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              style={{
+                border: active ? '1.5px solid var(--purple)' : '1px solid var(--border)',
+                background: active
+                  ? 'color-mix(in oklab, var(--purple) 6%, var(--panel))'
+                  : done
+                    ? 'color-mix(in oklab, var(--green) 5%, var(--panel))'
+                    : 'var(--panel)',
+                borderRadius: 11, padding: '12px 14px',
+                display: 'flex', flexDirection: 'column', gap: 8,
+                cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                transition: 'all .15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span
+                  style={{
+                    width: 26, height: 26, borderRadius: 999,
+                    background: done ? 'var(--green)' : active ? 'var(--purple)' : 'var(--panel-2)',
+                    color: done || active ? 'white' : 'var(--mute)',
+                    display: 'grid', placeItems: 'center',
+                    fontSize: 11, fontWeight: 700, flexShrink: 0,
+                    border: done || active ? 0 : '1px solid var(--border-strong)',
+                  }}
+                >
+                  {done ? <CheckCircle2 size={12} /> : p.num}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{p.label}</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--mute)', lineHeight: 1.35 }}>{p.desc}</div>
+              <div style={{ height: 3, borderRadius: 2, background: 'var(--panel-2)', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${pct}%`,
+                    background: done ? 'var(--green)' : 'var(--purple)',
+                    transition: 'width .3s',
+                  }}
+                />
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 
 function GenerateSuiteConfirmModal({
   storyTitle,

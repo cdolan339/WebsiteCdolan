@@ -1,9 +1,8 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { useTestOrder } from '@/lib/useTestOrder'
 import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, Trash2, RotateCcw, ChevronRight, ArrowRight, X, AlertTriangle } from 'lucide-react'
 import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
-import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject, type CustomTestCase } from '@/lib/customTestCases'
+import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject, reorderCustomTestCases, type CustomTestCase } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import {
@@ -250,20 +249,10 @@ function TestSuitesPage() {
   const completedCases = customCases.filter((tc) => tc.completed)
   const visibleCases = tab === 'active' ? activeCases : completedCases
 
-  const getDefaultSlugs = useCallback(() => {
-    return [...visibleCases]
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .map((tc) => `custom:${tc.id}`)
-  }, [visibleCases])
-
-  const { order, setOrder } = useTestOrder(getDefaultSlugs())
-
   const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
-  const caseMap = useMemo(
-    () => new Map<string, CustomTestCase>(visibleCases.map((tc) => [`custom:${tc.id}`, tc])),
-    [visibleCases],
-  )
-  const sortedCases = order.map((s) => caseMap.get(s)).filter((v): v is CustomTestCase => !!v)
+  // Server already sorts by display_order; keep visibleCases as-is
+  const sortedCases = visibleCases
+  const order = useMemo(() => sortedCases.map((tc) => `custom:${tc.id}`), [sortedCases])
 
   // Aggregate totals across visible cases
   const totals = sortedCases.reduce(
@@ -287,8 +276,12 @@ function TestSuitesPage() {
     if (!over || active.id === over.id) return
     const oldIndex = order.indexOf(active.id as string)
     const newIndex = order.indexOf(over.id as string)
-    setOrder(arrayMove(order, oldIndex, newIndex))
-  }, [order, setOrder])
+    if (oldIndex === -1 || newIndex === -1) return
+    // Map slugs back to ids and call the server reorder
+    const reorderedSlugs = arrayMove(order, oldIndex, newIndex)
+    const ids = reorderedSlugs.map((slug) => slug.replace(/^custom:/, ''))
+    reorderCustomTestCases(ids).catch((err) => console.error('Reorder failed', err))
+  }, [order])
 
   if (loading) return <LoadingCurtain visible message="Loading Test Suites" />
 

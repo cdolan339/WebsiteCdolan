@@ -200,6 +200,24 @@ export async function completeTestCase(
   }
 }
 
+export async function reorderCustomTestCases(ids: string[]): Promise<void> {
+  await ensureLoaded();
+  const map = new Map((caseCache ?? []).map((c) => [c.id, c] as const));
+  const reordered = ids.map((id) => map.get(id)).filter((c): c is CustomTestCase => !!c);
+  const rest = (caseCache ?? []).filter((c) => !ids.includes(c.id));
+  caseCache = [...reordered, ...rest];
+  notify();
+
+  try {
+    await api("/custom-test-cases/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({ ids }),
+    });
+  } catch (err) {
+    console.error("Failed to reorder test cases:", err);
+  }
+}
+
 export async function deleteCustomTestCase(id: string): Promise<void> {
   await ensureLoaded();
   caseCache = (caseCache ?? []).filter((tc) => tc.id !== id);

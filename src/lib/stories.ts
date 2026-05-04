@@ -369,6 +369,25 @@ export async function completeStory(id: string, completed: boolean): Promise<voi
   }
 }
 
+export async function reorderStories(ids: string[]): Promise<void> {
+  await ensureLoaded();
+  // Optimistic local reorder so the user sees the move instantly
+  const map = new Map((storyCache ?? []).map((s) => [s.id, s] as const));
+  const reordered = ids.map((id) => map.get(id)).filter((s): s is Story => !!s);
+  const rest = (storyCache ?? []).filter((s) => !ids.includes(s.id));
+  storyCache = [...reordered, ...rest];
+  notify();
+
+  try {
+    await api("/stories/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({ ids }),
+    });
+  } catch (err) {
+    console.error("Failed to reorder stories:", err);
+  }
+}
+
 export async function deleteStory(id: string): Promise<void> {
   await ensureLoaded();
   storyCache = (storyCache ?? []).filter((s) => s.id !== id);

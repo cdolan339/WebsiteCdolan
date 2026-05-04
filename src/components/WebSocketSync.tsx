@@ -27,6 +27,7 @@ export function WebSocketSync() {
       case "test-case:updated":
       case "test-case:completed":
       case "test-case:deleted":
+      case "test-case:reordered":
         invalidateCustomCache();
         break;
 
@@ -34,6 +35,7 @@ export function WebSocketSync() {
       case "story:updated":
       case "story:deleted":
       case "story:completed":
+      case "story:reordered":
         invalidateStoryCache();
         break;
 

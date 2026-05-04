@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useProjects, createProject, updateProject, deleteProject, type Project, type CreateProjectPayload } from '@/lib/projects'
+import { useProjects, createProject, updateProject, deleteProject, setProjectHealth, type Project, type CreateProjectPayload } from '@/lib/projects'
 import { useHasPermission } from '@/lib/permissions'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { useState, useMemo } from 'react'
@@ -12,6 +12,10 @@ import {
 import {
   PageShell, EyebrowChip, Pill, Button, Avatar, colorForName,
 } from '@/components/design/primitives'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  useDraggable, useDroppable, type DragEndEvent,
+} from '@dnd-kit/core'
 
 export const Route = createFileRoute('/projects/')({
   component: ProjectsPage,
@@ -22,6 +26,10 @@ export const Route = createFileRoute('/projects/')({
 type Health = 'on-track' | 'at-risk' | 'blocked'
 
 function healthForProject(p: Project): Health {
+  // Prefer the stored override (set by drag-and-drop) when present
+  if (p.health === 'on-track' || p.health === 'at-risk' || p.health === 'blocked') {
+    return p.health
+  }
   if (!p.deadline) return 'on-track'
   const now = Date.now()
   const dl = new Date(p.deadline).getTime()
@@ -992,6 +1000,80 @@ function accentGradientForProject(p: Project): string {
   return ACCENT_GRADIENTS[p.id % ACCENT_GRADIENTS.length]
 }
 
+function HealthLane({
+  health, projects, canCreate, onAdd, onEdit, onDelete,
+}: {
+  health: Health
+  projects: Project[]
+  canCreate: boolean
+  onAdd: () => void
+  onEdit: (p: Project) => void
+  onDelete: (p: Project) => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: health })
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <ColumnHeader
+        tone={health}
+        label={HEALTH_META[health].label}
+        count={projects.length}
+        onAdd={canCreate ? onAdd : undefined}
+      />
+      <div
+        ref={setNodeRef}
+        style={{
+          display: 'flex', flexDirection: 'column', gap: 12,
+          minHeight: 80,
+          padding: 4,
+          borderRadius: 14,
+          background: isOver ? `color-mix(in oklab, ${HEALTH_META[health].dot} 8%, transparent)` : 'transparent',
+          border: isOver ? `1px dashed color-mix(in oklab, ${HEALTH_META[health].dot} 40%, transparent)` : '1px dashed transparent',
+          transition: 'background .15s, border-color .15s',
+        }}
+      >
+        {projects.length === 0 ? (
+          <div
+            style={{
+              padding: '22px 16px', borderRadius: 12, textAlign: 'center',
+              border: '1px dashed var(--border)',
+              color: 'var(--mute)', fontSize: 12.5,
+            }}
+          >
+            {isOver ? 'Drop here' : 'No projects here'}
+          </div>
+        ) : (
+          projects.map((p) => (
+            <DraggableProjectCard
+              key={p.id}
+              project={p}
+              canEdit={canCreate}
+              onEdit={() => onEdit(p)}
+              onDelete={() => onDelete(p)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DraggableProjectCard(props: {
+  project: Project; canEdit: boolean; onEdit: () => void; onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: props.project.id })
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    touchAction: 'none',
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <ProjectCard {...props} />
+    </div>
+  )
+}
+
 function ProjectCard({
   project, canEdit, onEdit, onDelete,
 }: {
@@ -1261,6 +1343,23 @@ function ProjectsPage() {
     setDeletingProject(null)
   }
 
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over) return
+    const projectId = Number(active.id)
+    const targetHealth = String(over.id) as Health
+    if (!Number.isFinite(projectId)) return
+    if (!['on-track', 'at-risk', 'blocked'].includes(targetHealth)) return
+    const project = projects.find((p) => p.id === projectId)
+    if (!project) return
+    if (healthForProject(project) === targetHealth) return
+    setProjectHealth(projectId, targetHealth).catch((err) => {
+      console.error('Failed to update health', err)
+    })
+  }
+
   if (loading) return <LoadingCurtain visible={true} message="Loading Projects" />
 
   const sortLabels: Record<SortKey, string> = {
@@ -1384,39 +1483,21 @@ function ProjectsPage() {
           )}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, alignItems: 'flex-start' }}>
-          {(['on-track', 'at-risk', 'blocked'] as Health[]).map((h) => (
-            <div key={h} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <ColumnHeader
-                tone={h}
-                label={HEALTH_META[h].label}
-                count={lanes[h].length}
-                onAdd={canCreate ? () => setShowCreate(true) : undefined}
+        <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, alignItems: 'flex-start' }}>
+            {(['on-track', 'at-risk', 'blocked'] as Health[]).map((h) => (
+              <HealthLane
+                key={h}
+                health={h}
+                projects={lanes[h]}
+                canCreate={canCreate}
+                onAdd={() => setShowCreate(true)}
+                onEdit={(p) => setEditingProject(p)}
+                onDelete={(p) => setDeletingProject(p)}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {lanes[h].length === 0 ? (
-                  <div style={{
-                    padding: '22px 16px', borderRadius: 12, textAlign: 'center',
-                    border: '1px dashed var(--border)',
-                    color: 'var(--mute)', fontSize: 12.5,
-                  }}>
-                    No projects here
-                  </div>
-                ) : (
-                  lanes[h].map((p) => (
-                    <ProjectCard
-                      key={p.id}
-                      project={p}
-                      canEdit={canCreate}
-                      onEdit={() => setEditingProject(p)}
-                      onDelete={() => setDeletingProject(p)}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </DndContext>
       )}
 
       {showCreate && <ProjectFormModal onSave={handleCreate} onClose={() => setShowCreate(false)} />}
