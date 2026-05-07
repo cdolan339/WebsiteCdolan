@@ -125,7 +125,7 @@ function ProjectCard({ project }: { project: Project }) {
 
 /* ─── Story preview row ──────────────────────────────── */
 
-function StoryPreviewRow({ story, projectName }: { story: Story; projectName: string | null }) {
+function StoryPreviewRow({ story, projectName, projectColor }: { story: Story; projectName: string | null; projectColor: string | null }) {
   const meta = STORY_STATUS_META[story.status]
   return (
     <Link
@@ -145,7 +145,14 @@ function StoryPreviewRow({ story, projectName }: { story: Story; projectName: st
           <div className="tz-truncate" style={{ fontSize: 12.5, color: 'var(--mute)', marginTop: 2 }}>{story.summary}</div>
         )}
       </div>
-      {projectName && <Pill tone="blue" icon="folder">{projectName}</Pill>}
+      {projectName && (
+        <Pill tone="neutral" icon="folder" style={projectColor ? {
+          background: `color-mix(in oklab, ${projectColor} 15%, transparent)`,
+          color: `color-mix(in oklab, ${projectColor} 70%, var(--ink))`,
+        } : {}}>
+          {projectName}
+        </Pill>
+      )}
       <Pill tone={meta.tone}>{meta.label}</Pill>
       <ArrowRight size={14} style={{ color: 'var(--mute-2)' }} />
     </Link>
@@ -155,8 +162,8 @@ function StoryPreviewRow({ story, projectName }: { story: Story; projectName: st
 /* ─── Suite preview row ──────────────────────────────── */
 
 function SuitePreviewRow({
-  suite, projectName, statuses,
-}: { suite: CustomTestCase; projectName: string | null; statuses: Record<string, TestStatus> }) {
+  suite, projectName, projectColor, statuses,
+}: { suite: CustomTestCase; projectName: string | null; projectColor: string | null; statuses: Record<string, TestStatus> }) {
   const slug = `custom:${suite.id}`
   const status: TestStatus = statuses[slug] ?? 'pending'
   const meta = TEST_STATUS_META[status]
@@ -181,7 +188,14 @@ function SuitePreviewRow({
           <div className="tz-truncate" style={{ fontSize: 12.5, color: 'var(--mute)', marginTop: 2 }}>{suite.summary}</div>
         )}
       </div>
-      {projectName && <Pill tone="blue" icon="folder">{projectName}</Pill>}
+      {projectName && (
+        <Pill tone="neutral" icon="folder" style={projectColor ? {
+          background: `color-mix(in oklab, ${projectColor} 15%, transparent)`,
+          color: `color-mix(in oklab, ${projectColor} 70%, var(--ink))`,
+        } : {}}>
+          {projectName}
+        </Pill>
+      )}
       <div style={{ width: 140, display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: 1 }}>
           <CaseBar cases={cases} total={Math.max(total, 1)} />
@@ -227,7 +241,7 @@ function Dashboard() {
   const loading = projectsLoading || storiesLoading || suitesLoading
   if (loading) return <LoadingCurtain visible message="Loading Dashboard" />
 
-  const projectNameById = new Map<number, string>(projects.map((p) => [p.id, p.name]))
+  const projectById = new Map(projects.map((p) => [p.id, { name: p.name, color: p.color }]))
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
 
   const recentStories = [...stories]
@@ -314,7 +328,7 @@ function Dashboard() {
           {recentStories.map((s, i) => (
             <div key={s.id}>
               {i > 0 && <div className="hairline" />}
-              <StoryPreviewRow story={s} projectName={s.projectId ? projectNameById.get(s.projectId) ?? null : null} />
+              <StoryPreviewRow story={s} projectName={s.projectId ? projectById.get(s.projectId)?.name ?? null : null} projectColor={s.projectId ? projectById.get(s.projectId)?.color ?? null : null} />
             </div>
           ))}
         </div>
@@ -338,7 +352,7 @@ function Dashboard() {
           {recentSuites.map((t, i) => (
             <div key={t.id}>
               {i > 0 && <div className="hairline" />}
-              <SuitePreviewRow suite={t} projectName={t.projectId ? projectNameById.get(t.projectId) ?? null : null} statuses={statuses} />
+              <SuitePreviewRow suite={t} projectName={t.projectId ? projectById.get(t.projectId)?.name ?? null : null} projectColor={t.projectId ? projectById.get(t.projectId)?.color ?? null : null} statuses={statuses} />
             </div>
           ))}
         </div>

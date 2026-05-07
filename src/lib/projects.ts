@@ -85,11 +85,23 @@ export function clearProjectCache() {
   activeProjectId = null;
 }
 
-/** Called by WebSocket handler to force a re-fetch from the API */
+/** Called by WebSocket handler to refresh from the API.
+ *  Soft refresh: keep showing the existing cache while a new fetch runs,
+ *  then swap atomically. Avoids the brief "No Projects" flash on broadcast. */
 export function invalidateProjectCache() {
-  projectCache = null;
-  loadPromise = null;
-  notify();
+  if (projectCache === null) {
+    // No data yet — let next ensureLoaded fetch normally
+    loadPromise = null;
+    return;
+  }
+  api<Project[]>("/projects")
+    .then((data) => {
+      projectCache = data;
+      notify();
+    })
+    .catch(() => {
+      // Don't trash the existing cache on a failed background refresh
+    });
 }
 
 async function ensureLoaded(): Promise<Project[]> {

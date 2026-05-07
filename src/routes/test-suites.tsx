@@ -129,6 +129,7 @@ function StatusMetric({ label, value, color, dotColor }: { label: string; value:
 type RowProps = {
   tc: CustomTestCase
   projectName: string | null
+  projectColor: string | null
   status: TestStatus
   priority: PriorityLevel
   passedCount: number
@@ -138,7 +139,7 @@ type RowProps = {
   onDelete: (id: string) => void
 }
 
-function DenseRow({ tc, projectName, status, priority, passedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
+function DenseRow({ tc, projectName, projectColor, status, priority, passedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `custom:${tc.id}` })
   const navigate = useNavigate()
   const meta = STATUS_META[status]
@@ -169,11 +170,13 @@ function DenseRow({ tc, projectName, status, priority, passedCount, tab, onCompl
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--panel-2)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       onClick={() => navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })}
     >
-      <span {...attributes} {...listeners} style={{ color: meta.color, display: 'inline-flex', cursor: 'grab' }} title={status}>
+      <span style={{ color: meta.color, display: 'inline-flex' }} title={status}>
         <StatusIcon size={16} />
       </span>
       <div style={{ minWidth: 0 }}>
@@ -185,7 +188,26 @@ function DenseRow({ tc, projectName, status, priority, passedCount, tab, onCompl
         </div>
       </div>
       <PriorityPill level={priority} />
-      {projectName ? <Pill tone="purple" icon="folder">{projectName}</Pill> : <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute-2)' }}>—</span>}
+      <div style={{ minWidth: 0 }}>
+        {projectName
+          ? (
+            <Pill
+              tone="neutral"
+              icon="folder"
+              style={{
+                maxWidth: '100%',
+                overflow: 'hidden',
+                ...(projectColor ? {
+                  background: `color-mix(in oklab, ${projectColor} 15%, transparent)`,
+                  color: `color-mix(in oklab, ${projectColor} 70%, var(--ink))`,
+                } : {}),
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{projectName}</span>
+            </Pill>
+          )
+          : <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute-2)' }}>—</span>}
+      </div>
       <div>
         <CaseBar cases={cases} total={Math.max(total, 1)} height={4} />
         <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginTop: 3 }}>
@@ -249,7 +271,7 @@ function TestSuitesPage() {
   const completedCases = customCases.filter((tc) => tc.completed)
   const visibleCases = tab === 'active' ? activeCases : completedCases
 
-  const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
+  const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, { name: p.name, color: p.color }])), [projects])
   // Server already sorts by display_order; keep visibleCases as-is
   const sortedCases = visibleCases
   const order = useMemo(() => sortedCases.map((tc) => `custom:${tc.id}`), [sortedCases])
@@ -354,12 +376,15 @@ function TestSuitesPage() {
                 const status: TestStatus = statuses[slug] ?? 'pending'
                 const priority = (priorities[slug] ?? tc.priority) as PriorityLevel
                 const passedCount = expectedCounts[slug] ?? 0
-                const projectName = tc.projectId ? projectLookup.get(tc.projectId) ?? null : null
+                const projectInfo = tc.projectId ? projectLookup.get(tc.projectId) ?? null : null
+                const projectName = projectInfo?.name ?? null
+                const projectColor = projectInfo?.color ?? null
                 return (
                   <DenseRow
                     key={tc.id}
                     tc={tc}
                     projectName={projectName}
+                    projectColor={projectColor}
                     status={status}
                     priority={priority}
                     passedCount={passedCount}

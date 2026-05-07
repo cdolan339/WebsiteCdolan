@@ -190,10 +190,11 @@ function collaboratorsWithColor(story: Story) {
 /* ─── Right pane detail panel ─────────────────────── */
 
 function SplitDetailPanel({
-  story, projectName, tab, onDelete, onComplete, onReactivate, onOpen,
+  story, projectName, projectColor, tab, onDelete, onComplete, onReactivate, onOpen,
 }: {
   story: Story
   projectName: string | null
+  projectColor: string | null
   tab: Tab
   onDelete: (id: string) => void
   onComplete: (id: string) => void
@@ -220,7 +221,14 @@ function SplitDetailPanel({
         <Pill tone={meta.tone}>{meta.label}</Pill>
         <PriorityPill level={story.priority} />
         {story.sprint && <Pill tone="neutral" icon="flag">{story.sprint}</Pill>}
-        {projectName && <Pill tone="blue" icon="folder">{projectName}</Pill>}
+        {projectName && (
+          <Pill tone="neutral" icon="folder" style={projectColor ? {
+            background: `color-mix(in oklab, ${projectColor} 15%, transparent)`,
+            color: `color-mix(in oklab, ${projectColor} 70%, var(--ink))`,
+          } : {}}>
+            {projectName}
+          </Pill>
+        )}
         {story.completed && <Pill tone="green" icon="check">Completed</Pill>}
         <span style={{ flex: 1 }} />
         {people.length > 0 && <AvatarStack people={people} max={4} size={22} />}
@@ -520,7 +528,7 @@ function StoriesPage() {
     reloadStoriesForProject(id)
   }
 
-  const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
+  const projectLookup = useMemo(() => new Map(projects.map((p) => [p.id, { name: p.name, color: p.color }])), [projects])
 
   const activeStories = stories.filter((s) => !s.completed)
   const completedStories = stories.filter((s) => s.completed)
@@ -572,7 +580,9 @@ function StoriesPage() {
 
   if (loading) return <LoadingCurtain visible message="Loading Stories" />
 
-  const selectedProjectName = selected?.projectId ? projectLookup.get(selected.projectId) ?? null : null
+  const selectedProjectInfo = selected?.projectId ? projectLookup.get(selected.projectId) ?? null : null
+  const selectedProjectName = selectedProjectInfo?.name ?? null
+  const selectedProjectColor = selectedProjectInfo?.color ?? null
 
   return (
     <PageShell>
@@ -636,6 +646,7 @@ function StoriesPage() {
               <SplitDetailPanel
                 story={selected}
                 projectName={selectedProjectName}
+                projectColor={selectedProjectColor}
                 tab={tab}
                 onDelete={(id) => {
                   const s = list.find((x) => x.id === id) || null

@@ -366,7 +366,7 @@ function LoginPage() {
                   placeholder="Enter username"
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setError('') }}
-                  autoFocus
+                  auThitoFocus
                   autoComplete="username"
                 />
               </div>

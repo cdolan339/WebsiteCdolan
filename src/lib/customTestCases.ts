@@ -55,12 +55,22 @@ export function clearCustomCache() {
   cachedProjectId = undefined;
 }
 
-/** Called by WebSocket handler to force a re-fetch from the API */
+/** Called by WebSocket handler to refresh from the API.
+ *  Soft refresh: keep the existing cache visible while a new fetch runs,
+ *  then swap atomically. Avoids brief empty-state flashes on broadcasts. */
 export function invalidateCustomCache() {
-  caseCache = null;
-  loadPromise = null;
-  // Keep cachedProjectId so ensureLoaded fetches for the same project
-  notify();
+  if (caseCache === null) {
+    loadPromise = null;
+    return;
+  }
+  const activeProject = getActiveProjectId();
+  const qs = activeProject ? `?projectId=${activeProject}` : "";
+  api<CustomTestCase[]>(`/custom-test-cases${qs}`)
+    .then((data) => {
+      caseCache = data;
+      notify();
+    })
+    .catch(() => {});
 }
 
 // Force reload when switching projects

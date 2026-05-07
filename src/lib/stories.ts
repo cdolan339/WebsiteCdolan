@@ -159,11 +159,22 @@ export function clearStoryCache() {
   cachedProjectId = undefined;
 }
 
-/** Called by WebSocket handler to force a re-fetch from the API */
+/** Called by WebSocket handler to refresh from the API.
+ *  Soft refresh: keep the existing cache visible while a new fetch runs,
+ *  then swap atomically. Avoids brief empty-state flashes on broadcasts. */
 export function invalidateStoryCache() {
-  storyCache = null;
-  loadPromise = null;
-  notify();
+  if (storyCache === null) {
+    loadPromise = null;
+    return;
+  }
+  const activeProject = getActiveProjectId();
+  const qs = activeProject ? `?projectId=${activeProject}` : "";
+  api<Story[]>(`/stories${qs}`)
+    .then((data) => {
+      storyCache = data;
+      notify();
+    })
+    .catch(() => {});
 }
 
 export function reloadStoriesForProject(projectId: number | null) {

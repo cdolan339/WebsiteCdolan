@@ -26,6 +26,8 @@ const SECTIONS: Section[] = [
     label: 'Pages',
     subsections: [
       { id: 'page-login',             label: 'Login' },
+      { id: 'page-register',          label: 'Register' },
+      { id: 'page-verify',            label: 'Email Verification' },
       { id: 'page-homepage',          label: 'Dashboard (Homepage)' },
       { id: 'page-test-suites',       label: 'Test Suites' },
       { id: 'page-projects-list',     label: 'Projects List' },
@@ -34,6 +36,7 @@ const SECTIONS: Section[] = [
       { id: 'page-story-detail',      label: 'Story Detail (BA)' },
       { id: 'page-new-test-case',     label: 'New Test Case' },
       { id: 'page-test-case-detail',  label: 'Test Case Detail' },
+      { id: 'page-team',              label: 'Team' },
       { id: 'page-settings',          label: 'Settings' },
       { id: 'page-wiki',              label: 'Wiki (this page)' },
     ],
@@ -71,6 +74,7 @@ const SECTIONS: Section[] = [
       { id: 'api-auth',       label: 'Auth' },
       { id: 'api-tc',         label: 'Custom Test Cases' },
       { id: 'api-projects',   label: 'Projects' },
+      { id: 'api-teams',      label: 'Teams & Members' },
       { id: 'api-stories',    label: 'Stories (BA)' },
       { id: 'api-data',       label: 'Data (Statuses / Priorities / Order)' },
       { id: 'api-perms',      label: 'Permissions' },
@@ -243,6 +247,8 @@ function WikiContent({ active }: { active: string }) {
         {[
           { route: '/', desc: 'Redirect — sends authenticated users to /homepage, others to /login' },
           { route: '/login', desc: 'Public auth page' },
+          { route: '/register', desc: 'Public registration — username, email, password, team name. Multi-step: form → email-check → awaiting-approval → done.' },
+          { route: '/verify', desc: 'Email verification landing — reads ?token= from URL, calls verify-email API, shows success or error.' },
           { route: '/homepage', desc: 'Dashboard — overview of Projects, BA Stories, and Test Suites with clickable stat cards' },
           { route: '/projects', desc: 'Grid of all QA projects' },
           { route: '/projects/$id', desc: 'Individual project detail — shows all test cases in that project' },
@@ -251,6 +257,7 @@ function WikiContent({ active }: { active: string }) {
           { route: '/test-suites', desc: 'Active/completed test cases list with drag-and-drop ordering (was /homepage prior to dashboard rework)' },
           { route: '/test-cases/custom/new', desc: 'Create a new custom test case' },
           { route: '/test-cases/custom/$id', desc: 'View/edit a specific test case (steps, status, expected results)' },
+          { route: '/team', desc: 'Team management — member list, role changes, join request approvals (owner only).' },
           { route: '/settings', desc: 'User settings (general & account tabs)' },
           { route: '/wiki', desc: 'This documentation page' },
           { route: '/403', desc: 'Forbidden page (unauthenticated access attempt)' },
@@ -286,6 +293,52 @@ password: string         // controlled input
 error: string            // validation / API error message
 loading: boolean         // disables the submit button while fetching
 transitioning: boolean   // triggers the LoadingCurtain overlay`} />
+    </div>
+  )
+
+  if (active === 'page-register') return (
+    <div style={card}>
+      {sectionHeader('Register — /register')}
+      {prose('The multi-step public registration flow. Collects username, email, password, and team name. Supports both creating a new team and joining an existing one. After submitting the form the page transitions to an email-verification waiting screen and polls until the user clicks the link in their inbox.')}
+      <Divider />
+      {subHeader('Steps')}
+      <CodeBlock code={`form            // username / email / password / teamName inputs
+check-email     // "Check your inbox" screen — polling begins
+awaiting-approval // only shown when joining an existing team (owner must approve)
+done            // auto-login fires, navigates to /homepage`} />
+      <Divider />
+      {subHeader('Team resolution')}
+      <ul style={{ color: 'var(--mute)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+        <li>As the user types a team name, <code>checkTeamName(name)</code> is called with a 400 ms debounce.</li>
+        <li>If the team already exists, the UI shows "Joining [Team]" and sets <code>requiresApproval: true</code>.</li>
+        <li>If the team name is new, the UI shows "Creating [Team]" and the user becomes the owner.</li>
+      </ul>
+      <Divider />
+      {subHeader('Polling')}
+      {prose('After form submit, the page enters the check-email step and calls getRegistrationStatus(username) every 3 seconds. The backend returns { email_verified, pending_approval }. Once email_verified is true and pending_approval is false, login() is called automatically to complete sign-in.')}
+      <Divider />
+      {subHeader('State')}
+      <CodeBlock code={`step:             'form' | 'check-email' | 'awaiting-approval' | 'done'
+username, email, password, teamName: string   // controlled inputs
+error:            string
+loading:          boolean
+joiningExisting:  boolean    // true when team already exists
+requiresApproval: boolean    // true when joining an existing team`} />
+    </div>
+  )
+
+  if (active === 'page-verify') return (
+    <div style={card}>
+      {sectionHeader('Email Verification — /verify')}
+      {prose('Landing page for the email verification link. Reads the token from the URL query string (?token=...) and calls verifyEmail(token) on mount. Shows a loading state, then a success or error card.')}
+      <Divider />
+      {subHeader('States')}
+      <CodeBlock code={`loading   // "Verifying your email..." spinner
+success   // "Email verified!" — link to /login
+error     // "Invalid or expired link" — link to /register`} />
+      <Divider />
+      {subHeader('API call')}
+      {prose('POST /api/auth/verify-email with { token }. On success the backend marks email_verified = TRUE, clears the token fields, and returns { ok: true, username }. The page then shows the success card and the user can proceed to log in.')}
     </div>
   )
 
@@ -346,14 +399,19 @@ SortableTestCaseRow // individual draggable row with dnd-kit useSortable`} />
   if (active === 'page-stories-list') return (
     <div style={card}>
       {sectionHeader('Stories List — /stories')}
-      {prose('Lists all BA Stories (business analyst requirement/story documents) visible to the authenticated user, filtered by active project. Each row shows title, status, summary, and timestamps. Clicking a row navigates to the story detail editor.')}
+      {prose('A split-pane view: a scrollable sidebar on the left lists all BA Stories, and a sticky detail panel on the right shows a read-only preview of the selected story. Clicking a story in the sidebar selects it; double-clicking or pressing the "Open" button navigates to the full editor at /stories/$id.')}
       <Divider />
       {subHeader('Key Features')}
-      <ul style={{ color: 'var(--app-text-secondary)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
-        <li><b>New Story</b> button — calls <code>addStory(createStory())</code> which optimistically inserts an empty story and navigates to <code>/stories/$id</code>.</li>
-        <li><b>Status chip</b> — one of <code>discovery / analysis / development / uat / done</code> with distinct colors.</li>
+      <ul style={{ color: 'var(--mute)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+        <li><b>Active / Completed tabs</b> — stories with <code>completed: true</code> are moved to the Completed tab via <code>completeStory(id, true/false)</code>.</li>
+        <li><b>Drag-and-drop reorder</b> — sidebar rows are sortable via @dnd-kit. Reordering calls <code>reorderStories(ids)</code> which saves to the API.</li>
+        <li><b>New Story</b> — calls <code>addStory(createStory())</code> which optimistically inserts an empty story and navigates to <code>/stories/$id</code>.</li>
         <li><b>Project scoping</b> — respects the active project chip; stories carry a nullable <code>projectId</code>.</li>
+        <li><b>Project color pill</b> — the project pill in the detail panel uses the project's hex color via <code>color-mix()</code> tinting, matching the /projects page.</li>
       </ul>
+      <Divider />
+      {subHeader('SplitDetailPanel')}
+      {prose('The right pane shows: status + priority + sprint + project pills, a progress ring, collaborator avatars, and counters for user stories, requirements, flows, RTM entries, and open issues. Complete / Reactivate and Delete actions are also available here without navigating away.')}
       <Divider />
       {subHeader('Data Flow')}
       {prose('Uses useStories() from lib/stories.ts. On mount, ensureLoaded() fetches /stories?projectId=... and caches the result. WS story:* events invalidate the cache and re-fetch.')}
@@ -389,15 +447,31 @@ RAID           // Risks / Assumptions / Issues / Dependencies register`} />
   if (active === 'page-projects-list') return (
     <div style={card}>
       {sectionHeader('Projects List — /projects')}
-      {prose('A grid of all QA projects visible to all authenticated users. Projects are created by users with the STAFF_CREATE_PROJECT permission. Clicking a tile navigates to the project detail page.')}
+      {prose('A health-status kanban board showing all QA projects organised into three columns: On track, At risk, and Blocked. Projects are draggable between columns to override their computed health. Clicking a card navigates to the project detail page.')}
+      <Divider />
+      {subHeader('Health Lanes')}
+      {prose('Health is computed from the deadline (blocked = overdue, at-risk = ≤7 days remaining, on-track = otherwise). Dragging a card to a different lane calls PATCH /api/projects/:id/health to persist the override. The override takes priority over the computed value on next load.')}
+      <Divider />
+      {subHeader('Project color')}
+      {prose('Each project has a hex color chosen at creation time via a 6-swatch color picker in the form. The color is used for: the accent gradient stripe at the top of the card, the FolderOpen icon in the card title row, and the project pill in Test Suites, Stories split-panel, and Dashboard rows — all rendered with color-mix() tinting so the pill background and text adapt to the chosen hue.')}
+      <Divider />
+      {subHeader('Create / Edit modal')}
+      <CodeBlock code={`Fields: color (swatch), name*, description, priority (Low/Med/High/Critical),
+        visibility (Team/Private/Public), tags, timeline start/end, deadline`} />
+      {prose('The modal starts directly at the name + color swatch — the template picker, Add Members section, and the three feature toggles (RAID log, sprint link, notify team) were removed to keep the form focused.')}
+      <Divider />
+      {subHeader('Sorting & filtering')}
+      {prose('A sort dropdown (Recently updated / Recently created / Deadline / Name) controls the order within each health lane. Status, Owner, and Tag filter pills are present in the UI and reserved for a future release.')}
       <Divider />
       {subHeader('Permissions Gate')}
       {prose('The "New Project", edit (pencil), and delete (trash) controls are only rendered when useHasPermission("STAFF_CREATE_PROJECT") returns true. The API enforces nothing extra here — permission is frontend-only for the UI controls.')}
       <Divider />
       {subHeader('Sub-components')}
-      <CodeBlock code={`ProjectTile         // card with name, description, tags, timeline, deadline badge
-ProjectFormModal    // create/edit modal with name, description, tags, timeline, deadline
-DeleteConfirmModal  // "are you sure?" modal before deletion`} />
+      <CodeBlock code={`HealthLane          // droppable column per health state (on-track/at-risk/blocked)
+DraggableProjectCard // draggable wrapper using useDraggable
+ProjectCard         // card with color stripe, name, description, tags, timeline bar, deadline
+ProjectFormModal    // create/edit modal — color, name, description, priority, visibility, tags, dates
+DeleteConfirmModal  // confirm before deletion`} />
     </div>
   )
 
@@ -468,6 +542,26 @@ ProjectPicker // dropdown to assign to a project`} />
         <li>All edits held in local draft state — saved on "Done" button click.</li>
         <li>Delete — confirmation popover, calls <code>DELETE /api/custom-test-cases/:id</code> then navigates back to homepage.</li>
       </ul>
+    </div>
+  )
+
+  if (active === 'page-team') return (
+    <div style={card}>
+      {sectionHeader('Team — /team')}
+      {prose('Shows the current user\'s team name, all members with their roles, and (for owners) any pending join requests awaiting approval. Role changes and member removal are also available here.')}
+      <Divider />
+      {subHeader('Key Features')}
+      <ul style={{ color: 'var(--mute)', fontSize: '0.88rem', lineHeight: 1.8, paddingLeft: '20px' }}>
+        <li><b>Member list</b> — displays username and role (owner / manager / associate) for every team member.</li>
+        <li><b>Role change</b> — owner/manager can promote or demote members via a dropdown; calls <code>PATCH /api/teams/members/:userId/role</code>.</li>
+        <li><b>Remove member</b> — owner can remove a member with a confirm step; calls <code>DELETE /api/teams/members/:userId</code>.</li>
+        <li><b>Join requests</b> — visible only to the team owner. Each pending request shows the applicant's username with Approve / Deny buttons.</li>
+        <li><b>Approve</b> — calls <code>POST /api/teams/requests/:id/approve</code>, moves user into the team.</li>
+        <li><b>Deny</b> — calls <code>POST /api/teams/requests/:id/deny</code>, removes the request.</li>
+      </ul>
+      <Divider />
+      {subHeader('Data')}
+      {prose('Member list comes from GET /api/teams/members. Join requests come from GET /api/teams/requests. Both are fetched on mount with no caching (small lists, infrequent access). The team name is derived from the current user\'s team via the session JWT.')}
     </div>
   )
 
@@ -600,6 +694,11 @@ addCustomTestCase(tc): Promise<void>
 updateCustomTestCase(tc): Promise<void>
 getCustomTestCase(id): Promise<CustomTestCase | undefined>
 completeTestCase(id, completed): Promise<void>
+deleteCustomTestCase(id): Promise<void>
+reorderCustomTestCases(ids: string[]): Promise<void>
+  // Saves display_order to the API (PUT /api/custom-test-cases/reorder).
+  // Called after @dnd-kit drag-end on /test-suites. Server persists and
+  // broadcasts a WebSocket event so other clients re-fetch in the new order.
 reloadForProject(projectId): void
 clearCustomCache(): void
 invalidateCustomCache(): void   // used by WebSocketSync`} />
@@ -643,9 +742,14 @@ getActiveProjectId(): number | null
 setActiveProjectId(id): void
 createProject(payload): Promise<Project>
 updateProject(id, payload): Promise<Project>
+setProjectHealth(id, health): Promise<Project>
+  // Optimistic local patch then PATCH /api/projects/:id/health
+  // Rolls back on failure. health: "on-track" | "at-risk" | "blocked" | null
 deleteProject(id): Promise<void>
 clearProjectCache(): void
-invalidateProjectCache(): void   // used by WebSocketSync`} />
+invalidateProjectCache(): void
+  // Soft refresh — keeps showing existing cache while a new fetch runs,
+  // then swaps atomically. Avoids brief "No Projects" flash on WS broadcast.`} />
     </div>
   )
 
@@ -684,6 +788,8 @@ useStory(id): { story, ready }
 getStory(id): Promise<Story | undefined>
 addStory(story): Promise<void>
 updateStory(story): Promise<void>   // bumps updatedAt before PUT
+completeStory(id, completed): Promise<void>
+  // PATCH /api/stories/:id/complete — moves story between Active/Completed tabs
 deleteStory(id): Promise<void>
 reloadStoriesForProject(projectId): void
 clearStoryCache(): void
@@ -1013,23 +1119,36 @@ Max files:       5 per generation`} />
   if (active === 'api-auth') return (
     <div style={card}>
       {sectionHeader('API — Auth')}
-      {prose('All auth endpoints live under /api/auth. Login is public. Register requires a valid JWT (admin-only action).')}
+      {prose('All auth endpoints live under /api/auth. Registration and email verification are fully public. Login is public. All other API routes require a valid JWT.')}
       <Divider />
-      <RouteRow method="POST" path="/api/auth/login" desc="Verify credentials, return JWT. Body: { username, password }" auth={false} />
-      <RouteRow method="POST" path="/api/auth/register" desc="Create new user, return JWT. Body: { username, password }. Requires existing JWT." />
+      <RouteRow method="POST" path="/api/auth/register"     desc="Create account + team. Body: { username, email, password, teamName }. Sends verification email." auth={false} />
+      <RouteRow method="POST" path="/api/auth/verify-email" desc="Verify email token. Body: { token }. Marks email_verified = TRUE." auth={false} />
+      <RouteRow method="GET"  path="/api/auth/status"       desc="Polling endpoint. ?username=xxx. Returns { email_verified, pending_approval }." auth={false} />
+      <RouteRow method="GET"  path="/api/teams/check"       desc="Team name availability. ?name=xxx. Returns { exists, displayName? }." auth={false} />
+      <RouteRow method="POST" path="/api/auth/login"        desc="Verify credentials, return JWT. Body: { username, password }. Blocked if email not verified or approval pending." auth={false} />
       <Divider />
-      {subHeader('Login SQL')}
-      <CodeBlock code={`SELECT * FROM users WHERE username = $1
--- Then bcrypt.compare(password, user.password_hash)
--- Returns JWT: { id, username } signed with JWT_SECRET`} />
-      {subHeader('Register SQL')}
-      <CodeBlock code={`INSERT INTO users (username, password_hash)
-VALUES ($1, $2)
-RETURNING id, username, created_at`} />
+      {subHeader('Register flow')}
+      <CodeBlock code={`1. Validate: username, email, password, teamName (all required)
+2. Duplicate check: username and email (case-insensitive)
+3. Team resolution:
+   • Team exists → role = 'associate', create team_join_request
+   • Team is new → role = 'owner', create team row
+4. Create user row (email_verified = FALSE, bcrypt hash, 64-char hex token, 24h expiry)
+5. Send verification email via Resend (link: /verify?token=...)
+6. If joining existing team → send join-request email to team owner
+7. Return { user, teamName, joiningExisting, requiresApproval }`} />
+      <Divider />
+      {subHeader('Login — block conditions')}
+      <CodeBlock code={`email_verified = FALSE  →  { needsVerification: true }   (403)
+pending join request   →  { needsApproval: true }        (403)
+wrong password         →  { error: "Invalid credentials" } (401)`} />
       <Divider />
       {subHeader('JWT Payload')}
       <CodeBlock code={`{ id: number, username: string, iat: number, exp: number }`} />
       {prose('Expiry is set by JWT_EXPIRES_IN env variable. The client decodes the payload without a library (base64 decode of the second segment) to check expiry client-side.')}
+      <Divider />
+      {subHeader('Email provider')}
+      {prose('Emails are sent via Resend (resend.com). Configured with RESEND_API_KEY, SMTP_FROM, and APP_URL environment variables. Email failures are caught and logged but do NOT roll back account creation — the user can request a new link.')}
     </div>
   )
 
@@ -1070,19 +1189,39 @@ LIMIT 8`} />
       {sectionHeader('API — Projects')}
       {prose('Projects are visible to all authenticated users (no per-user filter on reads). Only creation/editing/deletion requires the STAFF_CREATE_PROJECT permission — enforced on the frontend only.')}
       <Divider />
-      <RouteRow method="GET"    path="/api/projects"      desc="List all projects with creator username via JOIN on users." />
-      <RouteRow method="POST"   path="/api/projects"      desc="Create project. Body: { name, description, tags, timelineStart, timelineEnd, deadline }." />
-      <RouteRow method="PUT"    path="/api/projects/:id"  desc="Update project fields. All fields optional (COALESCE pattern)." />
-      <RouteRow method="DELETE" path="/api/projects/:id"  desc="Delete project and all its test cases (CASCADE in DB)." />
+      <RouteRow method="GET"    path="/api/projects"               desc="List all projects with creator username via JOIN on users." />
+      <RouteRow method="POST"   path="/api/projects"               desc="Create project. Body: { name, color, description, priority, visibility, tags, timelineStart, timelineEnd, deadline }." />
+      <RouteRow method="PUT"    path="/api/projects/:id"           desc="Update project fields. All fields optional (COALESCE pattern)." />
+      <RouteRow method="PATCH"  path="/api/projects/:id/health"    desc="Override health status. Body: { health: 'on-track' | 'at-risk' | 'blocked' | null }. Null clears override." />
+      <RouteRow method="DELETE" path="/api/projects/:id"           desc="Delete project and all its test cases (CASCADE in DB)." />
       <Divider />
       {subHeader('List SQL')}
-      <CodeBlock code={`SELECT p.id, p.name, p.description, p.tags,
-       p.timeline_start, p.timeline_end, p.deadline,
-       p.created_at, p.updated_at, p.user_id,
+      <CodeBlock code={`SELECT p.id, p.name, p.description, p.tags, p.color, p.priority,
+       p.visibility, p.health, p.timeline_start, p.timeline_end,
+       p.deadline, p.created_at, p.updated_at, p.user_id,
        u.username AS created_by
 FROM projects p
 JOIN users u ON u.id = p.user_id
 ORDER BY p.created_at ASC`} />
+    </div>
+  )
+
+  if (active === 'api-teams') return (
+    <div style={card}>
+      {sectionHeader('API — Teams & Members')}
+      {prose('Endpoints for managing team membership, roles, and join requests. All require a valid JWT. Role-changing and removal require the caller to be the team owner or a manager.')}
+      <Divider />
+      <RouteRow method="GET"  path="/api/teams/members"                   desc="List all members of the current user's team with their roles." />
+      <RouteRow method="PATCH" path="/api/teams/members/:userId/role"     desc="Change a member's role. Body: { role: 'owner' | 'manager' | 'associate' }." />
+      <RouteRow method="DELETE" path="/api/teams/members/:userId"         desc="Remove a member from the team." />
+      <RouteRow method="GET"  path="/api/teams/requests"                  desc="List pending join requests (owner only)." />
+      <RouteRow method="POST" path="/api/teams/requests/:id/approve"      desc="Approve a join request — adds user to team." />
+      <RouteRow method="POST" path="/api/teams/requests/:id/deny"         desc="Deny a join request — deletes the request row." />
+      <Divider />
+      {subHeader('Roles')}
+      <CodeBlock code={`owner      // created the team; full control over members and requests
+manager    // can change roles and remove associates
+associate  // regular member; no team-management rights`} />
     </div>
   )
 
@@ -1364,23 +1503,51 @@ Response: 200
       {sectionHeader('Database Schema')}
       {prose('PostgreSQL. All tables created by running npm run db:init in the backend project. The pool is shared via src/config/db.js.')}
       <Divider />
+      <DBTable name="teams" columns={[
+        { col: 'id',           type: 'SERIAL PK',    note: '' },
+        { col: 'name_lower',   type: 'VARCHAR(100)', note: 'UNIQUE — lowercased for case-insensitive lookup' },
+        { col: 'display_name', type: 'VARCHAR(100)', note: 'Original casing as entered by the user' },
+        { col: 'created_at',   type: 'TIMESTAMPTZ',  note: 'DEFAULT NOW()' },
+      ]} />
       <DBTable name="users" columns={[
-        { col: 'id',            type: 'SERIAL PK',   note: 'Auto-incrementing user ID' },
-        { col: 'username',      type: 'VARCHAR(100)', note: 'UNIQUE — login identifier' },
-        { col: 'password_hash', type: 'VARCHAR(255)', note: 'bcrypt hash (cost 12)' },
-        { col: 'created_at',    type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
+        { col: 'id',                          type: 'SERIAL PK',    note: 'Auto-incrementing user ID' },
+        { col: 'username',                    type: 'VARCHAR(100)', note: 'UNIQUE — login identifier' },
+        { col: 'password_hash',               type: 'VARCHAR(255)', note: 'bcrypt hash (cost 12)' },
+        { col: 'email',                       type: 'VARCHAR(200)', note: 'Nullable — set on registration' },
+        { col: 'team_id',                     type: 'INTEGER FK',   note: 'References teams(id). Nullable.' },
+        { col: 'role',                        type: 'VARCHAR(20)',  note: '"owner" | "manager" | "associate". DEFAULT associate.' },
+        { col: 'email_verified',              type: 'BOOLEAN',      note: 'DEFAULT FALSE — blocks login until true' },
+        { col: 'verification_token',          type: 'VARCHAR(100)', note: '64-char hex token sent in the verification email. Nullable.' },
+        { col: 'verification_token_expires_at', type: 'TIMESTAMPTZ', note: '24 hours after registration. Nullable.' },
+        { col: 'created_at',                  type: 'TIMESTAMPTZ',  note: 'DEFAULT NOW()' },
+      ]} />
+      <DBTable name="team_join_requests" columns={[
+        { col: 'id',         type: 'SERIAL PK',   note: '' },
+        { col: 'user_id',    type: 'INTEGER FK',  note: 'References users(id) CASCADE' },
+        { col: 'team_id',    type: 'INTEGER FK',  note: 'References teams(id) CASCADE' },
+        { col: 'status',     type: 'VARCHAR(20)', note: '"pending" (default) | "approved" | "denied"' },
+        { col: 'created_at', type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
+        { col: '',           type: 'UNIQUE',      note: '(user_id, team_id)' },
       ]} />
       <DBTable name="projects" columns={[
-        { col: 'id',             type: 'SERIAL PK',   note: '' },
-        { col: 'user_id',        type: 'INTEGER FK',  note: 'References users(id) CASCADE' },
+        { col: 'id',             type: 'SERIAL PK',    note: '' },
+        { col: 'user_id',        type: 'INTEGER FK',   note: 'References users(id) CASCADE' },
         { col: 'name',           type: 'VARCHAR(200)', note: 'Required' },
-        { col: 'description',    type: 'TEXT',        note: 'DEFAULT empty string' },
-        { col: 'tags',           type: 'JSONB',       note: 'DEFAULT []' },
-        { col: 'timeline_start', type: 'DATE',        note: 'Nullable' },
-        { col: 'timeline_end',   type: 'DATE',        note: 'Nullable' },
-        { col: 'deadline',       type: 'DATE',        note: 'Nullable' },
-        { col: 'created_at',     type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
-        { col: 'updated_at',     type: 'TIMESTAMPTZ', note: 'DEFAULT NOW()' },
+        { col: 'description',    type: 'TEXT',         note: 'DEFAULT empty string' },
+        { col: 'tags',           type: 'JSONB',        note: 'DEFAULT []' },
+        { col: 'color',          type: 'VARCHAR(20)',  note: 'Hex color chosen in the form (e.g. "#7C5CFF"). DEFAULT "#7C5CFF"' },
+        { col: 'priority',       type: 'VARCHAR(20)',  note: '"low" | "med" | "high" | "critical". DEFAULT "med"' },
+        { col: 'visibility',     type: 'VARCHAR(20)',  note: '"team" | "private" | "public". DEFAULT "team"' },
+        { col: 'health',         type: 'VARCHAR(20)',  note: 'Manual override: "on-track" | "at-risk" | "blocked" | NULL. NULL = compute from deadline.' },
+        { col: 'template',       type: 'VARCHAR(30)',  note: '"blank" (default). Reserved for future template scaffolding.' },
+        { col: 'sprint_id',      type: 'VARCHAR(50)',  note: 'Nullable. Reserved for sprint linking.' },
+        { col: 'auto_raid',      type: 'BOOLEAN',      note: 'DEFAULT TRUE. Reserved.' },
+        { col: 'notify_team',    type: 'BOOLEAN',      note: 'DEFAULT TRUE. Reserved.' },
+        { col: 'timeline_start', type: 'DATE',         note: 'Nullable' },
+        { col: 'timeline_end',   type: 'DATE',         note: 'Nullable' },
+        { col: 'deadline',       type: 'DATE',         note: 'Nullable' },
+        { col: 'created_at',     type: 'TIMESTAMPTZ',  note: 'DEFAULT NOW()' },
+        { col: 'updated_at',     type: 'TIMESTAMPTZ',  note: 'DEFAULT NOW()' },
       ]} />
       <DBTable name="custom_test_cases" columns={[
         { col: 'id',            type: 'VARCHAR(100)', note: 'Client-generated "tc-<timestamp>" — part of PK' },

@@ -737,11 +737,17 @@ function CustomTestCaseDetail() {
               onChange={(pid) => patch({ projectId: pid })}
               projects={projects}
             />
-          ) : draft.projectId ? (
-            <Pill tone="purple" icon="folder">
-              {projects.find((p) => p.id === draft.projectId)?.name ?? 'Project'}
-            </Pill>
-          ) : null}
+          ) : draft.projectId ? (() => {
+              const proj = projects.find((p) => p.id === draft.projectId)
+              return (
+                <Pill tone="neutral" icon="folder" style={proj?.color ? {
+                  background: `color-mix(in oklab, ${proj.color} 15%, transparent)`,
+                  color: `color-mix(in oklab, ${proj.color} 70%, var(--ink))`,
+                } : {}}>
+                  {proj?.name ?? 'Project'}
+                </Pill>
+              )
+            })() : null}
         </div>
 
         {/* Dates */}
