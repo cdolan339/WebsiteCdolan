@@ -33,14 +33,14 @@ export const Route = createFileRoute('/test-cases/custom/$id')({
 const PRIORITY_OPTIONS = [
   { value: 'low'      as const, label: 'Low',      tone: 'green'  as const },
   { value: 'medium'   as const, label: 'Medium',   tone: 'amber'  as const },
-  { value: 'high'     as const, label: 'High',     tone: 'orange' as const },
+  { value: 'high'     as const, label: 'High',     tone: 'coral'  as const },
   { value: 'critical' as const, label: 'Critical', tone: 'red'    as const },
 ]
 
-const PRIORITY_TONE: Record<'green' | 'amber' | 'orange' | 'red', { bg: string; fg: string; border: string }> = {
+const PRIORITY_TONE: Record<'green' | 'amber' | 'coral' | 'red', { bg: string; fg: string; border: string }> = {
   green:  { bg: 'color-mix(in oklab, var(--green)  12%, transparent)', fg: 'var(--green)',  border: 'color-mix(in oklab, var(--green)  25%, transparent)' },
   amber:  { bg: 'color-mix(in oklab, var(--amber)  14%, transparent)', fg: 'var(--amber)',  border: 'color-mix(in oklab, var(--amber)  30%, transparent)' },
-  orange: { bg: 'color-mix(in oklab, var(--orange) 14%, transparent)', fg: 'var(--orange)', border: 'color-mix(in oklab, var(--orange) 30%, transparent)' },
+  coral:  { bg: 'color-mix(in oklab, #E05525       14%, transparent)', fg: '#E05525',       border: 'color-mix(in oklab, #E05525       30%, transparent)' },
   red:    { bg: 'color-mix(in oklab, var(--red)    12%, transparent)', fg: 'var(--red)',    border: 'color-mix(in oklab, var(--red)    25%, transparent)' },
 }
 

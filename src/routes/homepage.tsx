@@ -28,7 +28,7 @@ const TEST_STATUS_META: Record<TestStatus, { tone: 'green' | 'red' | 'amber' | '
   blocked: { tone: 'neutral', label: 'Blocked' },
 }
 
-const MAX_PROJECTS = 6
+const MAX_PROJECTS = 4
 const MAX_STORIES = 4
 const MAX_SUITES = 4
 
@@ -97,7 +97,7 @@ function ProjectCard({ project }: { project: Project }) {
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <span style={{ color: 'var(--purple)', display: 'inline-flex' }}><Folder size={16} /></span>
+        <span style={{ color: project.color || 'var(--purple)', display: 'inline-flex' }}><Folder size={16} /></span>
         <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }} className="tz-truncate">{project.name}</span>
         <span style={{ flex: 1 }} />
         <MoreHorizontal size={14} style={{ color: 'var(--mute)' }} />
@@ -305,9 +305,22 @@ function Dashboard() {
       {topProjects.length === 0 ? (
         <EmptyState message="No projects yet. Create one to organize your stories and test suites." cta="Create Project" ctaTo="/projects" />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-          {topProjects.map((p) => <ProjectCard key={p.id} project={p} />)}
-        </div>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+            {topProjects.map((p) => <ProjectCard key={p.id} project={p} />)}
+          </div>
+          {projects.length > MAX_PROJECTS && (
+            <div style={{ textAlign: 'center', marginTop: 14 }}>
+              <Link
+                to="/projects"
+                className="tz-btn"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+              >
+                View all projects <ArrowRight size={13} />
+              </Link>
+            </div>
+          )}
+        </>
       )}
 
       {/* Stories */}

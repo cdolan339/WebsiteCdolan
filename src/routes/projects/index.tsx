@@ -2,11 +2,10 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useProjects, createProject, updateProject, deleteProject, setProjectHealth, type Project, type CreateProjectPayload } from '@/lib/projects'
 import { useHasPermission } from '@/lib/permissions'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
-import { useState, useMemo } from 'react'
-import { useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, memo } from 'react'
 import {
   Plus, Pencil, Trash2, Calendar, FolderOpen, X, ChevronDown, Filter, User as UserIcon, Tag as TagIcon, ArrowUpDown,
-  Eye, Users as UsersIcon, ArrowRight,
+  Eye, Users as UsersIcon, ArrowRight, BookOpen, Clipboard, Package, Shield, Search, Lock, Check, ChevronRight,
 } from 'lucide-react'
 import {
   PageShell, EyebrowChip, Pill, Button, Avatar, colorForName,
@@ -54,11 +53,14 @@ const HEALTH_META: Record<Health, { label: string; dot: string; tone: 'green' | 
   'blocked':  { label: 'Blocked',  dot: 'var(--red)',   tone: 'red' },
 }
 
-/* ── Create / Edit modal ─────────────────────────────────────────── */
+/* ── Create / Edit modal — 3-step stepper ───────────────────────── */
+
+type ProjectType = 'ba' | 'test' | 'release' | 'audit' | 'discovery' | 'blank'
 
 type ProjectFormData = {
   name: string
   description: string
+  projectType: ProjectType
   tags: string[]
   timelineStart: string
   timelineEnd: string
@@ -72,22 +74,59 @@ type ProjectFormData = {
   notifyTeam: boolean
 }
 
-const PRIORITY_BUCKETS: Array<{ value: 'low' | 'med' | 'high' | 'critical'; label: string }> = [
-  { value: 'low', label: 'Low' },
-  { value: 'med', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
-]
-
-const VISIBILITY_OPTIONS: Array<{ value: 'team' | 'private' | 'public'; label: string; icon: React.ReactNode }> = [
-  { value: 'team',    label: 'Team',    icon: <UsersIcon size={11} /> },
-  { value: 'private', label: 'Private', icon: <UserIcon size={11} /> },
-  { value: 'public',  label: 'Public',  icon: <Eye size={11} /> },
-]
-
 const COLOR_SWATCHES = ['#7C5CFF', '#E85AA8', '#F28B3B', '#1E9F6E', '#3A6DF0', '#D8433B']
 
-/* ── Modal field + input atoms ───────────────────────────────────── */
+const PROJ_TYPES = [
+  { id: 'ba' as const,        label: 'BA Story',   IconComp: BookOpen,   color: '#7B5CFF' },
+  { id: 'test' as const,      label: 'Test plan',  IconComp: Clipboard,  color: '#FF6FB5' },
+  { id: 'release' as const,   label: 'Release',    IconComp: Package,    color: '#FF8A4C' },
+  { id: 'audit' as const,     label: 'Compliance', IconComp: Shield,     color: '#3DC08D' },
+  { id: 'discovery' as const, label: 'Discovery',  IconComp: Search,     color: '#4F8CFF' },
+  { id: 'blank' as const,     label: 'Blank',      IconComp: FolderOpen, color: '#8C857B' },
+]
+
+const PRIORITY_CONFIGS = [
+  { value: 'low' as const,      label: 'Low',      tone: '#8C857B' },
+  { value: 'med' as const,      label: 'Medium',   tone: '#4F8CFF' },
+  { value: 'high' as const,     label: 'High',     tone: '#E0A93B' },
+  { value: 'critical' as const, label: 'Critical', tone: '#D9534F' },
+]
+
+const VISIBILITY_CONFIGS = [
+  { value: 'team' as const,    label: 'Team',    IconComp: UsersIcon },
+  { value: 'private' as const, label: 'Private', IconComp: Lock },
+  { value: 'public' as const,  label: 'Public',  IconComp: Eye },
+]
+
+const TAG_SUGGESTIONS = ['regression', 'compliance', 'Q2-2026', 'billing', 'auth', 'checkout', 'onboarding', 'high-risk']
+
+const MOCK_SPRINTS = [
+  { id: 's-12', label: 'Sprint 12 — Apr 21 → May 5', active: true },
+  { id: 's-11', label: 'Sprint 11 — Apr 7 → Apr 21',  active: false },
+  { id: 's-10', label: 'Sprint 10 — Mar 24 → Apr 7',  active: false },
+]
+
+const STEP_META = [
+  { label: 'Basics' },
+  { label: 'Scope' },
+  { label: 'Team' },
+] as const
+
+/* ── Modal atoms ─────────────────────────────────────────────────── */
+
+const modalInputStyle: React.CSSProperties = {
+  border: '1px solid var(--border)',
+  background: 'var(--panel-2)',
+  borderRadius: 10,
+  padding: '9px 12px',
+  fontSize: 13.5,
+  color: 'var(--ink)',
+  fontFamily: 'inherit',
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+  transition: 'border-color .15s, background .15s',
+}
 
 function ModalField({ label, required, children, hint, half }: {
   label: string
@@ -105,20 +144,6 @@ function ModalField({ label, required, children, hint, half }: {
       {hint && <span style={{ fontSize: 11, color: 'var(--mute-2)' }}>{hint}</span>}
     </div>
   )
-}
-
-const modalInputStyle: React.CSSProperties = {
-  border: '1px solid var(--border)',
-  background: 'var(--panel-2)',
-  borderRadius: 10,
-  padding: '9px 12px',
-  fontSize: 13.5,
-  color: 'var(--ink)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-  transition: 'border-color .15s, background .15s',
 }
 
 function ModalInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -143,6 +168,43 @@ function ModalTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
   )
 }
 
+function StepSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>
+      {children}
+    </div>
+  )
+}
+
+function SegBtn({ active, onClick, children, StartIcon, tone }: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+  StartIcon?: React.ComponentType<{ size?: number }>
+  tone?: string
+}) {
+  const accent = tone ?? 'var(--purple)'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        border: active ? `1.5px solid ${accent}` : '1px solid var(--border)',
+        background: active ? `color-mix(in oklab, ${accent} 8%, var(--panel))` : 'var(--panel-2)',
+        color: active ? 'var(--ink)' : 'var(--ink-2)',
+        borderRadius: 8, padding: '8px 0', fontSize: 12.5, fontWeight: active ? 600 : 500,
+        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        fontFamily: 'inherit',
+      }}
+    >
+      {StartIcon && <StartIcon size={11} />}{children}
+    </button>
+  )
+}
+
+/* ── Stepper modal ───────────────────────────────────────────────── */
+
 function ProjectFormModal({
   initial, onSave, onClose,
 }: {
@@ -150,9 +212,11 @@ function ProjectFormModal({
   onSave: (data: ProjectFormData) => Promise<void>
   onClose: () => void
 }) {
+  const [step, setStep] = useState(0)
   const [form, setForm] = useState<ProjectFormData>({
     name: initial?.name ?? '',
     description: initial?.description ?? '',
+    projectType: 'ba',
     tags: initial?.tags ?? [],
     timelineStart: initial?.timelineStart ?? '',
     timelineEnd: initial?.timelineEnd ?? '',
@@ -168,17 +232,27 @@ function ProjectFormModal({
   const [tagInput, setTagInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [sprintOpen, setSprintOpen] = useState(false)
+  const sprintRef = useRef<HTMLDivElement>(null)
 
-  // Keyboard close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const addTag = () => {
-    const t = tagInput.trim()
-    if (t && !form.tags.includes(t)) setForm((f) => ({ ...f, tags: [...f.tags, t] }))
+  useEffect(() => {
+    if (!sprintOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (sprintRef.current && !sprintRef.current.contains(e.target as Node)) setSprintOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [sprintOpen])
+
+  const addTag = (t: string) => {
+    const trimmed = t.trim()
+    if (trimmed && !form.tags.includes(trimmed)) setForm((f) => ({ ...f, tags: [...f.tags, trimmed] }))
     setTagInput('')
   }
   const removeTag = (tag: string) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== tag) }))
@@ -196,6 +270,8 @@ function ProjectFormModal({
     }
   }
 
+  const currentSprint = MOCK_SPRINTS.find((s) => s.id === form.sprintId) ?? null
+
   return (
     <div
       onMouseDown={onClose}
@@ -210,7 +286,7 @@ function ProjectFormModal({
       <div
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 680,
+          width: '100%', maxWidth: 580,
           maxHeight: 'calc(100vh - 40px)',
           display: 'flex', flexDirection: 'column',
           background: 'var(--panel)', border: '1px solid var(--border)',
@@ -218,200 +294,362 @@ function ProjectFormModal({
         }}
       >
         {/* Header */}
-        <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <span
-            className="section-icon grad-purple"
-            style={{ width: 38, height: 38, borderRadius: 11, display: 'grid', placeItems: 'center', color: 'white', flexShrink: 0 }}
-          >
-            <FolderOpen size={20} />
-          </span>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-              {initial ? 'Edit project' : 'Create new project'}
-            </h2>
-            <p style={{ fontSize: 12.5, color: 'var(--mute)', margin: '2px 0 0' }}>
-              Configure scope, timeline, and team. You can edit any of this later.
-            </p>
+        <div style={{ padding: '16px 22px 0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+            <span
+              className="grad-purple"
+              style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center', color: 'white' }}
+            >
+              <FolderOpen size={17} />
+            </span>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+                {initial ? 'Edit project' : 'Create new project'}
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--mute)', margin: '1px 0 0' }}>
+                Step {step + 1} of {STEP_META.length} · {STEP_META[step].label}
+              </p>
+            </div>
+            <button onClick={onClose} className="tz-btn tz-btn-ghost" style={{ padding: 6 }}>
+              <X size={13} />
+            </button>
           </div>
-          <button onClick={onClose} className="tz-btn tz-btn-ghost" style={{ padding: 6 }}>
-            <X size={14} />
-          </button>
+
+          {/* Stepper rail */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 4 }}>
+            {STEP_META.map((s, i) => {
+              const done = i < step
+              const active = i === step
+              return (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => setStep(i)}
+                  style={{
+                    border: 0, background: 'transparent', padding: '4px 0 14px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    borderBottom: active
+                      ? '2px solid var(--purple)'
+                      : done
+                      ? '2px solid var(--green)'
+                      : '2px solid var(--border)',
+                    color: active ? 'var(--ink)' : done ? 'var(--green)' : 'var(--mute)',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 22, height: 22, borderRadius: 999, flexShrink: 0,
+                      background: done ? 'var(--green)' : active ? 'var(--purple)' : 'var(--panel-2)',
+                      color: done || active ? 'white' : 'var(--mute)',
+                      border: done || active ? 'none' : '1px solid var(--border)',
+                      display: 'grid', placeItems: 'center',
+                      fontSize: 11, fontWeight: 700,
+                    }}
+                  >
+                    {done ? <Check size={11} /> : i + 1}
+                  </span>
+                  <span style={{ fontSize: 12.5, fontWeight: active ? 600 : 500 }}>{s.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 18, flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 18, flex: 1, overflowY: 'auto', minHeight: 320 }}>
           {error && (
-            <div
-              style={{
-                padding: '10px 12px', borderRadius: 10, fontSize: 13,
-                background: 'color-mix(in oklab, var(--red) 10%, transparent)',
-                border: '1px solid color-mix(in oklab, var(--red) 30%, transparent)',
-                color: 'var(--red)',
-              }}
-            >
+            <div style={{
+              padding: '10px 12px', borderRadius: 10, fontSize: 13,
+              background: 'color-mix(in oklab, var(--red) 10%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--red) 30%, transparent)',
+              color: 'var(--red)',
+            }}>
               {error}
             </div>
           )}
 
-          {/* Name + color swatch */}
-          <ModalField label="PROJECT NAME" required>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {COLOR_SWATCHES.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setForm((f) => ({ ...f, color: c }))}
-                    style={{
-                      width: 32, height: 32, borderRadius: 8,
-                      border: form.color === c ? '2px solid var(--ink)' : '1px solid var(--border)',
-                      background: c, cursor: 'pointer', padding: 0,
-                    }}
-                    aria-label={`Color ${c}`}
-                  />
-                ))}
+          {/* ── Step 0: Basics ── */}
+          {step === 0 && (
+            <>
+              <div>
+                <StepSectionLabel>PROJECT TYPE</StepSectionLabel>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {PROJ_TYPES.map((t) => {
+                    const active = form.projectType === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, projectType: t.id }))}
+                        style={{
+                          border: active ? `1.5px solid ${t.color}` : '1px solid var(--border)',
+                          background: active ? `color-mix(in oklab, ${t.color} 7%, var(--panel))` : 'var(--panel-2)',
+                          borderRadius: 9, padding: '9px 10px',
+                          display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                          textAlign: 'left', fontFamily: 'inherit', fontSize: 12.5,
+                        }}
+                      >
+                        <span style={{
+                          width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                          background: `color-mix(in oklab, ${t.color} 16%, var(--panel))`,
+                          color: t.color, display: 'grid', placeItems: 'center',
+                        }}>
+                          <t.IconComp size={12} />
+                        </span>
+                        <span style={{ fontWeight: active ? 600 : 500, color: active ? 'var(--ink)' : 'var(--ink-2)' }}>
+                          {t.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              <ModalInput
-                placeholder="e.g. Sprint 12 Regression"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-          </ModalField>
 
-          <ModalField label="DESCRIPTION">
-            <ModalTextarea
-              placeholder="What is this project about? Goals, scope, key milestones…"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            />
-          </ModalField>
+              <ModalField label="PROJECT NAME" required>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    {COLOR_SWATCHES.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, color: c }))}
+                        style={{
+                          width: 30, height: 30, borderRadius: 8,
+                          border: form.color === c ? `2px solid ${c}` : '1px solid var(--border)',
+                          background: c, cursor: 'pointer', padding: 0,
+                          boxShadow: form.color === c ? `0 0 0 2px color-mix(in oklab, ${c} 25%, transparent)` : 'none',
+                        }}
+                        aria-label={`Color ${c}`}
+                      />
+                    ))}
+                  </div>
+                  <ModalInput
+                    placeholder="e.g. Sprint 12 Regression"
+                    value={form.name}
+                    autoFocus
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+              </ModalField>
 
-          {/* Priority + Visibility */}
-          <div style={{ display: 'flex', gap: 14 }}>
-            <ModalField label="PRIORITY" half>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {PRIORITY_BUCKETS.map((p) => {
-                  const active = form.priority === p.value
-                  return (
-                    <button
+              <ModalField label="DESCRIPTION">
+                <ModalTextarea
+                  placeholder="What is this project about? Goals, scope, key milestones…"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                />
+              </ModalField>
+            </>
+          )}
+
+          {/* ── Step 1: Scope ── */}
+          {step === 1 && (
+            <>
+              <div>
+                <StepSectionLabel>PRIORITY</StepSectionLabel>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {PRIORITY_CONFIGS.map((p) => (
+                    <SegBtn
                       key={p.value}
+                      active={form.priority === p.value}
                       onClick={() => setForm((f) => ({ ...f, priority: p.value }))}
-                      style={{
-                        flex: 1,
-                        border: active ? '1.5px solid var(--purple)' : '1px solid var(--border)',
-                        background: active ? 'color-mix(in oklab, var(--purple) 8%, var(--panel))' : 'var(--panel-2)',
-                        color: active ? 'var(--ink)' : 'var(--ink-2)',
-                        borderRadius: 8, padding: '8px 0',
-                        fontSize: 12.5, fontWeight: active ? 600 : 500,
-                        cursor: 'pointer', fontFamily: 'inherit',
-                      }}
+                      tone={p.tone}
                     >
                       {p.label}
-                    </button>
-                  )
-                })}
+                    </SegBtn>
+                  ))}
+                </div>
               </div>
-            </ModalField>
-            <ModalField label="VISIBILITY" half>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {VISIBILITY_OPTIONS.map((o) => {
-                  const active = form.visibility === o.value
-                  return (
-                    <button
+
+              <div>
+                <StepSectionLabel>VISIBILITY</StepSectionLabel>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {VISIBILITY_CONFIGS.map((o) => (
+                    <SegBtn
                       key={o.value}
+                      active={form.visibility === o.value}
                       onClick={() => setForm((f) => ({ ...f, visibility: o.value }))}
+                      StartIcon={o.IconComp}
+                    >
+                      {o.label}
+                    </SegBtn>
+                  ))}
+                </div>
+              </div>
+
+              <ModalField label="TAGS" hint="Click suggestions or type your own">
+                <div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <ModalInput
+                      placeholder="Add a tag…"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput) } }}
+                    />
+                    <button type="button" onClick={() => addTag(tagInput)} className="tz-btn" style={{ flexShrink: 0 }}>Add</button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                    {form.tags.map((t) => (
+                      <span
+                        key={t}
+                        style={{
+                          fontSize: 11.5, padding: '3px 4px 3px 9px', borderRadius: 999,
+                          background: 'color-mix(in oklab, var(--purple) 12%, var(--panel))',
+                          color: 'var(--purple)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600,
+                        }}
+                      >
+                        <TagIcon size={9} /> {t}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(t)}
+                          style={{ border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', padding: 2, display: 'inline-flex', borderRadius: 999 }}
+                        >
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                    {TAG_SUGGESTIONS.filter((s) => !form.tags.includes(s)).slice(0, 4).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => addTag(s)}
+                        style={{
+                          fontSize: 11.5, padding: '3px 9px', borderRadius: 999,
+                          background: 'var(--panel-2)', border: '1px dashed var(--border)',
+                          color: 'var(--mute)', cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        + {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </ModalField>
+
+              <div style={{ display: 'flex', gap: 14 }}>
+                <ModalField label="TIMELINE START" half>
+                  <ModalInput
+                    type="date"
+                    value={form.timelineStart}
+                    onChange={(e) => setForm((f) => ({ ...f, timelineStart: e.target.value }))}
+                  />
+                </ModalField>
+                <ModalField label="TIMELINE END" half>
+                  <ModalInput
+                    type="date"
+                    value={form.timelineEnd}
+                    onChange={(e) => setForm((f) => ({ ...f, timelineEnd: e.target.value }))}
+                  />
+                </ModalField>
+              </div>
+            </>
+          )}
+
+          {/* ── Step 2: Team ── */}
+          {step === 2 && (
+            <ModalField label="SPRINT" hint="Optional — link to an active sprint to sync stories and dates.">
+              <div ref={sprintRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setSprintOpen((o) => !o)}
+                  style={{ ...modalInputStyle, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <span style={{
+                    width: 6, height: 6, borderRadius: 999, flexShrink: 0,
+                    background: currentSprint?.active ? 'var(--green)' : 'var(--mute)',
+                  }} />
+                  <span style={{ flex: 1 }}>{currentSprint ? currentSprint.label : 'No sprint linked'}</span>
+                  <ChevronDown size={11} style={{ color: 'var(--mute)', flexShrink: 0 }} />
+                </button>
+                {sprintOpen && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                    background: 'var(--panel)', border: '1px solid var(--border)',
+                    borderRadius: 10, boxShadow: 'var(--shadow-md)', padding: 4, zIndex: 5,
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => { setForm((f) => ({ ...f, sprintId: null })); setSprintOpen(false) }}
                       style={{
-                        flex: 1,
-                        border: active ? '1.5px solid var(--purple)' : '1px solid var(--border)',
-                        background: active ? 'color-mix(in oklab, var(--purple) 8%, var(--panel))' : 'var(--panel-2)',
-                        borderRadius: 8, padding: '8px 0',
-                        fontSize: 12.5, fontWeight: active ? 600 : 500,
-                        cursor: 'pointer', fontFamily: 'inherit',
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                        color: active ? 'var(--ink)' : 'var(--ink-2)',
+                        width: '100%', textAlign: 'left', border: 0,
+                        background: form.sprintId === null ? 'color-mix(in oklab, var(--purple) 8%, var(--panel))' : 'transparent',
+                        borderRadius: 7, padding: '8px 10px', fontSize: 12.5, cursor: 'pointer',
+                        fontFamily: 'inherit', color: 'var(--mute)', display: 'flex', alignItems: 'center', gap: 8,
                       }}
                     >
-                      {o.icon} {o.label}
+                      <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--border)', flexShrink: 0 }} />
+                      No sprint
                     </button>
-                  )
-                })}
+                    {MOCK_SPRINTS.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => { setForm((f) => ({ ...f, sprintId: s.id })); setSprintOpen(false) }}
+                        style={{
+                          width: '100%', textAlign: 'left', border: 0,
+                          background: form.sprintId === s.id ? 'color-mix(in oklab, var(--purple) 8%, var(--panel))' : 'transparent',
+                          borderRadius: 7, padding: '8px 10px', fontSize: 12.5, cursor: 'pointer',
+                          fontFamily: 'inherit', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8,
+                        }}
+                        onMouseEnter={(e) => { if (form.sprintId !== s.id) e.currentTarget.style.background = 'var(--chip)' }}
+                        onMouseLeave={(e) => { if (form.sprintId !== s.id) e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <span style={{ width: 6, height: 6, borderRadius: 999, background: s.active ? 'var(--green)' : 'var(--mute)', flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{s.label}</span>
+                        {s.active && (
+                          <span className="tz-mono" style={{ fontSize: 9.5, color: 'var(--green)', fontWeight: 600 }}>ACTIVE</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </ModalField>
-          </div>
-
-          {/* Tags */}
-          <ModalField label="TAGS" hint="Press Enter or click Add. Tags help filter and group projects.">
-            <div style={{ display: 'flex', gap: 8 }}>
-              <ModalInput
-                placeholder="Add a tag…"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
-              />
-              <button onClick={addTag} className="tz-btn" style={{ flexShrink: 0 }}>Add</button>
-            </div>
-            {form.tags.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-                {form.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="tz-pill purple"
-                    style={{ paddingRight: 4 }}
-                  >
-                    <TagIcon size={10} /> {t}
-                    <button
-                      onClick={() => removeTag(t)}
-                      style={{ border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', padding: 0, marginLeft: 2, display: 'inline-flex' }}
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </ModalField>
-
-          {/* Dates */}
-          <div style={{ display: 'flex', gap: 14 }}>
-            <ModalField label="TIMELINE START" half>
-              <ModalInput
-                type="date"
-                value={form.timelineStart}
-                onChange={(e) => setForm((f) => ({ ...f, timelineStart: e.target.value }))}
-              />
-            </ModalField>
-            <ModalField label="TIMELINE END" half>
-              <ModalInput
-                type="date"
-                value={form.timelineEnd}
-                onChange={(e) => setForm((f) => ({ ...f, timelineEnd: e.target.value }))}
-              />
-            </ModalField>
-            <ModalField label="DEADLINE" half>
-              <ModalInput
-                type="date"
-                value={form.deadline}
-                onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-              />
-            </ModalField>
-          </div>
-
+          )}
         </div>
 
         {/* Footer */}
         <div
           style={{
-            padding: '14px 22px', borderTop: '1px solid var(--border)',
+            padding: '12px 22px', borderTop: '1px solid var(--border)',
             background: 'var(--panel-2)',
             display: 'flex', alignItems: 'center', gap: 10,
             flexShrink: 0,
           }}
         >
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={() => setStep(step - 1)}
+              className="tz-btn"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ChevronRight size={11} style={{ transform: 'rotate(180deg)' }} /> Back
+            </button>
+          )}
           <span style={{ flex: 1 }} />
-          <button onClick={onClose} className="tz-btn">Cancel</button>
-          <button onClick={submit} disabled={saving} className="tz-btn tz-btn-gradient">
-            {saving ? 'Saving…' : initial ? 'Save changes' : <>Create project <ArrowRight size={13} /></>}
-          </button>
+          <button type="button" onClick={onClose} className="tz-btn">Cancel</button>
+          {step < STEP_META.length - 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep(step + 1)}
+              disabled={step === 0 && !form.name.trim()}
+              className="tz-btn tz-btn-gradient"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              Continue <ChevronRight size={11} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="tz-btn tz-btn-gradient"
+            >
+              {saving ? 'Saving…' : initial ? 'Save changes' : <><span>Create project</span> <ArrowRight size={13} /></>}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -544,7 +782,7 @@ function DraggableProjectCard(props: {
   )
 }
 
-function ProjectCard({
+const ProjectCard = memo(function ProjectCard({
   project, canEdit, onEdit, onDelete,
 }: {
   project: Project; canEdit: boolean; onEdit: () => void; onDelete: () => void
@@ -660,7 +898,7 @@ function ProjectCard({
       </div>
     </div>
   )
-}
+})
 
 function CardAction({
   onClick, title, children,

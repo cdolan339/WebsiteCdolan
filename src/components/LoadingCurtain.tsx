@@ -9,13 +9,13 @@ const css = `
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--app-bg);
+  background: var(--bg);
   font-family: 'Segoe UI', system-ui, sans-serif;
   animation: curtainFadeIn 0.2s ease-out;
 }
 
 .curtain-overlay.curtain-transparent {
-  background: color-mix(in oklch, var(--app-bg) 80%, transparent);
+  background: color-mix(in oklch, var(--bg) 80%, transparent);
   backdrop-filter: blur(8px);
 }
 
@@ -227,7 +227,7 @@ const css = `
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--app-text-secondary);
+  background: var(--mute);
   animation: dotpulse 1.2s ease-in-out infinite;
 }
 
@@ -270,8 +270,8 @@ export function LoadingCurtain({ visible, message, transparent }: { visible: boo
         {/* Background blobs */}
         {!transparent && (
           <>
-            <div style={{ position: 'absolute', width: 300, height: 300, top: -80, left: -80, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', width: 200, height: 200, bottom: -40, right: -40, borderRadius: '50%', background: 'var(--app-accent-gradient)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', width: 300, height: 300, top: -80, left: -80, borderRadius: '50%', background: 'var(--purple)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', width: 200, height: 200, bottom: -40, right: -40, borderRadius: '50%', background: 'var(--purple)', filter: 'blur(80px)', opacity: 0.18, pointerEvents: 'none' }} />
           </>
         )}
 
@@ -287,7 +287,7 @@ export function LoadingCurtain({ visible, message, transparent }: { visible: boo
           </div>
         </div>
 
-        <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.5px' }}>
+        <p style={{ color: 'var(--mute)', fontSize: '0.85rem', fontWeight: 500, letterSpacing: '0.5px' }}>
           {message || 'Loading'}
         </p>
         <div className="curtain-dots">

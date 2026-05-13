@@ -185,8 +185,8 @@ export function AIFillStoryPanel({ onFill, onClose, onLoading }: Props) {
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 51,
         width: '460px', maxWidth: '95vw',
-        background: 'var(--app-panel-bg)',
-        borderLeft: '1px solid var(--app-panel-border)',
+        background: 'var(--panel)',
+        borderLeft: '1px solid var(--border)',
         boxShadow: '-8px 0 40px rgba(0,0,0,0.3)',
         display: 'flex', flexDirection: 'column',
         fontFamily: "'Segoe UI', system-ui, sans-serif",
@@ -450,8 +450,8 @@ export function AIFillStoryPanel({ onFill, onClose, onLoading }: Props) {
                     style={{
                       textAlign: 'left',
                       padding: '10px 12px', borderRadius: '6px',
-                      background: 'var(--app-bg)',
-                      border: '1px solid var(--app-glass-border)',
+                      background: 'var(--panel-2)',
+                      border: '1px solid var(--border)',
                       cursor: loading ? 'not-allowed' : 'pointer',
                       color: 'var(--app-text)', fontFamily: 'inherit',
                       transition: 'border-color 0.15s, background 0.15s',
