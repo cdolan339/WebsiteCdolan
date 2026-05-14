@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, Trash2, RotateCcw, ChevronRight, ArrowRight, X, AlertTriangle } from 'lucide-react'
-import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, type TestStatus } from '@/lib/useTestStatus'
+import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, useAllFailedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject, reorderCustomTestCases, type CustomTestCase } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
@@ -56,7 +56,10 @@ function ProjectPicker({
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>
-      <button className="tz-btn" onClick={() => setOpen((o) => !o)}>
+      <button
+        className="tz-btn"
+        onClick={() => setOpen((o) => !o)}
+      >
         <FolderOpen size={13} />
         <span className="tz-truncate" style={{ maxWidth: 180 }}>{active?.name ?? 'All Projects'}</span>
         <ChevronDown size={12} style={{ color: 'var(--mute)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
@@ -89,15 +92,18 @@ function ProjectPicker({
                 key={p.id}
                 onMouseDown={() => { onSelect(p.id); setOpen(false) }}
                 style={{
-                  width: '100%', padding: '9px 12px', border: 0,
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '9px 12px', border: 0,
                   background: activeProjectId === p.id ? 'var(--chip)' : 'transparent',
-                  color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit',
+                  color: 'var(--ink)',
+                  cursor: 'pointer', fontFamily: 'inherit',
                   fontSize: 13, textAlign: 'left',
                   fontWeight: activeProjectId === p.id ? 600 : 500,
                 }}
                 onMouseEnter={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'var(--panel-2)' }}
                 onMouseLeave={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'transparent' }}
               >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
                 <span className="tz-truncate">{p.name}</span>
               </button>
             ))}
@@ -133,13 +139,14 @@ type RowProps = {
   status: TestStatus
   priority: PriorityLevel
   passedCount: number
+  failedCount: number
   tab: Tab
   onComplete: (id: string) => void
   onReactivate: (id: string) => void
   onDelete: (id: string) => void
 }
 
-function DenseRow({ tc, projectName, projectColor, status, priority, passedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
+function DenseRow({ tc, projectName, projectColor, status, priority, passedCount, failedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `custom:${tc.id}` })
   const navigate = useNavigate()
   const meta = STATUS_META[status]
@@ -147,8 +154,8 @@ function DenseRow({ tc, projectName, projectColor, status, priority, passedCount
   const total = tc.testCases?.length ?? 0
   const cases = {
     pass: passedCount,
-    fail: status === 'fail' ? 1 : 0,
-    pending: Math.max(total - passedCount - (status === 'fail' ? 1 : 0), 0),
+    fail: failedCount,
+    pending: Math.max(total - passedCount - failedCount, 0),
     blocked: status === 'blocked' ? 1 : 0,
   }
 
@@ -247,6 +254,7 @@ function TestSuitesPage() {
   const statuses = useAllTestStatuses()
   const priorities = useAllTestPriorities()
   const expectedCounts = useAllExpectedCounts()
+  const failedCounts = useAllFailedCounts()
   const { cases: customCases, loading } = useCustomTestCases()
   const { projects } = useProjects()
   const [activeProjectId, setActiveProjectId] = useActiveProjectId()
@@ -376,6 +384,7 @@ function TestSuitesPage() {
                 const status: TestStatus = statuses[slug] ?? 'pending'
                 const priority = (priorities[slug] ?? tc.priority) as PriorityLevel
                 const passedCount = expectedCounts[slug] ?? 0
+                const failedCount = failedCounts[slug] ?? 0
                 const projectInfo = tc.projectId ? projectLookup.get(tc.projectId) ?? null : null
                 const projectName = projectInfo?.name ?? null
                 const projectColor = projectInfo?.color ?? null
@@ -388,6 +397,7 @@ function TestSuitesPage() {
                     status={status}
                     priority={priority}
                     passedCount={passedCount}
+                    failedCount={failedCount}
                     tab={tab}
                     onComplete={(id) => completeTestCase(id, true)}
                     onReactivate={(id) => completeTestCase(id, false)}

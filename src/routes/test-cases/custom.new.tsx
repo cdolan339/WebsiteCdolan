@@ -334,9 +334,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
           fontSize: 13, fontWeight: 500,
           padding: '7px 12px',
           borderRadius: 999,
-          background: selected ? 'color-mix(in oklab, var(--purple) 10%, var(--panel))' : 'var(--panel)',
+          background: 'var(--panel)',
           border: '1px solid var(--border)',
-          color: selected ? 'var(--purple)' : 'var(--mute)',
+          color: selected ? 'var(--ink)' : 'var(--mute)',
           cursor: 'pointer',
           boxShadow: 'var(--shadow-xs)',
         }}
@@ -365,8 +365,8 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
               padding: '8px 10px',
               borderRadius: 8,
               fontSize: 13, fontWeight: projectId === null ? 600 : 500,
-              color: projectId === null ? 'var(--purple)' : 'var(--ink)',
-              background: projectId === null ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+              color: projectId === null ? 'var(--ink)' : 'var(--mute)',
+              background: projectId === null ? 'var(--chip)' : 'transparent',
               border: 'none', cursor: 'pointer',
             }}
           >
@@ -382,15 +382,16 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
                   onMouseDown={() => { onChange(p.id); setOpen(false) }}
                   style={{
                     width: '100%',
-                    display: 'flex', alignItems: 'center',
+                    display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 10px',
                     borderRadius: 8,
                     fontSize: 13, fontWeight: active ? 600 : 500,
-                    color: active ? 'var(--purple)' : 'var(--ink)',
-                    background: active ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+                    color: 'var(--ink)',
+                    background: active ? 'var(--chip)' : 'transparent',
                     border: 'none', cursor: 'pointer', textAlign: 'left',
                   }}
                 >
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                 </button>
               )

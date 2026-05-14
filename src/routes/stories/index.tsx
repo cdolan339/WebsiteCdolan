@@ -67,7 +67,10 @@ function ProjectPicker({
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>
-      <button className="tz-btn" onClick={() => setOpen((o) => !o)}>
+      <button
+        className="tz-btn"
+        onClick={() => setOpen((o) => !o)}
+      >
         <FolderOpen size={13} />
         <span className="tz-truncate" style={{ maxWidth: 180 }}>{active?.name ?? 'All Projects'}</span>
         <ChevronDown size={12} style={{ color: 'var(--mute)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
@@ -99,14 +102,17 @@ function ProjectPicker({
                 key={p.id}
                 onMouseDown={() => { onSelect(p.id); setOpen(false) }}
                 style={{
-                  width: '100%', padding: '9px 12px', border: 0,
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '9px 12px', border: 0,
                   background: activeProjectId === p.id ? 'var(--chip)' : 'transparent',
-                  color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left',
+                  color: 'var(--ink)',
+                  cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left',
                   fontWeight: activeProjectId === p.id ? 600 : 500,
                 }}
                 onMouseEnter={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'var(--panel-2)' }}
                 onMouseLeave={(e) => { if (activeProjectId !== p.id) e.currentTarget.style.background = 'transparent' }}
               >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
                 <span className="tz-truncate">{p.name}</span>
               </button>
             ))}

@@ -313,8 +313,6 @@ function ThemeToggle() {
 }
 
 function NavBar({ onLogout }: { onLogout: () => void }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-
   const links = [
     { to: '/homepage', label: 'Dashboard' },
     { to: '/projects', label: 'Projects' },
@@ -382,46 +380,6 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
 
         <ThemeToggle />
       </div>
-
-      {/* ── Mobile ─────────────────────────────────── */}
-      <div
-        className="tz-nav-mobile"
-        style={{ padding: '10px 16px', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Toggle menu"
-            className="tz-btn tz-btn-ghost"
-            style={{ padding: 7, flexDirection: 'column', alignItems: 'stretch', gap: 3 }}
-          >
-            <span style={{ width: 18, height: 2, background: 'var(--ink)', display: 'block' }} />
-            <span style={{ width: 18, height: 2, background: 'var(--ink)', display: 'block' }} />
-            <span style={{ width: 18, height: 2, background: 'var(--ink)', display: 'block' }} />
-          </button>
-          <ThemeToggle />
-        </div>
-        <ProfileButton onLogout={onLogout} />
-      </div>
-
-      {menuOpen && (
-        <div className="tz-nav-mobile" style={{ padding: '12px 16px 16px', borderTop: '1px solid var(--border)', flexDirection: 'column', alignItems: 'stretch' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
-            {links.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                style={{ ...linkBase, padding: '9px 12px' }}
-                activeProps={{ style: { ...linkBase, padding: '9px 12px', background: 'var(--chip)', color: 'var(--ink)', fontWeight: 600 } }}
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-          <SearchBar />
-        </div>
-      )}
     </nav>
   )
 }

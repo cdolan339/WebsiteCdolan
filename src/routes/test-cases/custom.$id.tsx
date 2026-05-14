@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, X, Plus, Check, FolderOpen, ChevronDown, ChevronUp, Sparkles, Save } from 'lucide-react'
+import { ArrowLeft, Calendar, X, Plus, FolderOpen, ChevronDown, ChevronUp, Sparkles, Target, ListChecks, ClipboardList } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   useCustomTestCase,
@@ -11,6 +11,7 @@ import {
 import {
   useTestStatus,
   useExpectedChecked,
+  useFailedChecked,
   loadExpectedMap,
   type TestStatus,
 } from '@/lib/useTestStatus'
@@ -67,34 +68,135 @@ function formatDate(iso: string) {
 // ── Shared small components ───────────────────────────────────────────────────
 
 function StatusSelect({ value, onChange, disabled }: { value: TestStatus; onChange: (v: TestStatus) => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
   const tone = STATUS_TONES[value]
-  const chevron = encodeURIComponent(tone.fg.startsWith('var(') ? '#6E6E82' : tone.fg)
+
   return (
-    <select
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value as TestStatus)}
-      style={{
-        background: tone.bg,
-        color: tone.fg,
-        border: `1px solid ${tone.border}`,
-        borderRadius: 999,
-        padding: '5px 26px 5px 12px',
-        fontSize: 12,
-        fontWeight: 600,
-        letterSpacing: '0.04em',
-        cursor: disabled ? 'default' : 'pointer',
-        appearance: 'none',
-        WebkitAppearance: 'none',
-        MozAppearance: 'none',
-        fontFamily: 'inherit',
-        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${chevron}' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'right 10px center',
-      }}
-    >
-      {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div ref={wrapperRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((o) => !o)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          padding: '5px 10px 5px 10px',
+          borderRadius: 999,
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
+          color: 'var(--ink)',
+          fontSize: 12, fontWeight: 600, letterSpacing: '0.04em',
+          cursor: disabled ? 'default' : 'pointer',
+          fontFamily: 'inherit',
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: tone.fg, flexShrink: 0, display: 'inline-block' }} />
+        {STATUS_OPTIONS.find((o) => o.value === value)?.label ?? value.toUpperCase()}
+        <ChevronDown size={11} style={{ opacity: 0.5, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+      </button>
+
+      {open && (
+        <div
+          className="panel"
+          style={{
+            position: 'absolute', left: 0, top: 'calc(100% + 5px)', zIndex: 60,
+            minWidth: 150, padding: 4,
+            boxShadow: '0 12px 36px rgba(20,20,40,0.18)',
+          }}
+        >
+          {STATUS_OPTIONS.map((o) => {
+            const t = STATUS_TONES[o.value]
+            const active = o.value === value
+            return (
+              <button
+                key={o.value}
+                onMouseDown={() => { onChange(o.value); setOpen(false) }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '8px 10px', borderRadius: 8, border: 'none',
+                  background: active ? 'var(--chip)' : 'transparent',
+                  color: 'var(--ink)',
+                  fontSize: 12, fontWeight: active ? 600 : 500,
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.fg, flexShrink: 0, display: 'inline-block' }} />
+                {o.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Controlled failed row (no hook — state managed by SubTCResultRows)
+function FailedRow({ checked, onToggle, text, onTextChange }: { checked: boolean; onToggle: () => void; text: string; onTextChange: (v: string) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '12px', border: checked ? '1px solid rgba(220,38,38,0.45)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(220,38,38,0.1)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
+      <button
+        onClick={onToggle}
+        aria-label="Mark as failed"
+        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? '2px solid #dc2626' : '2px solid #6b7280', background: checked ? '#dc2626' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box' }}
+      >
+        {checked ? '✗' : ''}
+      </button>
+      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? '#dc2626' : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em' }}>Failed:</span>
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder="This failed because…"
+        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? '#dc2626' : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s' }}
+      />
+    </div>
+  )
+}
+
+// Wrapper that owns both hooks and enforces mutual exclusivity
+function SubTCResultRows({
+  slug, subId, expected, failedReason,
+  onExpectedChange, onFailedReasonChange,
+  onPassCountChange, onFailCountChange,
+}: {
+  slug: string; subId: string; expected: string; failedReason: string;
+  onExpectedChange: (v: string) => void; onFailedReasonChange: (v: string) => void;
+  onPassCountChange: (delta: number) => void; onFailCountChange: (delta: number) => void;
+}) {
+  const { checked: passChecked, setChecked: setPass } = useExpectedChecked(`${slug}__expected__${subId}`)
+  const { checked: failChecked, setChecked: setFail } = useFailedChecked(`${slug}__failed__${subId}`)
+
+  const handlePassToggle = () => {
+    const next = !passChecked
+    setPass(next)
+    onPassCountChange(next ? 1 : -1)
+    if (next && failChecked) { setFail(false); onFailCountChange(-1) }
+  }
+
+  const handleFailToggle = () => {
+    const next = !failChecked
+    setFail(next)
+    onFailCountChange(next ? 1 : -1)
+    if (next && passChecked) { setPass(false); onPassCountChange(-1) }
+  }
+
+  return (
+    <>
+      <ExpectedRow checked={passChecked} onToggle={handlePassToggle} text={expected} onTextChange={onExpectedChange} />
+      <FailedRow checked={failChecked} onToggle={handleFailToggle} text={failedReason} onTextChange={onFailedReasonChange} />
+    </>
   )
 }
 
@@ -124,9 +226,9 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
           fontSize: 12, fontWeight: 500,
           padding: '5px 12px',
           borderRadius: 999,
-          background: selected ? 'color-mix(in oklab, var(--purple) 10%, var(--panel))' : 'var(--panel)',
+          background: 'var(--panel)',
           border: '1px solid var(--border)',
-          color: selected ? 'var(--purple)' : 'var(--mute)',
+          color: selected ? 'var(--ink)' : 'var(--mute)',
           cursor: 'pointer',
           fontFamily: 'inherit',
           boxShadow: 'var(--shadow-xs)',
@@ -157,8 +259,8 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
               padding: '8px 10px',
               borderRadius: 8,
               fontSize: 13, fontWeight: projectId === null ? 600 : 500,
-              color: projectId === null ? 'var(--purple)' : 'var(--ink)',
-              background: projectId === null ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+              color: projectId === null ? 'var(--ink)' : 'var(--mute)',
+              background: projectId === null ? 'var(--chip)' : 'transparent',
               border: 'none', cursor: 'pointer',
               fontFamily: 'inherit',
             }}
@@ -175,16 +277,17 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
                   onMouseDown={() => { onChange(p.id); setOpen(false) }}
                   style={{
                     width: '100%',
-                    display: 'flex', alignItems: 'center',
+                    display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 10px',
                     borderRadius: 8,
                     fontSize: 13, fontWeight: active ? 600 : 500,
-                    color: active ? 'var(--purple)' : 'var(--ink)',
-                    background: active ? 'color-mix(in oklab, var(--purple) 10%, transparent)' : 'transparent',
+                    color: 'var(--ink)',
+                    background: active ? 'var(--chip)' : 'transparent',
                     border: 'none', cursor: 'pointer', textAlign: 'left',
                     fontFamily: 'inherit',
                   }}
                 >
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                 </button>
               )
@@ -196,23 +299,25 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
   )
 }
 
-// Expected checkbox row — local pass marker per sub-TC
-function ExpectedRow({ storageKey, text, onToggle }: { storageKey: string; text: string; onToggle: (v: boolean) => void }) {
-  const { checked, setChecked } = useExpectedChecked(storageKey)
-  const toggle = () => { const next = !checked; setChecked(next); onToggle(next) }
-
+// Controlled expected row (no hook — state managed by SubTCResultRows)
+function ExpectedRow({ checked, onToggle, text, onTextChange }: { checked: boolean; onToggle: () => void; text: string; onTextChange: (v: string) => void }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '10px 14px', borderRadius: '8px', marginBottom: '12px', border: checked ? '1px solid rgba(22,163,74,0.5)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(22,163,74,0.15)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '6px', border: checked ? '1px solid rgba(22,163,74,0.5)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(22,163,74,0.15)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
       <button
-        onClick={toggle}
+        onClick={onToggle}
         aria-label="Mark as passed"
-        style={{ flexShrink: 0, marginTop: '3px', width: '22px', height: '22px', minWidth: '22px', borderRadius: '5px', border: checked ? '2px solid #16a34a' : '2px solid #6b7280', background: checked ? '#16a34a' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: checked ? '#fff' : 'transparent', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box' }}
+        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? '2px solid #16a34a' : '2px solid #6b7280', background: checked ? '#16a34a' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box' }}
       >
         {checked ? '✓' : ''}
       </button>
-      <p style={{ margin: 0, color: checked ? 'var(--app-success)' : undefined, transition: 'color 0.2s', flex: 1 }}>
-        <strong>Expected:</strong> {text}
-      </p>
+      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? '#16a34a' : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em' }}>Expected:</span>
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder="What should happen…"
+        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? '#16a34a' : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s' }}
+      />
     </div>
   )
 }
@@ -271,7 +376,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
 
 // ── Sub-test case editor ─────────────────────────────────────────────────────
 
-function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, onMoveDown, subStatus }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string; onMoveUp?: () => void; onMoveDown?: () => void; subStatus?: TestStatus }) {
+function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, onMoveDown }: { tc: CustomTC; onChange: (tc: CustomTC) => void; onRemove: () => void; index: number; id?: string; parentTcId: string; onMoveUp?: () => void; onMoveDown?: () => void }) {
   const [expanded, setExpanded] = useState(true)
   const patch = (fields: Partial<CustomTC>) => onChange({ ...tc, ...fields })
 
@@ -280,7 +385,6 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
   const removeStep = (i: number) => patch({ steps: tc.steps.filter((_, idx) => idx !== i) })
 
   const tcCode = `TC-${String(index + 1).padStart(2, '0')}`
-  const passed = subStatus === 'pass'
 
   return (
     <div
@@ -469,30 +573,6 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
             </div>
           </div>
 
-          {/* Expected */}
-          <div style={{ marginBottom: 12 }}>
-            <div
-              className="tz-mono"
-              style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 5 }}
-            >
-              EXPECTED RESULT
-            </div>
-            <input
-              type="text"
-              value={tc.expected}
-              onChange={(e) => patch({ expected: e.target.value })}
-              placeholder="What should happen…"
-              style={{
-                width: '100%', padding: '9px 12px',
-                background: 'var(--panel)',
-                border: '1px solid var(--border)',
-                borderRadius: 9,
-                fontSize: 13, color: 'var(--ink)',
-                outline: 'none', fontFamily: 'inherit',
-              }}
-            />
-          </div>
-
           {/* Notes */}
           <div style={{ marginBottom: 12 }}>
             <div
@@ -521,24 +601,28 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
           </div>
           <Attachments testCaseId={`${parentTcId}__${tc.id}`} />
 
-          {/* Result confirmation pill */}
-          {passed && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: '9px 12px', borderRadius: 9,
-                fontSize: 13, fontWeight: 600,
-                background: 'var(--green-soft)', color: '#0B6F49',
-                border: '1px solid color-mix(in oklab, var(--green) 30%, transparent)',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}
-            >
-              <Check size={13} /> Expected: {tc.expected || '—'}
-            </div>
-          )}
         </div>
       )}
     </div>
+  )
+}
+
+// ── Section card with colored icon header ─────────────────────────────────────
+
+function SectionCard({ icon, gradient, title, children }: { icon: React.ReactNode; gradient: string; title: string; children: React.ReactNode }) {
+  return (
+    <section className="panel" style={{ padding: 22, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span
+          className={`section-icon ${gradient}`}
+          style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'white' }}
+        >
+          {icon}
+        </span>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>
+      </div>
+      {children}
+    </section>
   )
 }
 
@@ -551,14 +635,17 @@ function CustomTestCaseDetail() {
   const { projects } = useProjects()
 
   const [draft, setDraft] = useState<CustomTestCase | null>(null)
-  const [saved, setSaved] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
-  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Refs used by the flush-on-unmount effect (avoids stale closure)
+  const pendingSaveRef = useRef<CustomTestCase | null>(null)
+  const canEditRef = useRef(false)
+  const isInitialDraftRef = useRef(true)
 
   const slug = tc ? `custom:${tc.id}` : ''
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
+  const [failedCount, setFailedCount] = useState(0)
 
   useEffect(() => {
     if (tc && !draft) setDraft(tc)
@@ -567,8 +654,10 @@ function CustomTestCaseDetail() {
   useEffect(() => {
     if (!tc) return
     const stored = loadExpectedMap()
-    const initial = tc.testCases.filter((sub) => Boolean(stored[`${slug}__expected__${sub.id}`])).length
-    setPassedCount(initial)
+    const initialPassed = tc.testCases.filter((sub) => Boolean(stored[`${slug}__expected__${sub.id}`])).length
+    const initialFailed = tc.testCases.filter((sub) => Boolean(stored[`${slug}__failed__${sub.id}`])).length
+    setPassedCount(initialPassed)
+    setFailedCount(initialFailed)
   }, [slug, tc])
 
   useEffect(() => {
@@ -578,27 +667,41 @@ function CustomTestCaseDetail() {
   const session = getSession()
   const isOwner = tc ? (!tc.userId || tc.userId === session?.id) : false
   const canEdit = Boolean(isOwner || (tc && tc.projectId))
+  // Keep refs current every render so unmount cleanup sees the latest values
+  canEditRef.current = canEdit
 
-  const stripVolatile = (t: CustomTestCase) => {
-    const { updatedAt: _u, ...rest } = t
-    return rest
-  }
-  const dirty = !!draft && !!tc && JSON.stringify(stripVolatile(draft)) !== JSON.stringify(stripVolatile(tc))
+  // Debounce: persist to server 600ms after the last change
+  useEffect(() => {
+    // Skip the very first time draft is set from tc (initial load)
+    if (isInitialDraftRef.current) {
+      if (draft !== null) isInitialDraftRef.current = false
+      return
+    }
+    if (!draft || !canEditRef.current) return
+    const timer = setTimeout(() => {
+      updateCustomTestCase({ ...draft, updatedAt: new Date().toISOString() })
+      pendingSaveRef.current = null
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [draft])
 
-  const patch = useCallback((fields: Partial<CustomTestCase>) => {
-    setDraft((d) => d ? { ...d, ...fields } : d)
+  // Flush any pending save immediately when the component unmounts
+  // (prevents losing edits made < 600ms before navigating away)
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current && canEditRef.current) {
+        updateCustomTestCase({ ...pendingSaveRef.current, updatedAt: new Date().toISOString() })
+      }
+    }
   }, [])
 
-  const saveDraft = useCallback(() => {
-    if (!draft || !canEdit) return
-    updateCustomTestCase({ ...draft, updatedAt: new Date().toISOString() })
-    setSaved(true)
-    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
-    savedTimerRef.current = setTimeout(() => setSaved(false), 1500)
-  }, [draft, canEdit])
-
-  useEffect(() => () => {
-    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+  const patch = useCallback((fields: Partial<CustomTestCase>) => {
+    setDraft((d) => {
+      if (!d) return d
+      const next = { ...d, ...fields }
+      pendingSaveRef.current = next // track latest for flush-on-unmount
+      return next
+    })
   }, [])
 
   const addPrecondition = () => {
@@ -686,17 +789,6 @@ function CustomTestCaseDetail() {
               <Sparkles size={14} /> AI Generate
             </button>
           )}
-          {canEdit && (
-            <button
-              onClick={saveDraft}
-              disabled={!dirty && !saved}
-              className={dirty ? 'tz-btn tz-btn-gradient' : 'tz-btn'}
-              style={{ opacity: !dirty && !saved ? 0.6 : 1, cursor: !dirty && !saved ? 'default' : 'pointer' }}
-            >
-              <Save size={14} />
-              {saved ? 'Saved' : dirty ? 'Save' : 'Saved'}
-            </button>
-          )}
         </div>
 
         {/* Title */}
@@ -730,6 +822,9 @@ function CustomTestCaseDetail() {
           />
           {passedCount > 0 && (
             <Pill tone="green" icon="check">{passedCount} passed</Pill>
+          )}
+          {failedCount > 0 && (
+            <Pill tone="red" icon="x-circle">{failedCount} failed</Pill>
           )}
           {canEdit ? (
             <ProjectPicker
@@ -803,8 +898,7 @@ function CustomTestCaseDetail() {
         </div>
 
         {/* Objective */}
-        <section className="panel" style={{ padding: 18, marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.005em', color: 'var(--ink)' }}>Objective</h2>
+        <SectionCard icon={<Target size={16} />} gradient="grad-purple" title="Objective">
           <AutoGrowTextarea
             value={draft.objective}
             onChange={(e) => patch({ objective: e.target.value })}
@@ -814,11 +908,10 @@ function CustomTestCaseDetail() {
             focusMinHeight={180}
             className="w-full text-sm text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors"
           />
-        </section>
+        </SectionCard>
 
         {/* Preconditions */}
-        <section className="panel" style={{ padding: 18, marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.005em', color: 'var(--ink)' }}>Preconditions</h2>
+        <SectionCard icon={<ListChecks size={16} />} gradient="grad-blue" title="Preconditions">
           <ul className="space-y-2 mb-3">
             {draft.preconditions.map((item, i) => (
               <li key={i} className="flex items-center gap-2">
@@ -843,11 +936,10 @@ function CustomTestCaseDetail() {
             </button>
           )}
           <PreconditionAttachments testCaseId={`precond:${tc.id}`} />
-        </section>
+        </SectionCard>
 
         {/* Test Cases */}
-        <section className="panel" style={{ padding: 18, marginBottom: 18 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.005em', color: 'var(--ink)' }}>Test Cases</h2>
+        <SectionCard icon={<ClipboardList size={16} />} gradient="grad-orange" title="Test Cases">
           {draft.testCases.map((sub, i) => (
             <div key={sub.id}>
               <SubTCEditor
@@ -859,13 +951,16 @@ function CustomTestCaseDetail() {
                 onMoveUp={canEdit && i > 0 ? () => moveSubTC(i, i - 1) : undefined}
                 onMoveDown={canEdit && i < draft.testCases.length - 1 ? () => moveSubTC(i, i + 1) : undefined}
               />
-              {sub.expected.trim() && (
-                <ExpectedRow
-                  storageKey={`${slug}__expected__${sub.id}`}
-                  text={sub.expected}
-                  onToggle={(v) => setPassedCount((c) => (v ? c + 1 : c - 1))}
-                />
-              )}
+              <SubTCResultRows
+                slug={slug}
+                subId={sub.id}
+                expected={sub.expected}
+                failedReason={sub.failedReason ?? ''}
+                onExpectedChange={(v) => updateSubTC({ ...sub, expected: v })}
+                onFailedReasonChange={(v) => updateSubTC({ ...sub, failedReason: v })}
+                onPassCountChange={(delta) => setPassedCount((c) => c + delta)}
+                onFailCountChange={(delta) => setFailedCount((c) => c + delta)}
+              />
             </div>
           ))}
           {canEdit && (
@@ -876,7 +971,7 @@ function CustomTestCaseDetail() {
               <Plus size={14} /> Add Test Case
             </button>
           )}
-        </section>
+        </SectionCard>
 
       </div>
 
@@ -890,26 +985,6 @@ function CustomTestCaseDetail() {
       )}
       <LoadingCurtain visible={aiLoading} message="Generating test cases" transparent />
 
-      {/* Sticky footer save hint */}
-      {dirty && canEdit && (
-        <div
-          style={{
-            position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 50, display: 'flex', alignItems: 'center', gap: 10,
-            padding: '8px 10px 8px 16px', borderRadius: 999,
-            background: 'color-mix(in oklab, var(--panel) 92%, transparent)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 10px 30px rgba(20,20,40,0.12)',
-            backdropFilter: 'blur(12px)',
-            color: 'var(--ink)', fontSize: 13, fontWeight: 500,
-          }}
-        >
-          Unsaved changes
-          <button onClick={saveDraft} className="tz-btn tz-btn-gradient" style={{ padding: '5px 12px', fontSize: 12 }}>
-            <Save size={11} /> Save
-          </button>
-        </div>
-      )}
     </div>
   )
 }

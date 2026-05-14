@@ -29,6 +29,8 @@ export type Project = {
   autoRaid: boolean;
   notifyTeam: boolean;
   health: ProjectHealth | null;
+  completed: boolean;
+  completedAt: string | null;
   createdBy: string | null;
   userId: number;
   createdAt: string;
@@ -194,6 +196,33 @@ export async function setProjectHealth(
     return project;
   } catch (err) {
     // Rollback on failure
+    if (prev) {
+      projectCache = (projectCache ?? []).map((p) => (p.id === id ? prev : p));
+      notify();
+    }
+    throw err;
+  }
+}
+
+export async function completeProject(id: number, completed: boolean): Promise<void> {
+  // Optimistic update
+  await ensureLoaded();
+  const prev = (projectCache ?? []).find((p) => p.id === id) ?? null;
+  if (prev) {
+    projectCache = (projectCache ?? []).map((p) =>
+      p.id === id ? { ...p, completed, completedAt: completed ? new Date().toISOString() : null } : p
+    );
+    notify();
+  }
+
+  try {
+    const project = await api<Project>(`/projects/${id}/complete`, {
+      method: "PATCH",
+      body: JSON.stringify({ completed }),
+    });
+    projectCache = (projectCache ?? []).map((p) => (p.id === id ? project : p));
+    notify();
+  } catch (err) {
     if (prev) {
       projectCache = (projectCache ?? []).map((p) => (p.id === id ? prev : p));
       notify();

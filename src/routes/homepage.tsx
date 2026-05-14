@@ -296,7 +296,7 @@ function Dashboard() {
 
       {/* Projects */}
       <SectionHead
-        icon="folder" gradient="grad-aurora-projects" label="Projects" meta={projects.length}
+        icon="folder" gradient="grad-purple" label="Projects" meta={projects.length}
         action={<>
           <Link to="/projects" className="tz-btn tz-btn-gradient" style={{ textDecoration: 'none' }}><Plus size={13} /> New Project</Link>
           <Link to="/projects" className="tz-btn tz-btn-ghost" style={{ textDecoration: 'none' }}>View all <ArrowRight size={13} /></Link>

@@ -301,6 +301,8 @@ body {
   color: var(--ink);
   letter-spacing: -0.005em;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .tz-mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
@@ -519,7 +521,7 @@ h1.display {
 .metric-stat { font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* Page transitions */
-.page-enter { animation: tzFadeUp .4s cubic-bezier(.2,.7,.2,1) both; }
+.page-enter { animation: tzFadeUp .4s cubic-bezier(.2,.7,.2,1) both; flex: 1; }
 @keyframes tzFadeUp {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -588,11 +590,6 @@ h1.display {
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* ── Responsive nav helpers (explicit — do not rely on Tailwind breakpoints) ── */
+/* ── Nav helpers ── */
 .tz-nav-desktop { display: flex; }
-.tz-nav-mobile  { display: none; }
-@media (max-width: 767px) {
-  .tz-nav-desktop { display: none !important; }
-  .tz-nav-mobile  { display: flex !important; }
-}
 

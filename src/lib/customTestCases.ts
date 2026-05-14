@@ -16,6 +16,7 @@ export type CustomTC = {
   priority: "low" | "medium" | "high" | "critical";
   steps: string[];
   expected: string;
+  failedReason: string;
   notes: string;
 };
 
@@ -118,6 +119,7 @@ export function createCustomTC(): CustomTC {
     priority: "medium",
     steps: [""],
     expected: "",
+    failedReason: "",
     notes: "",
   };
 }

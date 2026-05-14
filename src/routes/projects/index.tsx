@@ -1,14 +1,15 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useProjects, createProject, updateProject, deleteProject, setProjectHealth, type Project, type CreateProjectPayload } from '@/lib/projects'
+import { useProjects, createProject, updateProject, deleteProject, setProjectHealth, completeProject, type Project, type CreateProjectPayload } from '@/lib/projects'
 import { useHasPermission } from '@/lib/permissions'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import { useState, useMemo, useEffect, useRef, memo } from 'react'
 import {
   Plus, Pencil, Trash2, Calendar, FolderOpen, X, ChevronDown, Filter, User as UserIcon, Tag as TagIcon, ArrowUpDown,
   Eye, Users as UsersIcon, ArrowRight, BookOpen, Clipboard, Package, Shield, Search, Lock, Check, ChevronRight,
+  CheckCheck, RotateCcw,
 } from 'lucide-react'
 import {
-  PageShell, EyebrowChip, Pill, Button, Avatar, colorForName,
+  PageShell, EyebrowChip, Pill, Button, Avatar, colorForName, Segmented,
 } from '@/components/design/primitives'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -18,6 +19,8 @@ import {
 export const Route = createFileRoute('/projects/')({
   component: ProjectsPage,
 })
+
+type Tab = 'active' | 'completed'
 
 /* ── Derived health ──────────────────────────────────────────────── */
 
@@ -709,7 +712,7 @@ function accentGradientForProject(p: Project): string {
 }
 
 function HealthLane({
-  health, projects, canCreate, onAdd, onEdit, onDelete,
+  health, projects, canCreate, onAdd, onEdit, onDelete, onComplete,
 }: {
   health: Health
   projects: Project[]
@@ -717,6 +720,7 @@ function HealthLane({
   onAdd: () => void
   onEdit: (p: Project) => void
   onDelete: (p: Project) => void
+  onComplete: (p: Project) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: health })
   return (
@@ -757,6 +761,7 @@ function HealthLane({
               canEdit={canCreate}
               onEdit={() => onEdit(p)}
               onDelete={() => onDelete(p)}
+              onComplete={() => onComplete(p)}
             />
           ))
         )}
@@ -766,7 +771,7 @@ function HealthLane({
 }
 
 function DraggableProjectCard(props: {
-  project: Project; canEdit: boolean; onEdit: () => void; onDelete: () => void
+  project: Project; canEdit: boolean; onEdit: () => void; onDelete: () => void; onComplete: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: props.project.id })
   const style: React.CSSProperties = {
@@ -777,15 +782,16 @@ function DraggableProjectCard(props: {
   }
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ProjectCard {...props} />
+      <ProjectCard {...props} tab="active" />
     </div>
   )
 }
 
 const ProjectCard = memo(function ProjectCard({
-  project, canEdit, onEdit, onDelete,
+  project, canEdit, onEdit, onDelete, onComplete, onReactivate, tab,
 }: {
   project: Project; canEdit: boolean; onEdit: () => void; onDelete: () => void
+  onComplete?: () => void; onReactivate?: () => void; tab: Tab
 }) {
   const navigate = useNavigate()
   const progress = progressForProject(project)
@@ -804,6 +810,7 @@ const ProjectCard = memo(function ProjectCard({
         transition: 'transform .15s, box-shadow .15s',
         position: 'relative',
         overflow: 'hidden',
+        opacity: project.completed ? 0.8 : 1,
       }}
       onClick={() => navigate({ to: '/projects/$id', params: { id: String(project.id) } })}
       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' }}
@@ -827,6 +834,12 @@ const ProjectCard = memo(function ProjectCard({
         }}>{project.name}</h3>
         {canEdit && (
           <div style={{ display: 'flex', gap: 2, flexShrink: 0, opacity: 0.6 }}>
+            {tab === 'active' && onComplete && (
+              <CardAction onClick={(e) => { e.stopPropagation(); onComplete() }} title="Mark complete"><CheckCheck size={12} /></CardAction>
+            )}
+            {tab === 'completed' && onReactivate && (
+              <CardAction onClick={(e) => { e.stopPropagation(); onReactivate() }} title="Reactivate"><RotateCcw size={12} /></CardAction>
+            )}
             <CardAction onClick={(e) => { e.stopPropagation(); onEdit() }} title="Edit"><Pencil size={12} /></CardAction>
             <CardAction onClick={(e) => { e.stopPropagation(); onDelete() }} title="Delete"><Trash2 size={12} /></CardAction>
           </div>
@@ -989,9 +1002,13 @@ function ProjectsPage() {
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
   const [sort, setSort] = useState<SortKey>('updated')
   const [sortOpen, setSortOpen] = useState(false)
+  const [tab, setTab] = useState<Tab>('active')
+
+  const activeProjects = useMemo(() => projects.filter((p) => !p.completed), [projects])
+  const completedProjects = useMemo(() => projects.filter((p) => p.completed), [projects])
 
   const sorted = useMemo(() => {
-    const ps = [...projects]
+    const ps = [...(tab === 'active' ? activeProjects : completedProjects)]
     switch (sort) {
       case 'updated':  ps.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')); break
       case 'created':  ps.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')); break
@@ -999,7 +1016,7 @@ function ProjectsPage() {
       case 'name':     ps.sort((a, b) => a.name.localeCompare(b.name)); break
     }
     return ps
-  }, [projects, sort])
+  }, [tab, activeProjects, completedProjects, sort])
 
   const lanes = useMemo(() => {
     const buckets: Record<Health, Project[]> = { 'on-track': [], 'at-risk': [], 'blocked': [] }
@@ -1152,60 +1169,85 @@ function ProjectsPage() {
 
       {/* Tab strip */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{
-          display: 'inline-flex', padding: 3, gap: 2, borderRadius: 999,
-          background: 'var(--panel)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-xs)',
-        }}>
-          <button
-            type="button"
-            style={{
-              padding: '8px 18px', borderRadius: 999, border: 0, cursor: 'pointer',
-              background: 'linear-gradient(105deg, var(--purple), var(--pink))',
-              color: 'white', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            <FolderOpen size={13} /> All
-            <span style={{ background: 'rgba(255,255,255,0.22)', padding: '1px 7px', borderRadius: 999, fontSize: 11, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-              {projects.length}
-            </span>
-          </button>
-        </div>
+        <Segmented
+          options={[
+            { value: 'active', label: 'Active', icon: 'clock', count: activeProjects.length },
+            { value: 'completed', label: 'Completed', icon: 'check-circle', count: completedProjects.length },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as Tab)}
+        />
       </div>
 
-      {/* Status board */}
-      {projects.length === 0 ? (
-        <div
-          className="panel"
-          style={{ padding: '54px 24px', textAlign: 'center', borderStyle: 'dashed' }}
-        >
+      {/* Status board — active tab */}
+      {tab === 'active' && (
+        activeProjects.length === 0 ? (
           <div
-            className="section-icon grad-purple"
-            style={{ width: 44, height: 44, borderRadius: 12, display: 'inline-grid', placeItems: 'center', color: 'white', margin: '0 auto 12px' }}
+            className="panel"
+            style={{ padding: '54px 24px', textAlign: 'center', borderStyle: 'dashed' }}
           >
-            <FolderOpen size={20} />
+            <div
+              className="section-icon grad-purple"
+              style={{ width: 44, height: 44, borderRadius: 12, display: 'inline-grid', placeItems: 'center', color: 'white', margin: '0 auto 12px' }}
+            >
+              <FolderOpen size={20} />
+            </div>
+            <p style={{ color: 'var(--ink)', fontWeight: 600, margin: '0 0 4px' }}>No active projects</p>
+            {canCreate && (
+              <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0 }}>Click "New Project" to set up your first workstream.</p>
+            )}
           </div>
-          <p style={{ color: 'var(--ink)', fontWeight: 600, margin: '0 0 4px' }}>No projects yet</p>
-          {canCreate && (
-            <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0 }}>Click "New Project" to set up your first workstream.</p>
-          )}
-        </div>
-      ) : (
-        <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        ) : (
+          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, alignItems: 'flex-start' }}>
+              {(['on-track', 'at-risk', 'blocked'] as Health[]).map((h) => (
+                <HealthLane
+                  key={h}
+                  health={h}
+                  projects={lanes[h]}
+                  canCreate={canCreate}
+                  onAdd={() => setShowCreate(true)}
+                  onEdit={(p) => setEditingProject(p)}
+                  onDelete={(p) => setDeletingProject(p)}
+                  onComplete={(p) => completeProject(p.id, true).catch(console.error)}
+                />
+              ))}
+            </div>
+          </DndContext>
+        )
+      )}
+
+      {/* Completed tab */}
+      {tab === 'completed' && (
+        completedProjects.length === 0 ? (
+          <div
+            className="panel"
+            style={{ padding: '54px 24px', textAlign: 'center', borderStyle: 'dashed' }}
+          >
+            <div
+              className="section-icon grad-purple"
+              style={{ width: 44, height: 44, borderRadius: 12, display: 'inline-grid', placeItems: 'center', color: 'white', margin: '0 auto 12px' }}
+            >
+              <CheckCheck size={20} />
+            </div>
+            <p style={{ color: 'var(--ink)', fontWeight: 600, margin: '0 0 4px' }}>No completed projects yet</p>
+            <p style={{ fontSize: 13, color: 'var(--mute)', margin: 0 }}>Mark a project complete using the <CheckCheck size={11} style={{ display: 'inline', verticalAlign: 'middle' }} /> button on its card.</p>
+          </div>
+        ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, alignItems: 'flex-start' }}>
-            {(['on-track', 'at-risk', 'blocked'] as Health[]).map((h) => (
-              <HealthLane
-                key={h}
-                health={h}
-                projects={lanes[h]}
-                canCreate={canCreate}
-                onAdd={() => setShowCreate(true)}
-                onEdit={(p) => setEditingProject(p)}
-                onDelete={(p) => setDeletingProject(p)}
+            {sorted.map((p) => (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                canEdit={canCreate}
+                tab="completed"
+                onEdit={() => setEditingProject(p)}
+                onDelete={() => setDeletingProject(p)}
+                onReactivate={() => completeProject(p.id, false).catch(console.error)}
               />
             ))}
           </div>
-        </DndContext>
+        )
       )}
 
       {showCreate && <ProjectFormModal onSave={handleCreate} onClose={() => setShowCreate(false)} />}

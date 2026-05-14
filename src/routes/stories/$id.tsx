@@ -104,7 +104,7 @@ function StoryProjectPicker({
   projectId,
   onSelect,
 }: {
-  projects: Array<{ id: number; name: string }>
+  projects: Array<{ id: number; name: string; color: string }>
   projectId: number | null
   onSelect: (id: number | null) => void
 }) {
@@ -128,8 +128,8 @@ function StoryProjectPicker({
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-2 text-sm font-semibold pl-3 pr-2 py-1 rounded-full transition-colors hover:opacity-90"
         style={{
-          background: projectId ? 'var(--app-accent-bg)' : 'var(--app-glass)',
-          color: projectId ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
+          background: 'var(--app-glass)',
+          color: current ? 'var(--ink)' : 'var(--app-text-secondary)',
           border: '1px solid var(--app-glass-border)',
         }}
         title="Assign to a project"
@@ -154,8 +154,8 @@ function StoryProjectPicker({
             onMouseDown={() => { onSelect(null); setOpen(false) }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors"
             style={{
-              background: projectId === null ? 'var(--app-accent-bg)' : 'transparent',
-              color: projectId === null ? 'var(--app-accent-color)' : 'var(--app-text-secondary)',
+              background: projectId === null ? 'var(--chip)' : 'transparent',
+              color: projectId === null ? 'var(--ink)' : 'var(--app-text-secondary)',
               borderBottom: '1px solid var(--app-glass-border)',
               fontWeight: projectId === null ? 600 : 400,
             }}
@@ -171,16 +171,17 @@ function StoryProjectPicker({
                 type="button"
                 key={p.id}
                 onMouseDown={() => { onSelect(p.id); setOpen(false) }}
-                className="w-full flex items-center px-4 py-2.5 text-sm transition-colors text-left"
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors text-left"
                 style={{
-                  background: projectId === p.id ? 'var(--app-accent-bg)' : 'transparent',
-                  color: 'var(--app-accent-color)',
+                  background: projectId === p.id ? 'var(--chip)' : 'transparent',
+                  color: 'var(--ink)',
                   borderBottom: '1px solid var(--app-glass-border)',
                   fontWeight: projectId === p.id ? 600 : 400,
                 }}
                 onMouseEnter={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'var(--app-glass)' }}
-                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = projectId === p.id ? 'var(--app-accent-bg)' : 'transparent' }}
+                onMouseLeave={(e) => { if (projectId !== p.id) e.currentTarget.style.background = 'transparent' }}
               >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
                 <span className="truncate">{p.name}</span>
               </button>
             ))}

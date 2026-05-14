@@ -16,16 +16,19 @@ export type TestPriority = "low" | "medium" | "high" | "critical";
 
 let statusCache: Record<string, TestStatus> = {};
 let statusLoaded = false;
+let statusLoadPromise: Promise<void> | null = null;
 const statusListeners = new Set<() => void>();
 function notifyStatus() { statusListeners.forEach((fn) => fn()); }
 
 let priorityCache: Record<string, TestPriority> = {};
 let priorityLoaded = false;
+let priorityLoadPromise: Promise<void> | null = null;
 const priorityListeners = new Set<() => void>();
 function notifyPriority() { priorityListeners.forEach((fn) => fn()); }
 
 let expectedCache: Record<string, boolean> = {};
 let expectedLoaded = false;
+let expectedLoadPromise: Promise<void> | null = null;
 const expectedListeners = new Set<() => void>();
 function notifyExpected() { expectedListeners.forEach((fn) => fn()); }
 
@@ -47,46 +50,73 @@ export function applyExpectedUpdate(key: string, checked: boolean) {
 
 // Reset caches on logout (call this from your logout handler)
 export function clearCaches() {
-  statusCache = {}; statusLoaded = false;
-  priorityCache = {}; priorityLoaded = false;
-  expectedCache = {}; expectedLoaded = false;
+  statusCache = {}; statusLoaded = false; statusLoadPromise = null;
+  priorityCache = {}; priorityLoaded = false; priorityLoadPromise = null;
+  expectedCache = {}; expectedLoaded = false; expectedLoadPromise = null;
 }
 
 // ── Loaders (fetch once from API, then serve from memory) ─────────
 
-async function ensureStatuses() {
-  if (statusLoaded) return;
-  try {
-    statusCache = await api<Record<string, TestStatus>>("/data/statuses");
-  } catch { statusCache = {}; }
-  statusLoaded = true;
-  notifyStatus();
+function ensureStatuses(): Promise<void> {
+  if (statusLoaded) return Promise.resolve();
+  if (statusLoadPromise) return statusLoadPromise;
+  const p = api<Record<string, TestStatus>>("/data/statuses")
+    .then((data) => {
+      statusCache = data;
+      statusLoaded = true;
+      statusLoadPromise = null;
+      notifyStatus();
+    })
+    .catch(() => {
+      // Don't set statusLoaded — allow retry on next call
+      statusLoadPromise = null;
+    });
+  statusLoadPromise = p;
+  return p;
 }
 
-async function ensurePriorities() {
-  if (priorityLoaded) return;
-  try {
-    priorityCache = await api<Record<string, TestPriority>>("/data/priorities");
-  } catch { priorityCache = {}; }
-  priorityLoaded = true;
-  notifyPriority();
+function ensurePriorities(): Promise<void> {
+  if (priorityLoaded) return Promise.resolve();
+  if (priorityLoadPromise) return priorityLoadPromise;
+  const p = api<Record<string, TestPriority>>("/data/priorities")
+    .then((data) => {
+      priorityCache = data;
+      priorityLoaded = true;
+      priorityLoadPromise = null;
+      notifyPriority();
+    })
+    .catch(() => {
+      priorityLoadPromise = null;
+    });
+  priorityLoadPromise = p;
+  return p;
 }
 
-async function ensureExpected() {
-  if (expectedLoaded) return;
-  try {
-    expectedCache = await api<Record<string, boolean>>("/data/expected");
-  } catch { expectedCache = {}; }
-  expectedLoaded = true;
-  notifyExpected();
+function ensureExpected(): Promise<void> {
+  if (expectedLoaded) return Promise.resolve();
+  if (expectedLoadPromise) return expectedLoadPromise;
+  const p = api<Record<string, boolean>>("/data/expected")
+    .then((data) => {
+      expectedCache = data;
+      expectedLoaded = true;
+      expectedLoadPromise = null;
+      notifyExpected();
+    })
+    .catch(() => {
+      expectedLoadPromise = null;
+    });
+  expectedLoadPromise = p;
+  return p;
 }
 
 // ── Status hooks ──────────────────────────────────────────────────
 
 export function useTestStatus(slug: string) {
-  const [status, setStatusState] = useState<TestStatus>("pending");
+  const [status, setStatusState] = useState<TestStatus>(() => statusCache[slug] ?? "pending");
 
   useEffect(() => {
+    // Sync immediately in case cache changed while this component was unmounted
+    setStatusState(statusCache[slug] ?? "pending");
     ensureStatuses().then(() => {
       setStatusState(statusCache[slug] ?? "pending");
     });
@@ -98,13 +128,18 @@ export function useTestStatus(slug: string) {
 
   const setStatus = useCallback(
     (next: TestStatus) => {
+      if (!slug) return;
       statusCache = { ...statusCache, [slug]: next };
       notifyStatus();
-      // Persist to API in background
-      api("/data/statuses", {
-        method: "PUT",
-        body: JSON.stringify({ slug, status: next }),
-      }).catch(console.error);
+      const body = JSON.stringify({ slug, status: next });
+      api("/data/statuses", { method: "PUT", body })
+        .catch(() => {
+          // Retry once after 2s (handles server cold-start on Render free tier)
+          setTimeout(() => {
+            api("/data/statuses", { method: "PUT", body })
+              .catch((err) => console.error("Failed to save status after retry:", err));
+          }, 2000);
+        });
     },
     [slug]
   );
@@ -113,12 +148,12 @@ export function useTestStatus(slug: string) {
 }
 
 export function useAllTestStatuses() {
-  const [statuses, setStatuses] = useState<Record<string, TestStatus>>({});
+  const [statuses, setStatuses] = useState<Record<string, TestStatus>>(() => ({ ...statusCache }));
 
   useEffect(() => {
-    ensureStatuses().then(() => {
-      setStatuses({ ...statusCache });
-    });
+    // Sync immediately in case cache changed while this component was unmounted
+    setStatuses({ ...statusCache });
+    ensureStatuses().then(() => setStatuses({ ...statusCache }));
 
     const sync = () => setStatuses({ ...statusCache });
     statusListeners.add(sync);
@@ -145,12 +180,13 @@ export function useTestPriority(slug: string, defaultPriority: TestPriority) {
 
   const setPriority = useCallback(
     (next: TestPriority) => {
+      if (!slug) return;
       priorityCache = { ...priorityCache, [slug]: next };
       notifyPriority();
       api("/data/priorities", {
         method: "PUT",
         body: JSON.stringify({ slug, priority: next }),
-      }).catch(console.error);
+      }).catch((err) => console.error("Failed to save priority:", err));
     },
     [slug]
   );
@@ -191,12 +227,13 @@ export function useExpectedChecked(key: string) {
 
   const setChecked = useCallback(
     (next: boolean) => {
+      if (!key) return;
       expectedCache = { ...expectedCache, [key]: next };
       notifyExpected();
       api("/data/expected", {
         method: "PUT",
         body: JSON.stringify({ key, checked: next }),
-      }).catch(console.error);
+      }).catch((err) => console.error("Failed to save expected:", err));
     },
     [key]
   );
@@ -232,4 +269,60 @@ export function useAllExpectedCounts(): Record<string, number> {
 export function loadExpectedMap(): Record<string, boolean> {
   // Return from cache — data will have been loaded by hooks already
   return { ...expectedCache };
+}
+
+// ── Failed result checkbox hooks (reuses expectedCache / expectedListeners) ───
+
+export function useFailedChecked(key: string) {
+  const [checked, setCheckedState] = useState(false);
+
+  useEffect(() => {
+    ensureExpected().then(() => {
+      setCheckedState(expectedCache[key] ?? false);
+    });
+
+    const sync = () => setCheckedState(expectedCache[key] ?? false);
+    expectedListeners.add(sync);
+    return () => { expectedListeners.delete(sync); };
+  }, [key]);
+
+  const setChecked = useCallback(
+    (next: boolean) => {
+      if (!key) return;
+      expectedCache = { ...expectedCache, [key]: next };
+      notifyExpected();
+      api("/data/expected", {
+        method: "PUT",
+        body: JSON.stringify({ key, checked: next }),
+      }).catch((err) => console.error("Failed to save failed result:", err));
+    },
+    [key]
+  );
+
+  return { checked, setChecked };
+}
+
+export function useAllFailedCounts(): Record<string, number> {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const compute = () => {
+      const result: Record<string, number> = {};
+      Object.entries(expectedCache).forEach(([k, val]) => {
+        if (!val) return;
+        const match = k.match(/^(.+)__failed__.+$/);
+        if (match) {
+          const slug = match[1];
+          result[slug] = (result[slug] ?? 0) + 1;
+        }
+      });
+      setCounts(result);
+    };
+
+    ensureExpected().then(compute);
+    expectedListeners.add(compute);
+    return () => { expectedListeners.delete(compute); };
+  }, []);
+
+  return counts;
 }
