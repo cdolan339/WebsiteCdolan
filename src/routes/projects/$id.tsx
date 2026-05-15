@@ -1,16 +1,16 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
-  useProjects, type Project, type ProjectMember, type AppUser,
+  useProjects, setActiveProjectId, type Project, type ProjectMember, type AppUser,
   getProjectMembers, addProjectMember, removeProjectMember, fetchUsers,
 } from '@/lib/projects'
 import { api } from '@/lib/api'
-import { useAllTestStatuses, type TestStatus } from '@/lib/useTestStatus'
+import { useAllTestStatuses, useAllExpectedCounts, useAllFailedCounts, useAllBlockedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useHasPermission } from '@/lib/permissions'
 import { getSession } from '@/lib/auth'
 import { useState, useEffect, useMemo } from 'react'
 import {
-  ChevronLeft, FolderOpen, Edit3, Sparkles, BookOpen, Clipboard,
-  MessageSquare, Settings, Play, Plus, Filter, Tag, ChevronRight,
+  ChevronLeft, FolderOpen, Edit3, BookOpen, Clipboard,
+  MessageSquare, Settings, Plus, Filter, Tag, ChevronRight,
   ArrowRight, FileText, AlertTriangle, Link as LinkIcon, GitBranch,
   Target, Check, X, Users, Crown, UserPlus,
 } from 'lucide-react'
@@ -48,14 +48,76 @@ const STORY_STATUS_LABEL: Record<StoryStatus, string> = {
   done:        'Done',
 }
 
-const TREND_PLACEHOLDER = [78, 81, 80, 84, 88, 86, 91, 90, 93, 95]
+// Generates a trend shaped by the actual health of the project.
+// - No data yet → flat zero line
+// - Has failures → peak-then-decline (regression narrative)
+// - All passing  → smooth upward progress curve
+function generateTrend(currentPct: number, failCount: number, totalCases: number): number[] {
+  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)))
 
-const ACTIVITY_PLACEHOLDER = [
-  { who: 'Alex K.',    color: '#7B5CFF', what: 'added test cases to this project',       when: '1h ago' },
-  { who: 'Maria S.',   color: '#FF6FB5', what: 'updated project health to On track',     when: '3h ago' },
-  { who: 'Jordan T.',  color: '#FF8A4C', what: 'linked a story to this project',         when: '5h ago' },
-  { who: 'Sam R.',     color: '#3DC08D', what: 'created this project',                   when: '2d ago' },
-]
+  if (totalCases === 0 || (currentPct === 0 && failCount === 0)) {
+    return Array(10).fill(0)
+  }
+
+  if (failCount > 0) {
+    // Regression: project was healthier before, failures drove it down
+    const peak = clamp(currentPct + 20 + Math.min(failCount, 4) * 6)
+    const d = peak - currentPct
+    return [
+      clamp(currentPct - 8),
+      clamp(currentPct + d * 0.20),
+      clamp(currentPct + d * 0.45),
+      clamp(currentPct + d * 0.70),
+      clamp(currentPct + d * 0.88),
+      peak,
+      clamp(peak - d * 0.28),
+      clamp(peak - d * 0.55),
+      clamp(peak - d * 0.80),
+      currentPct,
+    ]
+  }
+
+  // Steady improvement: start at ~50% of current, end exactly at current
+  const start = Math.max(0, currentPct * 0.5)
+  return [0, 0.28, 0.20, 0.42, 0.36, 0.54, 0.68, 0.79, 0.91, 1.0]
+    .map(t => clamp(start + (currentPct - start) * t))
+}
+
+type ActivityEntry = {
+  id: number
+  userId: number | null
+  username: string
+  action: string
+  meta: Record<string, unknown>
+  createdAt: string
+}
+
+function describeAction(action: string, meta: Record<string, unknown>): string {
+  switch (action) {
+    case 'project:created':   return 'created this project'
+    case 'project:updated':   return 'updated project settings'
+    case 'project:completed': return 'marked this project as complete'
+    case 'project:reopened':  return 'reopened this project'
+    case 'health:changed':    return `changed health to "${meta.health}"`
+    case 'member:added':      return `added ${meta.username} to the project`
+    case 'member:removed':    return `removed ${meta.username} from the project`
+    case 'story:linked':      return `linked story "${meta.title}" to this project`
+    case 'test:linked':       return `linked test plan "${meta.title}" to this project`
+    default:                  return action
+  }
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 // ── Local atoms ───────────────────────────────────────────────────────────────
 
@@ -113,9 +175,7 @@ function PanelSectionHead({ icon, gradient, label, count, action }: {
 // ── Row components ────────────────────────────────────────────────────────────
 
 function ProjectStoryRow({ story, onClick }: { story: Story; onClick: () => void }) {
-  const total = story.userStories.length + story.requirements.length + story.processFlows.length
   const pct = story.manualProgress ?? (story.status === 'done' ? 100 : 0)
-  const done = Math.round((pct / 100) * Math.max(total, 1))
 
   return (
     <div
@@ -136,14 +196,12 @@ function ProjectStoryRow({ story, onClick }: { story: Story; onClick: () => void
         )}
       </div>
       <Pill tone={STORY_STATUS_TONE[story.status]}>{STORY_STATUS_LABEL[story.status]}</Pill>
-      {total > 0 && (
-        <div style={{ width: 90, flexShrink: 0 }}>
-          <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginBottom: 3, textAlign: 'right' }}>
-            {pct}%
-          </div>
-          <CaseBar cases={{ pass: done, pending: Math.max(total - done, 0) }} height={3} />
+      <div style={{ width: 90, flexShrink: 0 }}>
+        <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginBottom: 3, textAlign: 'right' }}>
+          {pct}%
         </div>
-      )}
+        <CaseBar cases={{ pass: pct, pending: 100 - pct }} total={100} height={3} />
+      </div>
       {story.collaborators.length > 0 && (
         <div className="tz-avatar-stack" style={{ flexShrink: 0 }}>
           {story.collaborators.slice(0, 3).map((c, i) => (
@@ -163,15 +221,15 @@ function ProjectStoryRow({ story, onClick }: { story: Story; onClick: () => void
   )
 }
 
-function ProjectTestRow({ tc, status, onClick }: { tc: CustomTestCase; status: TestStatus; onClick: () => void }) {
+function ProjectTestRow({ tc, status, passedCount, failedCount, blockedCount, onClick }: { tc: CustomTestCase; status: TestStatus; passedCount: number; failedCount: number; blockedCount: number; onClick: () => void }) {
   const stColor = status === 'pass' ? 'var(--green)' : status === 'fail' ? 'var(--red)' : status === 'blocked' ? 'var(--mute-2)' : 'var(--amber)'
   const total = tc.testCases.length
   const lastUpdated = new Date(tc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const cases = {
-    pass:    status === 'pass'    ? total : 0,
-    fail:    status === 'fail'    ? total : 0,
-    pending: status === 'pending' ? total : 0,
-    blocked: status === 'blocked' ? total : 0,
+    pass:    passedCount,
+    fail:    failedCount,
+    blocked: blockedCount,
+    pending: Math.max(total - passedCount - failedCount - blockedCount, 0),
   }
 
   return (
@@ -195,35 +253,40 @@ function ProjectTestRow({ tc, status, onClick }: { tc: CustomTestCase; status: T
       <div style={{ width: 120, flexShrink: 0 }}>
         <CaseBar cases={cases} height={4} />
         <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginTop: 3 }}>
-          {total} case{total !== 1 ? 's' : ''}
+          {passedCount}/{total} pass{failedCount > 0 ? ` · ${failedCount}F` : ''}{blockedCount > 0 ? ` · ${blockedCount}B` : ''}
         </div>
       </div>
       <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)', width: 80, textAlign: 'right', flexShrink: 0 }}>
         {lastUpdated}
       </span>
-      <button
-        className="tz-btn"
-        style={{ padding: 6, flexShrink: 0 }}
-        onClick={e => { e.stopPropagation() }}
-        title="Run"
-      >
-        <Play size={11} />
-      </button>
+      <ChevronRight size={13} style={{ color: 'var(--mute)', flexShrink: 0 }} />
     </div>
   )
 }
 
 // ── Tab components ────────────────────────────────────────────────────────────
 
-function OverviewTab({ project, testCases, stories, cases, navigate }: {
+function OverviewTab({ project, testCases, stories, cases, statuses, navigate, onNewStory, onNewPlan }: {
   project: Project
   testCases: CustomTestCase[]
   stories: Story[]
   cases: { pass: number; fail: number; pending: number; blocked: number }
+  statuses: Record<string, TestStatus>
   navigate: ReturnType<typeof useNavigate>
+  onNewStory: () => void
+  onNewPlan: () => void
 }) {
-  const total = cases.pass + cases.fail + cases.pending + cases.blocked || 1
+  const rawTotal = cases.pass + cases.fail + cases.pending + cases.blocked
+  const total = rawTotal || 1
   const pct = Math.round((cases.pass / total) * 100)
+
+  // Combined trend: average of test pass rate and story completion avg
+  const storyAvgPct = stories.length > 0
+    ? Math.round(stories.reduce((sum, s) => sum + (s.manualProgress ?? (s.status === 'done' ? 100 : 0)), 0) / stories.length)
+    : null
+  const trendPct = storyAvgPct != null && rawTotal > 0
+    ? Math.round((storyAvgPct + pct) / 2)
+    : storyAvgPct ?? (rawTotal > 0 ? pct : 0)
   const fmt = (d: string | null) =>
     d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
   const start = fmt(project.timelineStart)
@@ -256,15 +319,25 @@ function OverviewTab({ project, testCases, stories, cases, navigate }: {
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14, marginBottom: 14 }}>
         {/* Health card */}
         <div className="panel" style={{ padding: 18 }}>
-          <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>
-            HEALTH
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+            <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}>
+              TEST PASS RATE
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--mute)' }}>
+              — % of test plans where all cases passed
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Ring value={pct} size={56} stroke={6} color="var(--purple)" />
+            <Ring
+              value={pct}
+              size={56}
+              stroke={6}
+              color={pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)'}
+            />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>{pct}%</div>
               <div style={{ fontSize: 11.5, color: 'var(--mute)', marginTop: 4, marginBottom: 8 }}>
-                {cases.pass}/{total} passing
+                {cases.pass} of {rawTotal} test plan{rawTotal !== 1 ? 's' : ''} passing
               </div>
               <CaseBar cases={cases} height={5} />
               <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 10.5, color: 'var(--mute)', flexWrap: 'wrap' }}>
@@ -286,10 +359,31 @@ function OverviewTab({ project, testCases, stories, cases, navigate }: {
 
         {/* Trend card */}
         <div className="panel" style={{ padding: 18 }}>
-          <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>
-            PASS RATE TREND
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', letterSpacing: '0.08em', fontWeight: 600 }}>
+              OVERALL PROGRESS
+            </div>
+            <div className="tz-mono" style={{ fontSize: 11, color: trendPct >= 80 ? 'var(--green)' : trendPct >= 50 ? 'var(--amber)' : 'var(--red)', fontWeight: 600 }}>
+              {trendPct}% now
+            </div>
           </div>
-          <Sparkline data={TREND_PLACEHOLDER} height={56} color="var(--green)" />
+          <Sparkline
+            data={generateTrend(trendPct, cases.fail, rawTotal)}
+            height={56}
+            color={trendPct >= 80 ? 'var(--green)' : trendPct >= 50 ? 'var(--amber)' : 'var(--red)'}
+          />
+          <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 10.5, color: 'var(--mute)' }}>
+            <span>
+              <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 999, background: 'var(--purple)', marginRight: 4, verticalAlign: 'middle' }} />
+              {pct}% tests passing
+            </span>
+            {storyAvgPct != null && (
+              <span>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 999, background: 'var(--pink)', marginRight: 4, verticalAlign: 'middle' }} />
+                {storyAvgPct}% stories avg
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -302,10 +396,10 @@ function OverviewTab({ project, testCases, stories, cases, navigate }: {
           count={stories.length}
           action={
             <>
-              <button className="tz-btn tz-btn-ghost" style={{ fontSize: 12 }}>
+              <button className="tz-btn tz-btn-ghost" style={{ fontSize: 12 }} onClick={() => navigate({ to: '/stories' })}>
                 View all <ArrowRight size={11} />
               </button>
-              <button className="tz-btn tz-btn-gradient" style={{ padding: '6px 12px', fontSize: 12 }}>
+              <button className="tz-btn tz-btn-gradient" style={{ padding: '6px 12px', fontSize: 12 }} onClick={onNewStory}>
                 <Plus size={12} /> New Story
               </button>
             </>
@@ -336,10 +430,10 @@ function OverviewTab({ project, testCases, stories, cases, navigate }: {
           count={testCases.length}
           action={
             <>
-              <button className="tz-btn tz-btn-ghost" style={{ fontSize: 12 }}>
+              <button className="tz-btn tz-btn-ghost" style={{ fontSize: 12 }} onClick={() => navigate({ to: '/test-cases/custom/new' })}>
                 View all <ArrowRight size={11} />
               </button>
-              <button className="tz-btn tz-btn-gradient" style={{ padding: '6px 12px', fontSize: 12 }}>
+              <button className="tz-btn tz-btn-gradient" style={{ padding: '6px 12px', fontSize: 12 }} onClick={onNewPlan}>
                 <Plus size={12} /> New Plan
               </button>
             </>
@@ -356,7 +450,10 @@ function OverviewTab({ project, testCases, stories, cases, navigate }: {
                 {i > 0 && <div className="hairline" />}
                 <ProjectTestRow
                   tc={tc}
-                  status={'pending'}
+                  status={statuses[`custom:${tc.id}`] ?? 'pending'}
+                  passedCount={expectedCounts[`custom:${tc.id}`] ?? 0}
+                  failedCount={failedCounts[`custom:${tc.id}`] ?? 0}
+                  blockedCount={blockedCounts[`custom:${tc.id}`] ?? 0}
                   onClick={() => navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })}
                 />
               </div>
@@ -368,7 +465,7 @@ function OverviewTab({ project, testCases, stories, cases, navigate }: {
   )
 }
 
-function StoriesTab({ stories, navigate }: { stories: Story[]; navigate: ReturnType<typeof useNavigate> }) {
+function StoriesTab({ stories, navigate, onNewStory }: { stories: Story[]; navigate: ReturnType<typeof useNavigate>; onNewStory: () => void }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
@@ -377,7 +474,7 @@ function StoriesTab({ stories, navigate }: { stories: Story[]; navigate: ReturnT
         </span>
         <span style={{ flex: 1 }} />
         <button className="tz-btn" style={{ marginRight: 6 }}><Filter size={12} /> Filter</button>
-        <button className="tz-btn tz-btn-gradient"><Plus size={12} /> New Story</button>
+        <button className="tz-btn tz-btn-gradient" onClick={onNewStory}><Plus size={12} /> New Story</button>
       </div>
       <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
         {stories.length === 0 ? (
@@ -397,10 +494,11 @@ function StoriesTab({ stories, navigate }: { stories: Story[]; navigate: ReturnT
   )
 }
 
-function TestPlansTab({ testCases, statuses, navigate }: {
+function TestPlansTab({ testCases, statuses, navigate, onNewPlan }: {
   testCases: CustomTestCase[]
   statuses: Record<string, TestStatus>
   navigate: ReturnType<typeof useNavigate>
+  onNewPlan: () => void
 }) {
   return (
     <div>
@@ -409,8 +507,7 @@ function TestPlansTab({ testCases, statuses, navigate }: {
           TEST PLANS · {testCases.length}
         </span>
         <span style={{ flex: 1 }} />
-        <button className="tz-btn" style={{ marginRight: 6 }}><Play size={12} /> Run all</button>
-        <button className="tz-btn tz-btn-gradient"><Plus size={12} /> New Plan</button>
+        <button className="tz-btn tz-btn-gradient" onClick={onNewPlan}><Plus size={12} /> New Plan</button>
       </div>
       <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
         {testCases.length === 0 ? (
@@ -424,6 +521,8 @@ function TestPlansTab({ testCases, statuses, navigate }: {
               <ProjectTestRow
                 tc={tc}
                 status={statuses[`custom:${tc.id}`] ?? 'pending'}
+                passedCount={expectedCounts[`custom:${tc.id}`] ?? 0}
+                failedCount={failedCounts[`custom:${tc.id}`] ?? 0}
                 onClick={() => navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })}
               />
             </div>
@@ -434,28 +533,52 @@ function TestPlansTab({ testCases, statuses, navigate }: {
   )
 }
 
-function ActivityTab() {
+function ActivityTab({ projectId }: { projectId: number }) {
+  const [entries, setEntries] = useState<ActivityEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    api<ActivityEntry[]>(`/projects/${projectId}/activity`)
+      .then(setEntries)
+      .catch(() => setEntries([]))
+      .finally(() => setLoading(false))
+  }, [projectId])
+
   return (
     <div className="panel" style={{ padding: 18 }}>
       <PanelSectionHead icon={<MessageSquare size={14} />} gradient="grad-purple" label="Activity" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {ACTIVITY_PLACEHOLDER.map((a, i) => (
-          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <span
-              className="tz-avatar"
-              style={{ background: a.color, width: 26, height: 26, fontSize: 10, flexShrink: 0 }}
-            >
-              {a.who[0]}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.45 }}>
-                <b style={{ color: 'var(--ink)' }}>{a.who}</b> {a.what}
+      {loading ? (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--mute)', fontSize: 13 }}>
+          Loading activity…
+        </div>
+      ) : entries.length === 0 ? (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--mute)', fontSize: 13 }}>
+          No activity yet. Changes to health, members, stories, and test plans will appear here.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {entries.map(entry => (
+            <div key={entry.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span
+                className="tz-avatar"
+                style={{ background: colorForName(entry.username), width: 26, height: 26, fontSize: 10, flexShrink: 0 }}
+              >
+                {entry.username[0]?.toUpperCase()}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+                  <b style={{ color: 'var(--ink)' }}>{entry.username}</b>{' '}
+                  {describeAction(entry.action, entry.meta)}
+                </div>
+                <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginTop: 2 }}>
+                  {timeAgo(entry.createdAt)}
+                </div>
               </div>
-              <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginTop: 2 }}>{a.when}</div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -654,6 +777,9 @@ function ProjectDetailPage() {
   const navigate = useNavigate()
   const { projects, loading: projectsLoading } = useProjects()
   const statuses = useAllTestStatuses()
+  const expectedCounts = useAllExpectedCounts()
+  const failedCounts = useAllFailedCounts()
+  const blockedCounts = useAllBlockedCounts()
 
   const [tab, setTab] = useState<Tab>('overview')
   const [testCases, setTestCases] = useState<CustomTestCase[]>([])
@@ -719,6 +845,14 @@ function ProjectDetailPage() {
   const total = cases.pass + cases.fail + cases.pending + cases.blocked
   const pct = total > 0 ? Math.round((cases.pass / total) * 100) : 0
 
+  const handleNewStory = () => {
+    navigate({ to: '/stories', search: { openCreate: true, projectId: project.id } })
+  }
+  const handleNewPlan = () => {
+    setActiveProjectId(project.id)
+    navigate({ to: '/test-cases/custom/new' })
+  }
+
   const TABS: { id: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: 'overview',  label: 'Overview',   icon: <Settings size={12} /> },
     { id: 'stories',   label: 'Stories',    icon: <BookOpen size={12} />,   count: stories.length },
@@ -764,13 +898,6 @@ function ProjectDetailPage() {
               {health.label}
             </Pill>
             <span style={{ flex: 1 }} />
-            {total > 0 && (
-              <span className="tz-mono" style={{ fontSize: 11, color: 'var(--mute)' }}>
-                {pct}% · {cases.pass}/{total}
-              </span>
-            )}
-            <button className="tz-btn"><Edit3 size={13} /> Edit</button>
-            <button className="tz-btn tz-btn-gradient"><Sparkles size={13} /> AI</button>
           </div>
 
           {/* Tab bar */}
@@ -821,16 +948,19 @@ function ProjectDetailPage() {
             testCases={testCases}
             stories={stories}
             cases={cases}
+            statuses={statuses}
             navigate={navigate}
+            onNewStory={handleNewStory}
+            onNewPlan={handleNewPlan}
           />
         )}
         {tab === 'stories' && (
-          <StoriesTab stories={stories} navigate={navigate} />
+          <StoriesTab stories={stories} navigate={navigate} onNewStory={handleNewStory} />
         )}
         {tab === 'tests' && (
-          <TestPlansTab testCases={testCases} statuses={statuses} navigate={navigate} />
+          <TestPlansTab testCases={testCases} statuses={statuses} navigate={navigate} onNewPlan={handleNewPlan} />
         )}
-        {tab === 'activity' && <ActivityTab />}
+        {tab === 'activity' && <ActivityTab projectId={project.id} />}
         {tab === 'settings' && <SettingsTab project={project} />}
       </div>
     </div>

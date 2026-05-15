@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
+import { useProjects, type Project } from '@/lib/projects'
 import { useStories, type Story } from '@/lib/stories'
 import { useCustomTestCases, type CustomTestCase } from '@/lib/customTestCases'
-import { useAllTestStatuses, type TestStatus } from '@/lib/useTestStatus'
+import { useAllTestStatuses, useAllExpectedCounts, useAllFailedCounts, useAllBlockedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
 import {
   PageShell, SectionHead, Pill, CaseBar, EyebrowChip,
@@ -162,13 +162,21 @@ function StoryPreviewRow({ story, projectName, projectColor }: { story: Story; p
 /* ─── Suite preview row ──────────────────────────────── */
 
 function SuitePreviewRow({
-  suite, projectName, projectColor, statuses,
-}: { suite: CustomTestCase; projectName: string | null; projectColor: string | null; statuses: Record<string, TestStatus> }) {
+  suite, projectName, projectColor, statuses, expectedCounts, failedCounts, blockedCounts,
+}: { suite: CustomTestCase; projectName: string | null; projectColor: string | null; statuses: Record<string, TestStatus>; expectedCounts: Record<string, number>; failedCounts: Record<string, number>; blockedCounts: Record<string, number> }) {
   const slug = `custom:${suite.id}`
   const status: TestStatus = statuses[slug] ?? 'pending'
   const meta = TEST_STATUS_META[status]
   const total = suite.testCases?.length ?? 0
-  const cases = { pass: status === 'pass' ? total : 0, fail: status === 'fail' ? total : 0, pending: status === 'pending' ? total : 0, blocked: status === 'blocked' ? total : 0 }
+  const passed = expectedCounts[slug] ?? 0
+  const failed = failedCounts[slug] ?? 0
+  const blocked = blockedCounts[slug] ?? 0
+  const cases = {
+    pass: passed,
+    fail: failed,
+    blocked,
+    pending: Math.max(total - passed - failed - blocked, 0),
+  }
 
   return (
     <Link
@@ -235,14 +243,15 @@ function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects()
   const { stories, loading: storiesLoading } = useStories()
   const { cases: suites, loading: suitesLoading } = useCustomTestCases()
-  const [activeProjectId] = useActiveProjectId()
   const statuses = useAllTestStatuses()
+  const expectedCounts = useAllExpectedCounts()
+  const failedCounts = useAllFailedCounts()
+  const blockedCounts = useAllBlockedCounts()
 
   const loading = projectsLoading || storiesLoading || suitesLoading
   if (loading) return <LoadingCurtain visible message="Loading Dashboard" />
 
   const projectById = new Map(projects.map((p) => [p.id, { name: p.name, color: p.color }]))
-  const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
 
   const recentStories = [...stories]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -264,12 +273,8 @@ function Dashboard() {
     <PageShell>
       <div style={{ paddingTop: 56 }}>
         <EyebrowChip icon="home" tone="purple">Dashboard</EyebrowChip>
-        <h1 className="display">{activeProject ? activeProject.name : 'All Projects'}</h1>
-        <p className="subhead">
-          {activeProject
-            ? activeProject.description || 'Your project at a glance.'
-            : 'An overview of your projects, stories, and test suites.'}
-        </p>
+        <h1 className="display">All Projects</h1>
+        <p className="subhead">An overview of your projects, stories, and test suites.</p>
       </div>
 
       {/* Metric hero cards */}
@@ -333,7 +338,7 @@ function Dashboard() {
       />
       {recentStories.length === 0 ? (
         <EmptyState
-          message={activeProject ? `No stories in ${activeProject.name} yet.` : 'No stories yet. Capture requirements with the BA tools.'}
+          message="No stories yet. Capture requirements with the BA tools."
           cta="Create Story" ctaTo="/stories"
         />
       ) : (
@@ -357,7 +362,7 @@ function Dashboard() {
       />
       {recentSuites.length === 0 ? (
         <EmptyState
-          message={activeProject ? `No active test suites in ${activeProject.name} yet.` : 'No active test suites yet. Build your first suite to start tracking QA coverage.'}
+          message="No active test suites yet. Build your first suite to start tracking QA coverage."
           cta="Create Test Suite" ctaTo="/test-cases/custom/new"
         />
       ) : (
@@ -365,7 +370,7 @@ function Dashboard() {
           {recentSuites.map((t, i) => (
             <div key={t.id}>
               {i > 0 && <div className="hairline" />}
-              <SuitePreviewRow suite={t} projectName={t.projectId ? projectById.get(t.projectId)?.name ?? null : null} projectColor={t.projectId ? projectById.get(t.projectId)?.color ?? null : null} statuses={statuses} />
+              <SuitePreviewRow suite={t} projectName={t.projectId ? projectById.get(t.projectId)?.name ?? null : null} projectColor={t.projectId ? projectById.get(t.projectId)?.color ?? null : null} statuses={statuses} expectedCounts={expectedCounts} failedCounts={failedCounts} blockedCounts={blockedCounts} />
             </div>
           ))}
         </div>

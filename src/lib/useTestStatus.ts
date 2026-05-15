@@ -326,3 +326,59 @@ export function useAllFailedCounts(): Record<string, number> {
 
   return counts;
 }
+
+// ── Blocked result checkbox hooks (reuses expectedCache / expectedListeners) ──
+
+export function useBlockedChecked(key: string) {
+  const [checked, setCheckedState] = useState(false);
+
+  useEffect(() => {
+    ensureExpected().then(() => {
+      setCheckedState(expectedCache[key] ?? false);
+    });
+
+    const sync = () => setCheckedState(expectedCache[key] ?? false);
+    expectedListeners.add(sync);
+    return () => { expectedListeners.delete(sync); };
+  }, [key]);
+
+  const setChecked = useCallback(
+    (next: boolean) => {
+      if (!key) return;
+      expectedCache = { ...expectedCache, [key]: next };
+      notifyExpected();
+      api("/data/expected", {
+        method: "PUT",
+        body: JSON.stringify({ key, checked: next }),
+      }).catch((err) => console.error("Failed to save blocked result:", err));
+    },
+    [key]
+  );
+
+  return { checked, setChecked };
+}
+
+export function useAllBlockedCounts(): Record<string, number> {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const compute = () => {
+      const result: Record<string, number> = {};
+      Object.entries(expectedCache).forEach(([k, val]) => {
+        if (!val) return;
+        const match = k.match(/^(.+)__blocked__.+$/);
+        if (match) {
+          const slug = match[1];
+          result[slug] = (result[slug] ?? 0) + 1;
+        }
+      });
+      setCounts(result);
+    };
+
+    ensureExpected().then(compute);
+    expectedListeners.add(compute);
+    return () => { expectedListeners.delete(compute); };
+  }, []);
+
+  return counts;
+}

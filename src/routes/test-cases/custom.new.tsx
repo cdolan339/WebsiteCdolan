@@ -248,29 +248,30 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
         <div style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Steps</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tc.steps.map((step, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
               <span
                 style={{
                   width: 22, textAlign: 'center',
                   fontSize: 11, color: 'var(--mute)',
                   fontFamily: "'JetBrains Mono', monospace",
                   flexShrink: 0,
+                  paddingTop: 8,
                 }}
               >
                 {i + 1}
               </span>
-              <input
-                type="text"
+              <AutoGrowTextarea
                 value={step}
                 onChange={(e) => updateStep(i, e.target.value)}
                 placeholder="Describe the step…"
+                minHeight={36}
                 className="tz-input"
-                style={{ fontSize: 13 }}
+                style={{ fontSize: 13, flex: 1, resize: 'none', lineHeight: 1.5 }}
               />
               {tc.steps.length > 1 && (
                 <button
                   onClick={() => removeStep(i)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer', display: 'inline-flex', flexShrink: 0 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--mute)', cursor: 'pointer', display: 'inline-flex', flexShrink: 0, paddingTop: 8 }}
                   aria-label="Remove step"
                 >
                   <X size={12} />
@@ -294,13 +295,13 @@ function SubTCEditor({ tc, onChange, onRemove, index }: { tc: CustomTC; onChange
 
       <div>
         <div style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Expected result</div>
-        <input
-          type="text"
+        <AutoGrowTextarea
           value={tc.expected}
           onChange={(e) => patch({ expected: e.target.value })}
           placeholder="What should happen…"
+          minHeight={36}
           className="tz-input"
-          style={{ fontSize: 13 }}
+          style={{ fontSize: 13, resize: 'none', lineHeight: 1.5 }}
         />
       </div>
     </div>
@@ -498,7 +499,7 @@ function NewTestCase() {
         name: sub.name,
         priority: sub.priority ?? 'medium',
         steps: sub.steps,
-        expected: sub.expected,
+        notes: sub.expected,
       })),
     })
 

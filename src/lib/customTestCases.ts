@@ -17,6 +17,7 @@ export type CustomTC = {
   steps: string[];
   expected: string;
   failedReason: string;
+  blockedReason: string;
   notes: string;
 };
 
@@ -120,6 +121,7 @@ export function createCustomTC(): CustomTC {
     steps: [""],
     expected: "",
     failedReason: "",
+    blockedReason: "",
     notes: "",
   };
 }

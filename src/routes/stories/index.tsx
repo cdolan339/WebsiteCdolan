@@ -22,6 +22,14 @@ import { CSS } from '@dnd-kit/utilities'
 import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'
 
 export const Route = createFileRoute('/stories/')({
+  validateSearch: (search: Record<string, unknown>): { openCreate?: boolean; projectId?: number } => ({
+    openCreate: search.openCreate === true || search.openCreate === 'true' ? true : undefined,
+    projectId: typeof search.projectId === 'number'
+      ? search.projectId
+      : typeof search.projectId === 'string' && search.projectId !== ''
+        ? Number(search.projectId) || undefined
+        : undefined,
+  }),
   component: StoriesPage,
 })
 
@@ -523,11 +531,26 @@ function StoriesPage() {
   const { stories, loading } = useStories()
   const { projects } = useProjects()
   const [activeProjectId, setActiveProjectId] = useActiveProjectId()
+  const search = Route.useSearch()
   const [tab, setTab] = useState<Tab>('active')
   const [showCreate, setShowCreate] = useState(false)
+  const [createDefaultProjectId, setCreateDefaultProjectId] = useState<number | null>(null)
   const [deletingStory, setDeletingStory] = useState<Story | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (search.openCreate) {
+      const pid = search.projectId ?? null
+      if (pid != null) {
+        setActiveProjectId(pid)
+        reloadStoriesForProject(pid)
+      }
+      setCreateDefaultProjectId(pid)
+      setShowCreate(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleProjectSwitch = (id: number | null) => {
     setActiveProjectId(id)
@@ -672,9 +695,9 @@ function StoriesPage() {
       {showCreate && (
         <CreateStoryModal
           projects={projects}
-          defaultProjectId={activeProjectId}
+          defaultProjectId={createDefaultProjectId ?? activeProjectId}
           onCreate={handleCreate}
-          onClose={() => setShowCreate(false)}
+          onClose={() => { setShowCreate(false); setCreateDefaultProjectId(null) }}
         />
       )}
       {deletingStory && (

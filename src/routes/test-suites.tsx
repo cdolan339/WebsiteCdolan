@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { CheckCircle2, XCircle, Clock, Ban, Plus, CheckCheck, ChevronDown, FolderOpen, Trash2, RotateCcw, ChevronRight, ArrowRight, X, AlertTriangle } from 'lucide-react'
-import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, useAllFailedCounts, type TestStatus } from '@/lib/useTestStatus'
+import { useAllTestStatuses, useAllTestPriorities, useAllExpectedCounts, useAllFailedCounts, useAllBlockedCounts, type TestStatus } from '@/lib/useTestStatus'
 import { useCustomTestCases, completeTestCase, deleteCustomTestCase, reloadForProject, reorderCustomTestCases, type CustomTestCase } from '@/lib/customTestCases'
 import { useProjects, useActiveProjectId, type Project } from '@/lib/projects'
 import { LoadingCurtain } from '@/components/LoadingCurtain'
@@ -140,13 +140,14 @@ type RowProps = {
   priority: PriorityLevel
   passedCount: number
   failedCount: number
+  blockedCount: number
   tab: Tab
   onComplete: (id: string) => void
   onReactivate: (id: string) => void
   onDelete: (id: string) => void
 }
 
-function DenseRow({ tc, projectName, projectColor, status, priority, passedCount, failedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
+function DenseRow({ tc, projectName, projectColor, status, priority, passedCount, failedCount, blockedCount, tab, onComplete, onReactivate, onDelete }: RowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `custom:${tc.id}` })
   const navigate = useNavigate()
   const meta = STATUS_META[status]
@@ -155,8 +156,8 @@ function DenseRow({ tc, projectName, projectColor, status, priority, passedCount
   const cases = {
     pass: passedCount,
     fail: failedCount,
-    pending: Math.max(total - passedCount - failedCount, 0),
-    blocked: status === 'blocked' ? 1 : 0,
+    blocked: blockedCount,
+    pending: Math.max(total - passedCount - failedCount - blockedCount, 0),
   }
 
   const style: React.CSSProperties = {
@@ -218,7 +219,7 @@ function DenseRow({ tc, projectName, projectColor, status, priority, passedCount
       <div>
         <CaseBar cases={cases} total={Math.max(total, 1)} height={4} />
         <div className="tz-mono" style={{ fontSize: 10.5, color: 'var(--mute)', marginTop: 3 }}>
-          {passedCount}/{total} pass{cases.fail ? ` · ${cases.fail}F` : ''}
+          {passedCount}/{total} pass{cases.fail ? ` · ${cases.fail}F` : ''}{cases.blocked ? ` · ${cases.blocked}B` : ''}
         </div>
       </div>
       <span className="tz-mono" style={{ fontSize: 11.5, color: 'var(--mute)' }}>
@@ -255,6 +256,7 @@ function TestSuitesPage() {
   const priorities = useAllTestPriorities()
   const expectedCounts = useAllExpectedCounts()
   const failedCounts = useAllFailedCounts()
+  const blockedCounts = useAllBlockedCounts()
   const { cases: customCases, loading } = useCustomTestCases()
   const { projects } = useProjects()
   const [activeProjectId, setActiveProjectId] = useActiveProjectId()
@@ -284,17 +286,18 @@ function TestSuitesPage() {
   const sortedCases = visibleCases
   const order = useMemo(() => sortedCases.map((tc) => `custom:${tc.id}`), [sortedCases])
 
-  // Aggregate totals across visible cases
+  // Aggregate totals across visible cases — all driven by actual per-case checkboxes.
   const totals = sortedCases.reduce(
     (acc, tc) => {
       const slug = `custom:${tc.id}`
-      const status = statuses[slug] ?? 'pending'
       const total = tc.testCases?.length ?? 0
       const passed = expectedCounts[slug] ?? 0
+      const failed = failedCounts[slug] ?? 0
+      const blocked = blockedCounts[slug] ?? 0
       acc.pass += passed
-      if (status === 'fail') acc.fail += Math.max(total - passed, 1)
-      else if (status === 'blocked') acc.blocked += Math.max(total - passed, 1)
-      else acc.pending += Math.max(total - passed, 0)
+      acc.fail += failed
+      acc.blocked += blocked
+      acc.pending += Math.max(total - passed - failed - blocked, 0)
       return acc
     },
     { pass: 0, fail: 0, pending: 0, blocked: 0 },
@@ -385,6 +388,7 @@ function TestSuitesPage() {
                 const priority = (priorities[slug] ?? tc.priority) as PriorityLevel
                 const passedCount = expectedCounts[slug] ?? 0
                 const failedCount = failedCounts[slug] ?? 0
+                const blockedCount = blockedCounts[slug] ?? 0
                 const projectInfo = tc.projectId ? projectLookup.get(tc.projectId) ?? null : null
                 const projectName = projectInfo?.name ?? null
                 const projectColor = projectInfo?.color ?? null
@@ -398,6 +402,7 @@ function TestSuitesPage() {
                     priority={priority}
                     passedCount={passedCount}
                     failedCount={failedCount}
+                    blockedCount={blockedCount}
                     tab={tab}
                     onComplete={(id) => completeTestCase(id, true)}
                     onReactivate={(id) => completeTestCase(id, false)}

@@ -12,6 +12,7 @@ import {
   useTestStatus,
   useExpectedChecked,
   useFailedChecked,
+  useBlockedChecked,
   loadExpectedMap,
   type TestStatus,
 } from '@/lib/useTestStatus'
@@ -145,44 +146,72 @@ function StatusSelect({ value, onChange, disabled }: { value: TestStatus; onChan
 // Controlled failed row (no hook — state managed by SubTCResultRows)
 function FailedRow({ checked, onToggle, text, onTextChange }: { checked: boolean; onToggle: () => void; text: string; onTextChange: (v: string) => void }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '12px', border: checked ? '1px solid rgba(220,38,38,0.45)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(220,38,38,0.1)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '6px', border: checked ? '1px solid rgba(220,38,38,0.45)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(220,38,38,0.1)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
       <button
         onClick={onToggle}
         aria-label="Mark as failed"
-        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? '2px solid #dc2626' : '2px solid #6b7280', background: checked ? '#dc2626' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box' }}
+        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? '2px solid #dc2626' : '2px solid #6b7280', background: checked ? '#dc2626' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box', marginTop: 2 }}
       >
         {checked ? '✗' : ''}
       </button>
-      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? '#dc2626' : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em' }}>Failed:</span>
-      <input
-        type="text"
+      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? '#dc2626' : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em', paddingTop: 3 }}>Failed:</span>
+      <AutoGrowTextarea
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
         placeholder="This failed because…"
-        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? '#dc2626' : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s' }}
+        minHeight={24}
+        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? '#dc2626' : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s', resize: 'none', lineHeight: 1.5 }}
       />
     </div>
   )
 }
 
-// Wrapper that owns both hooks and enforces mutual exclusivity
+// Controlled blocked row (no hook — state managed by SubTCResultRows)
+function BlockedRow({ checked, onToggle, text, onTextChange }: { checked: boolean; onToggle: () => void; text: string; onTextChange: (v: string) => void }) {
+  const color = '#7C5CFF'
+  const borderColor = checked ? 'rgba(124,92,255,0.45)' : 'rgba(120,120,120,0.25)'
+  const bg = checked ? 'rgba(124,92,255,0.08)' : 'transparent'
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '12px', border: `1px solid ${borderColor}`, background: bg, transition: 'background 0.2s, border-color 0.2s' }}>
+      <button
+        onClick={onToggle}
+        aria-label="Mark as blocked"
+        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? `2px solid ${color}` : '2px solid #6b7280', background: checked ? color : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box', marginTop: 2 }}
+      >
+        {checked ? '⊘' : ''}
+      </button>
+      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? color : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em', paddingTop: 3 }}>Blocked:</span>
+      <AutoGrowTextarea
+        value={text}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder="Blocked by…"
+        minHeight={24}
+        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? color : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s', resize: 'none', lineHeight: 1.5 }}
+      />
+    </div>
+  )
+}
+
+// Wrapper that owns all three hooks and enforces mutual exclusivity
 function SubTCResultRows({
-  slug, subId, expected, failedReason,
-  onExpectedChange, onFailedReasonChange,
-  onPassCountChange, onFailCountChange,
+  slug, subId, expected, failedReason, blockedReason,
+  onExpectedChange, onFailedReasonChange, onBlockedReasonChange,
+  onPassCountChange, onFailCountChange, onBlockedCountChange,
 }: {
-  slug: string; subId: string; expected: string; failedReason: string;
-  onExpectedChange: (v: string) => void; onFailedReasonChange: (v: string) => void;
-  onPassCountChange: (delta: number) => void; onFailCountChange: (delta: number) => void;
+  slug: string; subId: string; expected: string; failedReason: string; blockedReason: string;
+  onExpectedChange: (v: string) => void; onFailedReasonChange: (v: string) => void; onBlockedReasonChange: (v: string) => void;
+  onPassCountChange: (delta: number) => void; onFailCountChange: (delta: number) => void; onBlockedCountChange: (delta: number) => void;
 }) {
   const { checked: passChecked, setChecked: setPass } = useExpectedChecked(`${slug}__expected__${subId}`)
   const { checked: failChecked, setChecked: setFail } = useFailedChecked(`${slug}__failed__${subId}`)
+  const { checked: blockedChecked, setChecked: setBlocked } = useBlockedChecked(`${slug}__blocked__${subId}`)
 
   const handlePassToggle = () => {
     const next = !passChecked
     setPass(next)
     onPassCountChange(next ? 1 : -1)
     if (next && failChecked) { setFail(false); onFailCountChange(-1) }
+    if (next && blockedChecked) { setBlocked(false); onBlockedCountChange(-1) }
   }
 
   const handleFailToggle = () => {
@@ -190,12 +219,22 @@ function SubTCResultRows({
     setFail(next)
     onFailCountChange(next ? 1 : -1)
     if (next && passChecked) { setPass(false); onPassCountChange(-1) }
+    if (next && blockedChecked) { setBlocked(false); onBlockedCountChange(-1) }
+  }
+
+  const handleBlockedToggle = () => {
+    const next = !blockedChecked
+    setBlocked(next)
+    onBlockedCountChange(next ? 1 : -1)
+    if (next && passChecked) { setPass(false); onPassCountChange(-1) }
+    if (next && failChecked) { setFail(false); onFailCountChange(-1) }
   }
 
   return (
     <>
       <ExpectedRow checked={passChecked} onToggle={handlePassToggle} text={expected} onTextChange={onExpectedChange} />
       <FailedRow checked={failChecked} onToggle={handleFailToggle} text={failedReason} onTextChange={onFailedReasonChange} />
+      <BlockedRow checked={blockedChecked} onToggle={handleBlockedToggle} text={blockedReason} onTextChange={onBlockedReasonChange} />
     </>
   )
 }
@@ -302,21 +341,21 @@ function ProjectPicker({ projectId, onChange, projects }: { projectId: number | 
 // Controlled expected row (no hook — state managed by SubTCResultRows)
 function ExpectedRow({ checked, onToggle, text, onTextChange }: { checked: boolean; onToggle: () => void; text: string; onTextChange: (v: string) => void }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '6px', border: checked ? '1px solid rgba(22,163,74,0.5)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(22,163,74,0.15)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '9px 14px', borderRadius: '8px', marginBottom: '6px', border: checked ? '1px solid rgba(22,163,74,0.5)' : '1px solid rgba(120,120,120,0.25)', background: checked ? 'rgba(22,163,74,0.15)' : 'transparent', transition: 'background 0.2s, border-color 0.2s' }}>
       <button
         onClick={onToggle}
         aria-label="Mark as passed"
-        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? '2px solid #16a34a' : '2px solid #6b7280', background: checked ? '#16a34a' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box' }}
+        style={{ flexShrink: 0, width: '20px', height: '20px', minWidth: '20px', borderRadius: '5px', border: checked ? '2px solid #16a34a' : '2px solid #6b7280', background: checked ? '#16a34a' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', padding: '0', transition: 'all 0.15s', outline: 'none', boxSizing: 'border-box', marginTop: 2 }}
       >
         {checked ? '✓' : ''}
       </button>
-      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? '#16a34a' : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em' }}>Expected:</span>
-      <input
-        type="text"
+      <span style={{ fontSize: 12, fontWeight: 700, color: checked ? '#16a34a' : 'var(--mute)', flexShrink: 0, letterSpacing: '0.02em', paddingTop: 3 }}>Expected:</span>
+      <AutoGrowTextarea
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
         placeholder="What should happen…"
-        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? '#16a34a' : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s' }}
+        minHeight={24}
+        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: checked ? '#16a34a' : 'var(--ink)', fontFamily: 'inherit', transition: 'color 0.2s', resize: 'none', lineHeight: 1.5 }}
       />
     </div>
   )
@@ -528,7 +567,7 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
                     display: 'grid',
                     gridTemplateColumns: '32px 1fr 28px',
                     gap: 8,
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     padding: '7px 10px',
                     background: 'var(--panel)',
                     border: '1px solid var(--border)',
@@ -537,25 +576,26 @@ function SubTCEditor({ tc, onChange, onRemove, index, id, parentTcId, onMoveUp, 
                 >
                   <span
                     className="tz-mono"
-                    style={{ fontSize: 11, color: 'var(--mute)', textAlign: 'center' }}
+                    style={{ fontSize: 11, color: 'var(--mute)', textAlign: 'center', paddingTop: 8 }}
                   >
                     {i + 1}.
                   </span>
-                  <input
-                    type="text"
+                  <AutoGrowTextarea
                     value={step}
                     onChange={(e) => updateStep(i, e.target.value)}
                     placeholder="Describe the step…"
+                    minHeight={36}
                     style={{
                       background: 'transparent', border: 'none', outline: 'none',
                       fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit',
+                      resize: 'none', lineHeight: 1.5,
                     }}
                   />
                   {tc.steps.length > 1 && (
                     <button
                       onClick={() => removeStep(i)}
                       className="tz-btn tz-btn-ghost"
-                      style={{ padding: 4, color: 'var(--mute)' }}
+                      style={{ padding: 4, color: 'var(--mute)', paddingTop: 8 }}
                       aria-label="Remove step"
                     >
                       <X size={11} />
@@ -646,6 +686,7 @@ function CustomTestCaseDetail() {
   const { status, setStatus } = useTestStatus(slug)
   const [passedCount, setPassedCount] = useState(0)
   const [failedCount, setFailedCount] = useState(0)
+  const [blockedCount, setBlockedCount] = useState(0)
 
   useEffect(() => {
     if (tc && !draft) setDraft(tc)
@@ -656,8 +697,10 @@ function CustomTestCaseDetail() {
     const stored = loadExpectedMap()
     const initialPassed = tc.testCases.filter((sub) => Boolean(stored[`${slug}__expected__${sub.id}`])).length
     const initialFailed = tc.testCases.filter((sub) => Boolean(stored[`${slug}__failed__${sub.id}`])).length
+    const initialBlocked = tc.testCases.filter((sub) => Boolean(stored[`${slug}__blocked__${sub.id}`])).length
     setPassedCount(initialPassed)
     setFailedCount(initialFailed)
+    setBlockedCount(initialBlocked)
   }, [slug, tc])
 
   useEffect(() => {
@@ -750,7 +793,7 @@ function CustomTestCaseDetail() {
         name: sub.name,
         priority: sub.priority ?? 'medium',
         steps: sub.steps,
-        expected: sub.expected,
+        notes: sub.expected,
       })),
     })
 
@@ -825,6 +868,9 @@ function CustomTestCaseDetail() {
           )}
           {failedCount > 0 && (
             <Pill tone="red" icon="x-circle">{failedCount} failed</Pill>
+          )}
+          {blockedCount > 0 && (
+            <Pill tone="purple" icon="alert">{blockedCount} blocked</Pill>
           )}
           {canEdit ? (
             <ProjectPicker
@@ -914,18 +960,19 @@ function CustomTestCaseDetail() {
         <SectionCard icon={<ListChecks size={16} />} gradient="grad-blue" title="Preconditions">
           <ul className="space-y-2 mb-3">
             {draft.preconditions.map((item, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-muted-foreground select-none">•</span>
-                <input
-                  type="text"
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-muted-foreground select-none" style={{ paddingTop: 4 }}>•</span>
+                <AutoGrowTextarea
                   value={item}
                   onChange={(e) => updatePrecondition(i, e.target.value)}
                   placeholder="Add a precondition…"
                   readOnly={!canEdit}
+                  minHeight={24}
                   className="flex-1 text-sm bg-transparent border-b border-border outline-none text-foreground placeholder:text-muted-foreground/50 py-0.5 focus:border-foreground transition-colors"
+                  style={{ resize: 'none', lineHeight: 1.5 }}
                 />
                 {canEdit && (
-                  <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"><X size={14} /></button>
+                  <button onClick={() => removePrecondition(i)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0" style={{ paddingTop: 4 }}><X size={14} /></button>
                 )}
               </li>
             ))}
@@ -956,10 +1003,13 @@ function CustomTestCaseDetail() {
                 subId={sub.id}
                 expected={sub.expected}
                 failedReason={sub.failedReason ?? ''}
+                blockedReason={sub.blockedReason ?? ''}
                 onExpectedChange={(v) => updateSubTC({ ...sub, expected: v })}
                 onFailedReasonChange={(v) => updateSubTC({ ...sub, failedReason: v })}
+                onBlockedReasonChange={(v) => updateSubTC({ ...sub, blockedReason: v })}
                 onPassCountChange={(delta) => setPassedCount((c) => c + delta)}
                 onFailCountChange={(delta) => setFailedCount((c) => c + delta)}
+                onBlockedCountChange={(delta) => setBlockedCount((c) => c + delta)}
               />
             </div>
           ))}
