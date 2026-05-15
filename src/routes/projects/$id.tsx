@@ -266,11 +266,14 @@ function ProjectTestRow({ tc, status, passedCount, failedCount, blockedCount, on
 
 // ── Tab components ────────────────────────────────────────────────────────────
 
-function OverviewTab({ project, testCases, stories, cases, statuses, navigate, onNewStory, onNewPlan }: {
+function OverviewTab({ project, testCases, stories, cases, statuses, navigate, onNewStory, onNewPlan, expectedCounts, failedCounts, blockedCounts }: {
   project: Project
   testCases: CustomTestCase[]
   stories: Story[]
   cases: { pass: number; fail: number; pending: number; blocked: number }
+  expectedCounts: Record<string, number>
+  failedCounts: Record<string, number>
+  blockedCounts: Record<string, number>
   statuses: Record<string, TestStatus>
   navigate: ReturnType<typeof useNavigate>
   onNewStory: () => void
@@ -494,11 +497,14 @@ function StoriesTab({ stories, navigate, onNewStory }: { stories: Story[]; navig
   )
 }
 
-function TestPlansTab({ testCases, statuses, navigate, onNewPlan }: {
+function TestPlansTab({ testCases, statuses, navigate, onNewPlan, expectedCounts, failedCounts, blockedCounts }: {
   testCases: CustomTestCase[]
   statuses: Record<string, TestStatus>
   navigate: ReturnType<typeof useNavigate>
   onNewPlan: () => void
+  expectedCounts: Record<string, number>
+  failedCounts: Record<string, number>
+  blockedCounts: Record<string, number>
 }) {
   return (
     <div>
@@ -523,6 +529,7 @@ function TestPlansTab({ testCases, statuses, navigate, onNewPlan }: {
                 status={statuses[`custom:${tc.id}`] ?? 'pending'}
                 passedCount={expectedCounts[`custom:${tc.id}`] ?? 0}
                 failedCount={failedCounts[`custom:${tc.id}`] ?? 0}
+                blockedCount={blockedCounts[`custom:${tc.id}`] ?? 0}
                 onClick={() => navigate({ to: '/test-cases/custom/$id', params: { id: tc.id } })}
               />
             </div>
@@ -842,8 +849,6 @@ function ProjectDetailPage() {
   }
 
   const health = HEALTH_META[project.health ?? 'on-track'] ?? HEALTH_META['on-track']
-  const total = cases.pass + cases.fail + cases.pending + cases.blocked
-  const pct = total > 0 ? Math.round((cases.pass / total) * 100) : 0
 
   const handleNewStory = () => {
     navigate({ to: '/stories', search: { openCreate: true, projectId: project.id } })
@@ -952,13 +957,24 @@ function ProjectDetailPage() {
             navigate={navigate}
             onNewStory={handleNewStory}
             onNewPlan={handleNewPlan}
+            expectedCounts={expectedCounts}
+            failedCounts={failedCounts}
+            blockedCounts={blockedCounts}
           />
         )}
         {tab === 'stories' && (
           <StoriesTab stories={stories} navigate={navigate} onNewStory={handleNewStory} />
         )}
         {tab === 'tests' && (
-          <TestPlansTab testCases={testCases} statuses={statuses} navigate={navigate} onNewPlan={handleNewPlan} />
+          <TestPlansTab
+            testCases={testCases}
+            statuses={statuses}
+            navigate={navigate}
+            onNewPlan={handleNewPlan}
+            expectedCounts={expectedCounts}
+            failedCounts={failedCounts}
+            blockedCounts={blockedCounts}
+          />
         )}
         {tab === 'activity' && <ActivityTab projectId={project.id} />}
         {tab === 'settings' && <SettingsTab project={project} />}
