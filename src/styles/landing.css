@@ -243,6 +243,7 @@ html { scroll-behavior: smooth; }
 .L-btn:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 .L-btn-primary {
   background: linear-gradient(105deg, var(--L-accent) 0%, var(--L-accent-2) 55%, var(--L-accent-3) 110%);
+  background-clip: padding-box;
   color: white;
   border-color: transparent;
   box-shadow:

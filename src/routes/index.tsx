@@ -918,7 +918,7 @@ function LandingFooter() {
         </div>
         <div className="L-footer-bottom">
           <span>© 2026 cdolanqa, Inc.</span>
-          <span>v0.4 · Made with ☕ in Brooklyn</span>
+          <span>v0.4 · Made with ☕ in Miami</span>
         </div>
       </div>
     </footer>
