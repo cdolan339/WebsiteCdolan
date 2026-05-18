@@ -133,8 +133,8 @@ function RegisterPage() {
     if (!EMAIL_RE.test(em)) {
       setError('Please enter a valid email address.'); return
     }
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters.'); return
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.'); return
     }
 
     setLoading(true)
@@ -224,7 +224,7 @@ function RegisterPage() {
                   <label>Password</label>
                   <input
                     type="password"
-                    placeholder="at least 4 characters"
+                    placeholder="at least 8 characters"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); clearErr() }}
                     autoComplete="new-password"

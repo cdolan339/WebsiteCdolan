@@ -19,28 +19,30 @@ function LandingPage() {
   const authed = isAuthenticated()
 
   useEffect(() => {
-    if (authed) navigate({ to: '/homepage', replace: true })
+    navigate({ to: authed ? '/homepage' : '/login', replace: true })
   }, [navigate, authed])
 
-  if (authed) return <LoadingCurtain visible message="Loading" />
+  return <LoadingCurtain visible message="Loading" />
 
-  return (
-    <div className="landing" data-tone="technical">
-      <LandingNav />
-      <main>
-        <Hero />
-        <LogoWall />
-        <FeatureGrid />
-        <Walkthrough />
-        <Workflow />
-        <Testimonials />
-        <Pricing />
-        <FAQ />
-        <FinalCTA />
-      </main>
-      <LandingFooter />
-    </div>
-  )
+  // Landing page — uncomment to enable
+  // if (authed) return <LoadingCurtain visible message="Loading" />
+  // return (
+  //   <div className="landing" data-tone="technical">
+  //     <LandingNav />
+  //     <main>
+  //       <Hero />
+  //       <LogoWall />
+  //       <FeatureGrid />
+  //       <Walkthrough />
+  //       <Workflow />
+  //       <Testimonials />
+  //       <Pricing />
+  //       <FAQ />
+  //       <FinalCTA />
+  //     </main>
+  //     <LandingFooter />
+  //   </div>
+  // )
 }
 
 /* ============================================================
