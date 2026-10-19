@@ -82,10 +82,10 @@ const TABS = [
 const FILTERS = ['All', 'Marketing AI', 'E-Commerce AI', 'Automation', 'Development AI']
 
 const PROJECTS = [
-  { img: 'chophouse.png', cat: 'Marketing AI', cats: ['Marketing AI', 'Automation'], title: 'Chophouse Group, LLC', lead: 'Generative AI for social media food specials.', body: 'We built a workflow that creates daily restaurant specials, writes promotional copy, and prepares Instagram- and Facebook-ready creative around featured menu items.' },
-  { img: 'restaurant.png', cat: 'Automation', cats: ['Marketing AI', 'Automation'], title: 'Restaurant Marketing Automation', lead: 'Campaign-ready in minutes.', body: 'AI-generated captions, hashtags, promotional descriptions, and campaign assets help restaurants publish polished specials faster and more consistently.' },
-  { img: 'maxstrength.png', cat: 'E-Commerce AI', cats: ['E-Commerce AI', 'Development AI'], title: 'Max-Strength E-Commerce', lead: 'AI-assisted engineering for site and module development.', body: 'We use generative AI to augment PHP, JavaScript, CSS, and PrestaShop module work so features can be developed, debugged, and refined faster.' },
-  { img: 'devflow.png', cat: 'Development AI', cats: ['Development AI'], title: 'AI-Augmented Development Workflow', lead: 'Faster delivery, full control.', body: 'AI-assisted engineering accelerates code generation, refactoring, debugging, and module analysis while keeping full developer control of the codebase and deployment process.' },
+  { img: 'chophouse.jpg', cat: 'Marketing AI', cats: ['Marketing AI', 'Automation'], title: 'Chophouse Group, LLC', lead: 'Generative AI for social media food specials.', body: 'We built a workflow that creates daily restaurant specials, writes promotional copy, and prepares Instagram- and Facebook-ready creative around featured menu items.' },
+  { img: 'restaurant.jpg', cat: 'Automation', cats: ['Marketing AI', 'Automation'], title: 'Restaurant Marketing Automation', lead: 'Campaign-ready in minutes.', body: 'AI-generated captions, hashtags, promotional descriptions, and campaign assets help restaurants publish polished specials faster and more consistently.' },
+  { img: 'maxstrength.jpg', cat: 'E-Commerce AI', cats: ['E-Commerce AI', 'Development AI'], title: 'Max-Strength E-Commerce', lead: 'AI-assisted engineering for site and module development.', body: 'We use generative AI to augment PHP, JavaScript, CSS, and PrestaShop module work so features can be developed, debugged, and refined faster.' },
+  { img: 'devflow.jpg', cat: 'Development AI', cats: ['Development AI'], title: 'AI-Augmented Development Workflow', lead: 'Faster delivery, full control.', body: 'AI-assisted engineering accelerates code generation, refactoring, debugging, and module analysis while keeping full developer control of the codebase and deployment process.' },
 ]
 
 const STEPS = [
@@ -348,7 +348,7 @@ function CtesibiusPage() {
             <div className="cx-orbit" />
             <div className="cx-orbit-inner" />
             <div className="cx-hero-glow" />
-            <img src={`${IMG}/hero.png`} alt="AI systems illustration" fetchPriority="high" />
+            <img src={`${IMG}/hero.jpg`} alt="AI systems illustration" fetchPriority="high" />
           </div>
         </div>
       </section>
@@ -374,7 +374,7 @@ function CtesibiusPage() {
         <div className="cx-wrap cx-about-grid">
           <div data-reveal="" className="cx-about-media">
             <div className="cx-about-frame" />
-            <img src={`${IMG}/team.png`} alt="Ctesibius AI team reviewing a project" loading="lazy" />
+            <img src={`${IMG}/team.jpg`} alt="Ctesibius AI team reviewing a project" loading="lazy" />
             <div className="cx-about-badge">
               <span className="cx-about-badge-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" strokeWidth="1.8" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" /></svg>

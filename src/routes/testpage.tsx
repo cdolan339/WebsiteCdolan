@@ -101,7 +101,7 @@ function TestPage() {
         <section className="sc-hero">
           <img
             className="sc-hero-img"
-            src={`${IMG}/hero-clean.png`}
+            src={`${IMG}/hero-clean.jpg`}
             alt="Sunset over layered mountain ridges"
             fetchPriority="high"
           />
