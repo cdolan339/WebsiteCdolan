@@ -16,7 +16,7 @@ import '../styles.css'
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
-    const publicPaths = ['/', '/login', '/register', '/verify', '/403', '/404']
+    const publicPaths = ['/', '/login', '/register', '/verify', '/403', '/404', '/testpage', '/testpage2']
     if (publicPaths.includes(location.pathname)) return
     if (typeof window !== 'undefined' && !isAuthenticated()) {
       throw redirect({ to: '/403' })
@@ -387,7 +387,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
 function AppShell({ children }: { children: React.ReactNode }) {
   const { location } = useRouterState()
   const navigate = useNavigate()
-  const hideNav = ['/', '/login', '/register', '/verify', '/403', '/404'].includes(location.pathname)
+  const hideNav = ['/', '/login', '/register', '/verify', '/403', '/404', '/testpage', '/testpage2'].includes(location.pathname)
   const [mounted, setMounted] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 

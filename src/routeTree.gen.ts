@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WikiRouteImport } from './routes/wiki'
 import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as Testpage2RouteImport } from './routes/testpage2'
+import { Route as TestpageRouteImport } from './routes/testpage'
 import { Route as TestSuitesRouteImport } from './routes/test-suites'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -36,6 +38,16 @@ const WikiRoute = WikiRouteImport.update({
 const VerifyRoute = VerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Testpage2Route = Testpage2RouteImport.update({
+  id: '/testpage2',
+  path: '/testpage2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestpageRoute = TestpageRouteImport.update({
+  id: '/testpage',
+  path: '/testpage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TestSuitesRoute = TestSuitesRouteImport.update({
@@ -130,6 +142,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/test-suites': typeof TestSuitesRoute
+  '/testpage': typeof TestpageRoute
+  '/testpage2': typeof Testpage2Route
   '/verify': typeof VerifyRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
@@ -150,6 +164,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/test-suites': typeof TestSuitesRoute
+  '/testpage': typeof TestpageRoute
+  '/testpage2': typeof Testpage2Route
   '/verify': typeof VerifyRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
@@ -171,6 +187,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/test-suites': typeof TestSuitesRoute
+  '/testpage': typeof TestpageRoute
+  '/testpage2': typeof Testpage2Route
   '/verify': typeof VerifyRoute
   '/wiki': typeof WikiRoute
   '/projects/$id': typeof ProjectsIdRoute
@@ -193,6 +211,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/team'
     | '/test-suites'
+    | '/testpage'
+    | '/testpage2'
     | '/verify'
     | '/wiki'
     | '/projects/$id'
@@ -213,6 +233,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/team'
     | '/test-suites'
+    | '/testpage'
+    | '/testpage2'
     | '/verify'
     | '/wiki'
     | '/projects/$id'
@@ -233,6 +255,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/team'
     | '/test-suites'
+    | '/testpage'
+    | '/testpage2'
     | '/verify'
     | '/wiki'
     | '/projects/$id'
@@ -254,6 +278,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TeamRoute: typeof TeamRoute
   TestSuitesRoute: typeof TestSuitesRoute
+  TestpageRoute: typeof TestpageRoute
+  Testpage2Route: typeof Testpage2Route
   VerifyRoute: typeof VerifyRoute
   WikiRoute: typeof WikiRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
@@ -278,6 +304,20 @@ declare module '@tanstack/react-router' {
       path: '/verify'
       fullPath: '/verify'
       preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/testpage2': {
+      id: '/testpage2'
+      path: '/testpage2'
+      fullPath: '/testpage2'
+      preLoaderRoute: typeof Testpage2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/testpage': {
+      id: '/testpage'
+      path: '/testpage'
+      fullPath: '/testpage'
+      preLoaderRoute: typeof TestpageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/test-suites': {
@@ -406,6 +446,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TeamRoute: TeamRoute,
   TestSuitesRoute: TestSuitesRoute,
+  TestpageRoute: TestpageRoute,
+  Testpage2Route: Testpage2Route,
   VerifyRoute: VerifyRoute,
   WikiRoute: WikiRoute,
   ProjectsIdRoute: ProjectsIdRoute,
